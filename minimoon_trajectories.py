@@ -62,7 +62,7 @@ if __name__ == "__main__":
     n = 2
     orbit = numpy.zeros([n, 12], dtype=numpy.double, order='F')
 
-    # RH 120 orbit - id = 1
+    # RH120 orbit - id = 1
     # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from the JPL horizons file
     orbit[0][0] = 1.0
     orbit[0][1] = 0.9977199096279007   # semimajor axis
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     orbit[0][10] = 29.5  # absolute magnitude of object (H)
     orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
 
-    # RH 120 orbit - id = 2
+    # CD3 orbit - id = 2
     # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from the JPL horizons file
     orbit[1][0] = 2.0
     orbit[1][1] = 1.022115305313184  # semimajor axis
