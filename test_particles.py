@@ -44,10 +44,10 @@ if __name__ == "__main__":
     # using the first item in PS-SSM, 1/100th density, s1.01 file.
 
     # Number of orbits
-    N = 3
+    N = 10
     orbit_ids = np.linspace(0., N, num=N, dtype=int).astype(float)
-    a_dist = np.linspace(0.997700000, 0.9978, num=N) # Distribution of semimajor axes (AU)
-    e_dist = 0.03744067182298642 * np.ones(N)  # Eccentricity
+    a_dist = 0.9977199096279007 * np.ones(N)  # Distribution of semimajor axes (AU)
+    e_dist = np.linspace(0.03, 0.04, num=N)  # Eccentricity
     in_dist = np.deg2rad(0.3093522132878884) * np.ones(N)  # Inclinations (rad)
     om_dist = np.deg2rad(323.0881705631016) * np.ones(N)  # Longitude of Ascending node (rad)
     w_dist = np.deg2rad(206.3169504727512) * np.ones(N)  # Argument of Periapsis (rad)
@@ -79,10 +79,22 @@ if __name__ == "__main__":
     orbitrh[0][10] = 29.5  # absolute magnitude of object (H)
     orbitrh[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
 
+    # Perturbers - Array of ints (0 = FALSE (i.e. not included) and 1 = TRUE) if a gravitational body should be included in integrations
+    mercury = 1
+    venus = 1
+    earth = 0
+    mars = 1
+    jupiter = 1
+    saturn = 1
+    uranus = 1
+    neptune = 1
+    pluto = 1
+    moon = 1
+    perturbers = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, moon]
 
     obscode = "500"  # Where are you observing from: https://minorplanetcenter.net/iau/lists/ObsCodesF.html
     mjds = np.arange(Time('2006-04-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'),
-                        Time('2006-09-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'), 1)
+                        Time('2007-04-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'), 1)
     epochs = np.array(list(zip(mjds, [1] * len(mjds))), dtype=np.double, order='F')
 
     # Check output format from: https://github.com/oorb/oorb/tree/master/python
@@ -90,7 +102,8 @@ if __name__ == "__main__":
     eph, err = pyoorb.pyoorb.oorb_ephemeris_full(in_orbits=orbit,
                                                  in_obscode=obscode,
                                                  in_date_ephems=epochs,
-                                                 in_dynmodel='N')
+                                                 in_dynmodel='N',
+                                                 in_perturbers=perturbers)
     if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
 
     # Check output format from: https://github.com/oorb/oorb/tree/master/python
@@ -98,7 +111,8 @@ if __name__ == "__main__":
     ephrh, err = pyoorb.pyoorb.oorb_ephemeris_full(in_orbits=orbitrh,
                                                  in_obscode=obscode,
                                                  in_date_ephems=epochs,
-                                                 in_dynmodel='N')
+                                                 in_dynmodel='N',
+                                                 in_perturbers=perturbers)
     if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
 
     # draw Earth
@@ -124,8 +138,6 @@ if __name__ == "__main__":
         x = eph[i][:, 24] - eph[i][:, 30]
         y = eph[i][:, 25] - eph[i][:, 31]
         z = eph[i][:, 26] - eph[i][:, 32]
-
-        print(i)
 
         orbit_lbl = 'Orbit {}'.format(i)
         ax.plot3D(x, y, z, 'blue', label=orbit_lbl)

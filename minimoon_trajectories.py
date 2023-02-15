@@ -8,6 +8,7 @@ from astropy.time import Time
 import matplotlib.pyplot as plt
 from astroquery.jplhorizons import Horizons
 import pandas as pd
+from array import array
 
 
 
@@ -92,12 +93,19 @@ if __name__ == "__main__":
     orbit[1][10] = 31.74 # absolute magnitude of object (H)
     orbit[1][11] = 0.15  # photometric slope parameter of the target - G from HG model
 
-    """
-    print('calling oorb_element_transformation')
-    new_orb, err = pyoorb.pyoorb.oorb_element_transformation(
-        in_orbits=orbit,
-        in_element_type=3)
-    """
+    # Perturbers - Array of ints (0 = FALSE (i.e. not included) and 1 = TRUE) if a gravitational body should be included in integrations
+    mercury = 1
+    venus = 1
+    earth = 1
+    mars = 1
+    jupiter = 1
+    saturn = 1
+    uranus = 1
+    neptune = 1
+    pluto = 1
+    moon = 0
+    perturbers = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, moon]
+
 
     obscode = "500"  # Where are you observing from: https://minorplanetcenter.net/iau/lists/ObsCodesF.html
     mjds = numpy.arange(Time('2006-04-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'),
@@ -112,7 +120,8 @@ if __name__ == "__main__":
     eph, err = pyoorb.pyoorb.oorb_ephemeris_full(in_orbits=orbit[0][:].reshape(1, 12),
                                                  in_obscode=obscode,
                                                  in_date_ephems=epochs,
-                                                 in_dynmodel='N')
+                                                 in_dynmodel='N',
+                                                 in_perturbers=perturbers)
     if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
 
     # Check output format from: https://github.com/oorb/oorb/tree/master/python
@@ -120,7 +129,8 @@ if __name__ == "__main__":
     cd3_eph, err = pyoorb.pyoorb.oorb_ephemeris_full(in_orbits=orbit[1][:].reshape(1, 12),
                                                  in_obscode=obscode,
                                                  in_date_ephems=epochs_cd3,
-                                                 in_dynmodel='N')
+                                                 in_dynmodel='N',
+                                                 in_perturbers=perturbers)
     if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
 
     # To get observer centered cartesian
