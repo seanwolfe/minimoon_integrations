@@ -7,7 +7,7 @@ import os
 from astropy.time import Time
 import matplotlib.pyplot as plt
 from astroquery.jplhorizons import Horizons
-import pandas as pd
+from minimoon_check import  minimoon_check
 
 np.set_printoptions(formatter={'float': lambda x: "{0:0.16f}".format(x)})
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     # Perturbers - Array of ints (0 = FALSE (i.e. not included) and 1 = TRUE) if a gravitational body should be included in integrations
     mercury = 1
     venus = 1
-    earth = 0
+    earth = 1
     mars = 1
     jupiter = 1
     saturn = 1

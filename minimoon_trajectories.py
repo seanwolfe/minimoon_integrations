@@ -7,10 +7,10 @@ import os
 from astropy.time import Time
 import matplotlib.pyplot as plt
 from astroquery.jplhorizons import Horizons
-import pandas as pd
-from array import array
-
-
+from minimoon_check import minimoon_check
+import sys
+import numpy
+numpy.set_printoptions(threshold=sys.maxsize)
 
 if __name__ == "__main__":
 
@@ -103,13 +103,13 @@ if __name__ == "__main__":
     uranus = 1
     neptune = 1
     pluto = 1
-    moon = 0
+    moon = 1
     perturbers = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, moon]
 
 
     obscode = "500"  # Where are you observing from: https://minorplanetcenter.net/iau/lists/ObsCodesF.html
-    mjds = numpy.arange(Time('2006-04-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'),
-                        Time('2007-09-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'), 1)
+    mjds = numpy.arange(Time('2005-04-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'),
+                        Time('2009-09-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'), 1)
     mjds_cd3 = numpy.arange(Time('2018-01-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'),
                             Time('2020-05-01T00:00:00', format='isot', scale='utc').to_value('mjd', 'long'), 1)
     epochs = numpy.array(list(zip(mjds, [1] * len(mjds))), dtype=numpy.double, order='F')
@@ -124,6 +124,9 @@ if __name__ == "__main__":
                                                  in_perturbers=perturbers)
     if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
 
+    n = minimoon_check(eph)
+
+    """
     # Check output format from: https://github.com/oorb/oorb/tree/master/python
     print("calling oorb_ephemeris_full (n-body)")
     cd3_eph, err = pyoorb.pyoorb.oorb_ephemeris_full(in_orbits=orbit[1][:].reshape(1, 12),
@@ -172,7 +175,7 @@ if __name__ == "__main__":
     ax.set_zlabel('z (AU)')
 
     plt.show()
-
+    """
 
 
 
