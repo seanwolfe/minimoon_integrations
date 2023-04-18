@@ -3,7 +3,7 @@ from astropy.time import Time
 import astropy.units as u
 from space_fncs import eci_ecliptic_to_sunearth_synodic
 
-def minimoon_check(ephs, obs_state, grav_param, start_time, int_step):
+def minimoon_check(ephs, obs_state, grav_param, start_time, int_step, eclip_long):
     """
     this function is meant to check if and for what period of time the generated ephemerides (from oorb's pyoorb)
     for certain test particles
@@ -22,8 +22,10 @@ def minimoon_check(ephs, obs_state, grav_param, start_time, int_step):
             grav_param: Is the gravitational constant of the body in question (m3/s2)
             start_time: Start time of the integrations (As a calendar date)
             int_step: fraction of day integration steps are divided into
+            eclip_long: ecliptic longitude in sun-earth co-rotating frame
     :return: several statistics...
     """
+    print("Using Open Orb")
 
     # Important constants
     mu = grav_param
@@ -52,7 +54,8 @@ def minimoon_check(ephs, obs_state, grav_param, start_time, int_step):
     satisfied_3 = np.zeros((N, 1))   # If the object satisfied condition 3 from the function definition during its
     # temp capture
     revolutions = np.zeros((N, 1))   # The number of revolutions completed during the temp capture
-    cum_angle = np.zeros((N, 1))   # The cumulative angle over the temporary capture
+    cum_angle = 0.  # The cumulative angle over the temporary capture
+    thresh = 200
 
     # Variables to provide information of condition 4 (see function definition)
     satisfied_4 = np.zeros((N, steps))  # ==1 when condition one is satisfied ==0 otherwise
@@ -69,10 +72,7 @@ def minimoon_check(ephs, obs_state, grav_param, start_time, int_step):
     prev_capture = 0
     release_date = 0
 
-    #Observer state vector
-    x_obs = obs_state[0, :]
-    y_obs = obs_state[1, :]
-    z_obs = obs_state[2, :]
+    # Observer state vector
     vx_obs = obs_state[3, :]
     vy_obs = obs_state[4, :]
     vz_obs = obs_state[5, :]
@@ -85,9 +85,9 @@ def minimoon_check(ephs, obs_state, grav_param, start_time, int_step):
 
     for j in range(0, steps):
         # Body-centered x,y,z of minimoon from openorb data
-        x = ephs[j, 24] - x_obs[j]
-        y = ephs[j, 25] - y_obs[j]
-        z = ephs[j, 26] - z_obs[j]
+        x = ephs[j, 24]
+        y = ephs[j, 25]
+        z = ephs[j, 26]
 
         d = np.sqrt(x**2 + y**2 + z**2)  # Distance of minimoon to observer
         distance[0, j] = d
@@ -136,22 +136,26 @@ def minimoon_check(ephs, obs_state, grav_param, start_time, int_step):
 
         # Check to see how many revolutions were made during capture phase
         if captured[0, j] == 1 and j > 0:
-            if captured[0, j-1] == 1:
-                curr_angle = ephs[j, 11]  # Grab ecliptic longitude in the topocentric frame (== earth-centered
-                # if observer is at center of Earth
-                prev_angle = ephs[j-1, 11]
-                diff_angle = curr_angle - prev_angle  # how much object moved
-                if abs(diff_angle) > 180:
-                    diff_angle = -360 + diff_angle
-                cum_angle[0, 0] += diff_angle
+            if captured[0, j - 1] == 1:
+                if j > 0:
+                    i0 = eclip_long[0, j]
+                    im1 = eclip_long[0, j - 1]
+
+                    if abs(i0 - im1) > thresh:
+                        if i0 > im1:
+                            cum_angle += eclip_long[0, j] - eclip_long[0, j - 1] - 360
+                        elif im1 > i0:
+                            cum_angle += eclip_long[0, j] - eclip_long[0, j - 1] + 360
+                    else:
+                        cum_angle += eclip_long[0, j] - eclip_long[0, j - 1]
             else:
-                cum_angle[0, 0] = 0  # reset if previously uncaptured
+                cum_angle = 0  # reset if previously uncaptured
 
     distances[0, :] = distance[0, :]
     vs_rel[0, :] = v_rel_j[0, :]
     epsilons[0, :] = epsilon_j[0, :]
     min_distances[0, 0] = min(distance[0, :])
-    revolutions[0, 0] = abs(cum_angle[0, 0] / 360.0)
+    revolutions[0, 0] = abs(cum_angle / 360.0)
     if revolutions[0, 0] >= 1:
         satisfied_3[0, 0] = 1
 
@@ -176,11 +180,12 @@ def minimoon_check(ephs, obs_state, grav_param, start_time, int_step):
         print("Approached to within 1 Earth Hill radius: NO")
 
     print("Minimum distance reached to observer (AU): " + str(min_distances[0, 0]))
+    print("...done")
     print("\n")
 
     return N
 
-def minimoon_check_jpl(minimoon_state, grav_param, start_time, int_step_unit):
+def minimoon_check_jpl(minimoon_state, grav_param, start_time, int_step_unit, eclip_long):
     """
     this function is meant to check if and for what period of time the generated ephemerides (from JPL horizons)
     for known bodies wrt to a known body
@@ -200,6 +205,8 @@ def minimoon_check_jpl(minimoon_state, grav_param, start_time, int_step_unit):
             elciptic longitude wrt to observer (degrees)
     :return: several statistics...
     """
+
+    print("Using JPL Horizons")
 
     # Important constants
     mu = grav_param
@@ -236,7 +243,8 @@ def minimoon_check_jpl(minimoon_state, grav_param, start_time, int_step_unit):
     satisfied_3 = np.zeros((N, 1))   # If the object satisfied condition 3 from the function definition during its
     # temp capture
     revolutions = np.zeros((N, 1))   # The number of revolutions completed during the temp capture
-    cum_angle = np.zeros((N, 1))   # The cumulative angle over the temporary capture
+    cum_angle_ecl_jpl = 0.  # The cumulative angle over the temporary capture
+    thresh = 200
 
     # Variables to provide information of condition 4 (see function definition)
     satisfied_4 = np.zeros((N, steps))  # ==1 when condition one is satisfied ==0 otherwise
@@ -313,22 +321,38 @@ def minimoon_check_jpl(minimoon_state, grav_param, start_time, int_step_unit):
 
         # Check to see how many revolutions were made during capture phase
         if captured[0, j] == 1 and j > 0:
-            if captured[0, j-1] == 1:
-                curr_angle = ecl_lon[j]  # Grab ecliptic longitude in the topocentric frame (== earth-centered
-                # if observer is at center of Earth
-                prev_angle = ecl_lon[j-1]
-                diff_angle = curr_angle - prev_angle  # how much object moved
-                if abs(diff_angle) > 180:
-                    diff_angle = -360 + diff_angle
-                cum_angle[0, 0] += diff_angle
+            if captured[0, j - 1] == 1:
+                if j > 0:
+                    i0 = eclip_long[0, j]
+                    ip1 = eclip_long[0, j + 1]
+                    im1 = eclip_long[0, j - 1]
+
+                    # if (i0 - im1) / abs(i0 - im1) == 1 and (ip1 - i0) / abs(ip1 - i0) == 1:
+                    #     cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1]
+                    # elif (i0 - im1) / abs(i0 - im1) == -1 and (ip1 - i0) / abs(ip1 - i0) == -1:
+                    #     cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1]
+                    # elif (i0 - im1) / abs(i0 - im1) == 1 and (ip1 - i0) / abs(ip1 - i0) == -1:
+                    #     if im1 > ip1:
+                    #         cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1]
+                    #     else:
+                    #         cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1]
+                    #         print("Hello")
+                    # else:
+                    if abs(i0 - im1) > thresh:
+                        if i0 > im1:
+                            cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1] - 360
+                        elif im1 > i0:
+                            cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1] + 360
+                    else:
+                        cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1]
             else:
-                cum_angle[0, 0] = 0  # reset if previously uncaptured
+                cum_angle_ecl_jpl = 0  # reset if previously uncaptured
 
     distances[0, :] = distance[0, :]
     vs_rel[0, :] = v_rel_j[0, :]
     epsilons[0, :] = epsilon_j[0, :]
     min_distances[0, 0] = min(distance[0, :])
-    revolutions[0, 0] = abs(cum_angle / 360.0)
+    revolutions[0, 0] = abs(cum_angle_ecl_jpl / 360.0)
     if revolutions[0, 0] >= 1:
         satisfied_3[0, 0] = 1
 
@@ -354,6 +378,7 @@ def minimoon_check_jpl(minimoon_state, grav_param, start_time, int_step_unit):
         print("Approached to within 1 Earth Hill radius: NO")
 
     print("Minimum distance reached to observer (AU): " + str(min_distances[0, 0]))
+    print("...Done")
     print("\n")
 
     return

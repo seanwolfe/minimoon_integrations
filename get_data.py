@@ -76,14 +76,14 @@ def get_data_jpl(minimoon, int_step, int_step_unit, start_time, end_time):
                            vz_minim.tolist(), ecl_long.tolist()]
 
     # Write data to text file
-    np.savetxt(minimoon + '_wrt_earth_jpl_' + int_step_jpl_unit + '.txt', minim_wrt_earth_jpl)
+    np.savetxt('ephemeris/' + minimoon + '_wrt_earth_jpl_' + int_step_jpl_unit + '.txt', minim_wrt_earth_jpl)
 
     # Data
     minim_wrt_emb_jpl = [x_minim_emb.tolist(), y_minim_emb.tolist(), z_minim_emb.tolist(), vx_minim_emb.tolist(),
                          vy_minim_emb.tolist(), vz_minim_emb.tolist(), ecl_long_emb.tolist()]
 
     # Write data to text file
-    np.savetxt(minimoon + '_wrt_emb_jpl_' + int_step_jpl_unit + '.txt', minim_wrt_emb_jpl)
+    np.savetxt('ephemeris/' + minimoon + '_wrt_emb_jpl_' + int_step_jpl_unit + '.txt', minim_wrt_emb_jpl)
     ##################################################
 
     #############################################
@@ -109,7 +109,7 @@ def get_data_jpl(minimoon, int_step, int_step_unit, start_time, end_time):
     moon_jpl = [x_moon.tolist(), y_moon.tolist(), z_moon.tolist(), vx_moon.tolist(), vy_moon.tolist(), vz_moon.tolist()]
 
     # Write data to text file
-    np.savetxt(minimoon + '_moon_wrt_earth_jpl_' + int_step_jpl_unit + '.txt', moon_jpl)
+    np.savetxt('ephemeris/' + minimoon + '_moon_wrt_earth_jpl_' + int_step_jpl_unit + '.txt', moon_jpl)
     ###############################################
 
     #############################################
@@ -134,7 +134,7 @@ def get_data_jpl(minimoon, int_step, int_step_unit, start_time, end_time):
     emb_jpl = [x_emb.tolist(), y_emb.tolist(), z_emb.tolist(), vx_emb.tolist(), vy_emb.tolist(), vz_emb.tolist()]
 
     # Write data to text file
-    np.savetxt(minimoon + '_emb_wrt_sun_jpl_' + int_step_jpl_unit + '.txt', emb_jpl)
+    np.savetxt('ephemeris/' + minimoon + '_emb_wrt_sun_jpl_' + int_step_jpl_unit + '.txt', emb_jpl)
     #################################################
 
     ################################################
@@ -159,7 +159,7 @@ def get_data_jpl(minimoon, int_step, int_step_unit, start_time, end_time):
     earth_wrt_sun_jpl = [x_earth.tolist(), y_earth.tolist(), z_earth.tolist(), vx_earth.tolist(), vy_earth.tolist(), vz_earth.tolist()]
 
     # Write data to text file
-    np.savetxt(minimoon + '_earth_wrt_sun_jpl_' + int_step_jpl_unit + '.txt', earth_wrt_sun_jpl)
+    np.savetxt('ephemeris/' + minimoon + '_earth_wrt_sun_jpl_' + int_step_jpl_unit + '.txt', earth_wrt_sun_jpl)
     ###########################################################
 
     ################################################
@@ -185,7 +185,7 @@ def get_data_jpl(minimoon, int_step, int_step_unit, start_time, end_time):
                          vz_earth.tolist()]
 
     # Write data to text file
-    np.savetxt(minimoon + '_sun_wrt_earth_jpl_' + int_step_jpl_unit + '.txt', sun_wrt_earth_jpl)
+    np.savetxt('ephemeris/' + minimoon + '_sun_wrt_earth_jpl_' + int_step_jpl_unit + '.txt', sun_wrt_earth_jpl)
     ###########################################################
 
     return
@@ -267,8 +267,15 @@ def get_data_openorb(minimoon, int_step, perturbers, start_time, end_time):
                                                  in_perturbers=perturbers)
     if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
 
+    if int_step == 1:
+        int_step_unit = 'd'
+    elif int_step == 1/24:
+        int_step_unit = 'h'
+    else:
+        int_step_unit = 'm'
+
     for i in range(len(eph)):
-        np.savetxt(minimoon + '_' + str(i) + '_wrt_earth_openorb_' + str(int_step) + '.txt', eph[i][:, :])
+        np.savetxt('ephemeris/' + minimoon + '_' + str(i) + '_wrt_earth_openorb_' + int_step_unit + '.txt', eph[i][:, :])
 
     return
 
