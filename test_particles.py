@@ -7,7 +7,7 @@ import os
 from astropy.time import Time
 import matplotlib.pyplot as plt
 from astroquery.jplhorizons import Horizons
-from minimoon_check import  minimoon_check
+from minimoon_check import minimoon_check_oorb
 
 np.set_printoptions(formatter={'float': lambda x: "{0:0.16f}".format(x)})
 

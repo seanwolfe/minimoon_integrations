@@ -3,7 +3,7 @@ from astropy.time import Time
 import astropy.units as u
 from space_fncs import eci_ecliptic_to_sunearth_synodic
 
-def minimoon_check(ephs, obs_state, grav_param, start_time, int_step, eclip_long):
+def minimoon_check_oorb(ephs, obs_state, grav_param, start_time, int_step, eclip_long):
     """
     this function is meant to check if and for what period of time the generated ephemerides (from oorb's pyoorb)
     for certain test particles
