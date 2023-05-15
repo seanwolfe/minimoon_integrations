@@ -4,8 +4,7 @@ import astropy.units as u
 import pyoorb
 import numpy as np
 import matplotlib.pyplot as plt
-from minimoon_check import minimoon_check_oorb
-from minimoon_check import minimoon_check_jpl
+from MmAnalyzer import MmAnalyzer
 from get_data import get_data_jpl
 from get_data import get_data_openorb
 import sys
@@ -127,8 +126,8 @@ if __name__ == "__main__":
             minimoon_wrt_earth_jpl_cp[0:3, :] = trans_minim_jpl
             ephs_oorb_syn = minimoon_wrt_earth_openorb.copy()
             ephs_oorb_syn[:, 24:27] = trans_minim_oorb.T
-            minimoon_check_oorb(ephs_oorb_syn, earth_wrt_sun_jpl, mu_e, start_time, int_step_oorb, eclip_long_oorb)
-            minimoon_check_jpl(minimoon_wrt_earth_jpl_cp, mu_e, start_time, int_step_unit, eclip_long)
+            MmAnalyzer.minimoon_check_oorb(ephs_oorb_syn, earth_wrt_sun_jpl, mu_e, start_time, int_step_oorb, eclip_long_oorb)
+            MmAnalyzer.minimoon_check_jpl(minimoon_wrt_earth_jpl_cp, mu_e, start_time, int_step_unit, eclip_long)
 
             x_moon = moon_wrt_earth_jpl[0, :]
             y_moon = moon_wrt_earth_jpl[1, :]

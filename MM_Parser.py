@@ -4,12 +4,12 @@ This class is used to parse through the data that Dr. Fedorets provided
 import pandas as pd
 import os
 import shutil
-import matplotlib.pyplot as plt
-from MmAnalyzer import MmAnalyzer
-from astropy import constants as const
-import astropy.units as u
-import numpy
-from space_fncs import eci_ecliptic_to_sunearth_synodic
+# import matplotlib.pyplot as plt
+# from MmAnalyzer import MmAnalyzer
+# from astropy import constants as const
+# import astropy.units as u
+# import numpy
+# from space_fncs import eci_ecliptic_to_sunearth_synodic
 
 
 class MmParser:
@@ -76,10 +76,11 @@ class MmParser:
         return
 
     @staticmethod
-    def mm_file_parse(file_path):
+    def mm_file_parse(file_path, header):
         """
+        Units are au, au/day, degrees
         This function parses a single minimoon file into a appropriately labelled dataframe, column names:
-        "Object id", "Julian Date", "Distance", "Helio q", "Helio e", "Helio i", "Helio Omega ", "Helio omega",
+        "Object id", "Julian Date", "Distance", "Helio q", "Helio e", "Helio i", "Helio Omega", "Helio omega",
         "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx", "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z",
         "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i", "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)",
         "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)", "Earth vy (Helio)", "Earth vz (Helio)",
@@ -89,8 +90,8 @@ class MmParser:
 
         """
 
-        data = pd.read_csv(file_path,  sep=" ", header=None, names=["Object id", "Julian Date", "Distance", "Helio q",
-        "Helio e", "Helio i", "Helio Omega ", "Helio omega", "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx",
+        data = pd.read_csv(file_path,  sep=" ", header=header, names=["Object id", "Julian Date", "Distance", "Helio q",
+        "Helio e", "Helio i", "Helio Omega", "Helio omega", "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx",
         "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z", "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i",
         "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)", "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)",
         "Earth vy (Helio)", "Earth vz (Helio)", "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)",
@@ -98,7 +99,7 @@ class MmParser:
 
         return data
 
-
+"""
 if __name__ == '__main__':
 
     # Constants
@@ -175,7 +176,7 @@ if __name__ == '__main__':
         plt.title('Minimoon ' + str(id) + ' Trajectory in Synodic Frame')
 
         plt.show()
-
+"""
 
 
 
