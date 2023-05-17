@@ -99,6 +99,30 @@ class MmParser:
 
         return data
 
+    @staticmethod
+    def mm_file_parse_new(file_path, header):
+        """
+        Units are au, au/day, degrees
+        This function parses a single minimoon file into a appropriately labelled dataframe, column names:
+        "Object id", "Julian Date", "Distance", "Helio q", "Helio e", "Helio i", "Helio Omega", "Helio omega",
+        "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx", "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z",
+        "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i", "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)",
+        "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)", "Earth vy (Helio)", "Earth vz (Helio)",
+        "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)", "Moon vy (Helio)",
+        "Moon vz (Helio)" "Synodic x" "Synodic y" "Synodic z" "Eclip Long"
+        :return: the data frame
+
+        """
+
+        data = pd.read_csv(file_path,  sep=" ", header=header, names=["Object id", "Julian Date", "Distance", "Helio q",
+        "Helio e", "Helio i", "Helio Omega", "Helio omega", "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx",
+        "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z", "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i",
+        "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)", "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)",
+        "Earth vy (Helio)", "Earth vz (Helio)", "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)",
+        "Moon vy (Helio)", "Moon vz (Helio)", "Synodic x", "Synodic y", "Synodic z", "Eclip Long"])
+
+        return data
+
 """
 if __name__ == '__main__':
 

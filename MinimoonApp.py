@@ -9,7 +9,7 @@ from MmAnalyzer import MmAnalyzer
 from astropy import constants as const
 from MM_Parser import MmParser
 from space_fncs import eci_ecliptic_to_sunearth_synodic
-import numpy
+import numpy as np
 from astropy.units import cds
 import astropy.units as u
 from astropy.time import Time
@@ -57,6 +57,10 @@ class MainWindow(QMainWindow):
 
         # Get the data for the first minimoon file
         data, new_data = self.create_parser()
+        earth_xyz = np.array([data["Earth x (Helio)"], data["Earth y (Helio)"], data["Earth z (Helio)"]])
+        mm_xyz = np.array([data["Geo x"], data["Geo y"], data["Geo z"]])
+        trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_xyz)
+        trans_xyz_new = np.array([new_data["Synodic x"], new_data["Synodic y"], new_data["Synodic z"]])
 
         # pd.set_option('display.max_rows', None)
         # pd.set_option('display.float_format', lambda x: '%.5f' %x)
@@ -75,8 +79,6 @@ class MainWindow(QMainWindow):
 
         # create analyzer to identify key minimoon statistics
         self.mm_analyzer = MmAnalyzer()
-        trans_xyz = self.mm_analyzer.minimoon_check(data, mu_e)
-        trans_xyz_new = self.mm_analyzer.minimoon_check(new_data, mu_e)
 
         # create Earth and moon trajectories
         x_E, y_E, z_E, x_moon, y_moon, z_moon = self.earth_and_moon_traj(new_data)
@@ -103,6 +105,7 @@ class MainWindow(QMainWindow):
         self.toolbar_tr = NavigationToolbar(self.sc_tr, self)
 
         # Bottom Right : minimoon statistics
+        self.mm_analyzer.minimoon_check(new_data, mu_e)
         self.w_title = QLabel(str(self.mm_parser.mm_data["File Name"].iloc[0]))  # make title of bottom right the minimoon name
         font = self.w_title.font()
         font.setPointSize(30)
@@ -158,7 +161,9 @@ class MainWindow(QMainWindow):
         temp_file = destination_path + '/' + mm_file_name
         header = None
         data = self.mm_parser.mm_file_parse(temp_file, header)
-        trans_xyz = self.mm_analyzer.minimoon_check(data, mu_e)
+        earth_xyz = np.array([data["Earth x (Helio)"], data["Earth y (Helio)"], data["Earth z (Helio)"]])
+        mm_xyz = np.array([data["Geo x"], data["Geo y"], data["Geo z"]])
+        trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_xyz)
 
 
         # Generate new data from clicked minimoon - fedorets
@@ -167,8 +172,8 @@ class MainWindow(QMainWindow):
         mm_file_name_new = i.text() + ".csv"
         temp_file_new = destination_path_new + '/' + mm_file_name_new
         header = 0
-        new_data = self.mm_parser.mm_file_parse(temp_file_new, header)
-        trans_xyz_new = self.mm_analyzer.minimoon_check(new_data, mu_e)
+        new_data = self.mm_parser.mm_file_parse_new(temp_file_new, header)
+        trans_xyz_new = np.array([new_data["Synodic x"], new_data["Synodic y"], new_data["Synodic z"]])
 
         # create Earth and moon trajectories
         x_E, y_E, z_E, x_moon, y_moon, z_moon = self.earth_and_moon_traj(data)
@@ -197,6 +202,7 @@ class MainWindow(QMainWindow):
         self.toolbar_tr = NavigationToolbar(self.sc_tr, self)
 
         # Bottom Right : minimoon statistics
+        self.mm_analyzer.minimoon_check(new_data, mu_e)
         self.w_title.setText(str(i.text()))  # update title
         mm_flag_text = self.create_bottom_right()
         self.w_mm_flag.setText(mm_flag_text)
@@ -239,7 +245,7 @@ class MainWindow(QMainWindow):
         header = None
         data = self.mm_parser.mm_file_parse(temp_file, header)
         header = 0
-        new_data = self.mm_parser.mm_file_parse(temp_file_new, header)
+        new_data = self.mm_parser.mm_file_parse_new(temp_file_new, header)
 
         return data, new_data
 
@@ -252,10 +258,10 @@ class MainWindow(QMainWindow):
         """
 
         R_E = (6378 * u.km).to(u.AU) / u.AU
-        u_E, v_E = numpy.mgrid[0:2 * numpy.pi:50j, 0:numpy.pi:50j]
-        x_E = R_E * numpy.cos(u_E) * numpy.sin(v_E)
-        y_E = R_E * numpy.sin(u_E) * numpy.sin(v_E)
-        z_E = R_E * numpy.cos(v_E)
+        u_E, v_E = np.mgrid[0:2 * np.pi:50j, 0:np.pi:50j]
+        x_E = R_E * np.cos(u_E) * np.sin(v_E)
+        y_E = R_E * np.sin(u_E) * np.sin(v_E)
+        z_E = R_E * np.cos(v_E)
 
         # draw moon
         x_moon = data["Moon x (Helio)"] - data["Earth x (Helio)"]
