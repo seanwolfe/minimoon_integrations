@@ -145,6 +145,8 @@ class MainWindow(QMainWindow):
         :param i: this is the minimoon index which has been clicked, it is a QListWidgetItem
         :return:
         """
+        #To do: edit so you don't have to call trans function
+        #To do: edit so you don't have to call minimoon check function
 
         # Constants
         mu_e = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)

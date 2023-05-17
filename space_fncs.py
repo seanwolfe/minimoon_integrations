@@ -1,5 +1,54 @@
 import numpy as np
-import astropy as ap
+from astropy.time import Time
+import astropy.units as u
+from astropy.units import cds
+cds.enable()
+
+
+def get_M(new_data, tps, mu):
+    mean_anomaly = np.zeros([1, len(new_data["Geo e"])])
+    mu = (mu * u.m * u.m * u.m / u.s / u.s).to(u.km * u.km * u.km / u.s / u.s) / (u.km * u.km * u.km / u.s / u.s)
+
+    for idx in range(len(new_data["Geo e"])):
+        # Calculate Mean anamoly for elliptic
+        tps_jd = Time(tps[idx], format='mjd', scale='utc').to_value(format='jd')
+        e = new_data["Geo e"].iloc[idx]
+        v = ([new_data["Geo vx"].iloc[idx], new_data["Geo vy"].iloc[idx],
+              new_data["Geo vz"].iloc[idx]] * u.AU / cds.d).to(u.km / u.s) / (u.km / u.s)
+        r = ([new_data["Geo x"].iloc[idx], new_data["Geo y"].iloc[idx], new_data["Geo z"].iloc[idx]] * u.AU).to(
+            u.km) / u.km
+        h = np.linalg.norm(np.cross(r, v))
+        t = (new_data["Julian Date"].iloc[idx] - tps_jd) * 24 * 60 * 60  # convert from days to seconds
+        if e < 1.:
+            T = 2 * np.pi / (mu ** 2) * np.power(h / np.sqrt(1 - (e ** 2)), 3)
+            if t < 0:
+                mean_anomaly[0, idx] = 2*np.pi + 2 * np.pi / T * t
+            else:
+                mean_anomaly[0, idx] = 2 * np.pi / T * t
+        # Calculate Mean anomoly for parabolic
+        elif e == 1.:
+            if t < 0:
+                mean_anomaly[0, idx] = 2 * np.pi + mu ** 2 / np.power(h, 3) * t
+            else:
+                mean_anomaly[0, idx] = mu ** 2 / np.power(h, 3) * t
+        # Calcluate mean anomaly for hyperbolic
+        else:
+            if t < 0:
+                mean_anomaly[0, idx] = 2 * np.pi + mu ** 2 / np.power(h, 3) * np.power(e ** 2 - 1, 3/2) * t
+            else:
+                mean_anomaly[0, idx] = mu ** 2 / np.power(h, 3) * np.power(e ** 2 - 1, 3/2) * t
+
+    return np.mod(mean_anomaly, 2*np.pi)
+
+def getH2D(H):
+    """
+    convert absolute magnitude to diameter in meters, assuming a geometric albedo of 0.15
+    :param H: absolute magnidte of object
+    :return:D:  diameter of object in meters
+    """
+    a = 0.15
+    D = 1347/np.sqrt(a) * np.power(10, -0.2*H)
+    return D
 
 def eci_ecliptic_to_sunearth_synodic(sun_eph, obj_xyz):
     """

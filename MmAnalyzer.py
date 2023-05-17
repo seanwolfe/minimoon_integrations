@@ -4,6 +4,8 @@ from space_fncs import get_eclip_long
 import astropy.units as u
 import numpy
 from space_fncs import eci_ecliptic_to_sunearth_synodic
+from space_fncs import get_M
+from space_fncs import getH2D
 import pyoorb
 import numpy as np
 import os
@@ -11,11 +13,12 @@ from astropy.time import Time
 from astroquery.jplhorizons import Horizons
 import sys
 import matplotlib.pyplot as plt
-numpy.set_printoptions(threshold=sys.maxsize)
 from astropy.units import cds
 from astropy import constants as const
 from MM_Parser import MmParser
+
 cds.enable()
+numpy.set_printoptions(threshold=sys.maxsize)
 
 
 
@@ -33,6 +36,9 @@ class MmAnalyzer:
     one_eh_duration = ""
     min_dist = ""
     rev_flag = ""
+    cap_idx = ""
+    rel_idx = ""
+    H = ""
 
     def __init__(self):
         """
@@ -446,7 +452,7 @@ class MmAnalyzer:
         :return: several statistics...
         """
 
-        print("Using Fedorets data to analyze synthetic minimoon: " + str(data.loc[0, "Object id"]))
+        print("Using data to analyze synthetic minimoon: " + str(data.loc[0, "Object id"]))
 
         # Important constants
         mu = grav_param
@@ -493,8 +499,10 @@ class MmAnalyzer:
         time_captured = np.zeros((N, 1))
         first_capture = 0
         capture_date = 0
+        capture_idx = 0
         prev_capture = 0
         release_date = 0
+        release_idx = 0
         ident = 0
 
         # State vector components of the minimoon with respect to earth
@@ -503,13 +511,7 @@ class MmAnalyzer:
         vz = data["Geo vz"]
 
         # get the ecliptic longitude of the minimoon (to count rotations)
-        # first transform to synodic frame
-        earth_xyz = data[["Earth x (Helio)", "Earth y (Helio)", "Earth z (Helio)"]].T.values
-        mm_xyz = data[["Geo x", "Geo y", "Geo z"]].T.values
-        trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_xyz)  # minus is to have sun relative to earth
-
-        # calculate the ecliptic longitude over the trajectory
-        eclip_long = get_eclip_long(trans_xyz)
+        eclip_long = data["Eclip Long"]
 
         distance = np.zeros((1, steps))
         epsilon_j = np.zeros((1, steps))
@@ -550,6 +552,7 @@ class MmAnalyzer:
                 # Store date of capture
                 if first_capture == 0:
                     capture_date = strt_tm + (j * conv_day) * u.day
+                    capture_idx = j
                     first_capture = 1
                 captured[0, j] = 1
                 time_captured[0, 0] += 1 * conv_day
@@ -559,6 +562,7 @@ class MmAnalyzer:
                 # Store date of end of capture
                 prev_capture = 0
                 release_date = strt_tm + (j * conv_day) * u.day
+                release_idx = j
                 ident = 1
             elif (ident == 0) and (satisfied_1[0, j] == 1 and satisfied_2[0, j] == 1 and prev_capture == 1) and (j == steps - 1):
                 release_date = strt_tm + (j * conv_day) * u.day
@@ -566,15 +570,15 @@ class MmAnalyzer:
             # Check to see how many revolutions were made during capture phase
             if captured[0, j] == 1 and j > 0:
                 if captured[0, j - 1] == 1:
-                    i0 = eclip_long[0, j]
-                    im1 = eclip_long[0, j - 1]
+                    i0 = eclip_long[j]
+                    im1 = eclip_long[j - 1]
                     if abs(i0 - im1) > thresh:
                         if i0 > im1:
-                            cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1] - 360
+                            cum_angle_ecl_jpl += eclip_long[j] - eclip_long[j - 1] - 360
                         elif im1 > i0:
-                            cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1] + 360
+                            cum_angle_ecl_jpl += eclip_long[j] - eclip_long[j - 1] + 360
                     else:
-                        cum_angle_ecl_jpl += eclip_long[0, j] - eclip_long[0, j - 1]
+                        cum_angle_ecl_jpl += eclip_long[j] - eclip_long[j - 1]
                     used_3[0, j] = 1
 
         distances[0, :] = distance[0, :]
@@ -622,8 +626,10 @@ class MmAnalyzer:
         self.one_eh_duration = str(time_satisfied_4[0, 0])
         self.min_dist = str(min_distances[0, 0])
         self.rev_flag = str(True if satisfied_3[0, 0] == 1 else False)
+        self.cap_idx = capture_idx
+        self.rel_idx = release_idx
 
-        return trans_xyz
+        return
 
     def get_data_mm_oorb_w_horizons(self, mm_parser, data, int_step, perturbers, start_time, end_time, grav_param, minimoon):
         """
@@ -770,6 +776,7 @@ class MmAnalyzer:
 
         # Get the vectors table from JPL horizons
         eph_sun = obj_sun.vectors()
+        print("...done")
 
         ################################################
         # Moon wrt to Sun
@@ -794,25 +801,37 @@ class MmAnalyzer:
         "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i", "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)",
         "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)", "Earth vy (Helio)", "Earth vz (Helio)",
         "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)", "Moon vy (Helio)",
-        "Moon vz (Helio)"
+        "Moon vz (Helio)", "Synodic x", "Synodic y", "Synodic z", "Eclip Long"
         """
+
+        nsteps = 0
+        if len(eph[0]) == len(eph_sun) - 1:
+            nsteps = len(eph[0])
+        elif len(eph[0]) == len(eph_sun) + 1:
+            nsteps = len(eph_sun)
+        elif len(eph[0]) == len(eph_sun):
+            nsteps = len(eph[0])
+        else:
+            print("Horizons and OOrb integration step error")
+
         data_temp = {}
         new_data = pd.DataFrame(data_temp)
 
         # element 0 - object id
-        new_data["Object id"] = [minimoon] * len(eph[0])
+        new_data["Object id"] = [minimoon] * nsteps
 
         # element 1 - julian date
-        new_data["Julian Date"] = [Time(eph[0, i, 0], format='mjd').to_value('jd', 'long') for i in range(len(eph[0]))]
+        new_data["Julian Date"] = [Time(eph[0, i, 0], format='mjd').to_value('jd', 'long') for i in range(nsteps)]
 
         # element 2 - distance
         new_data["Distance"] = [np.sqrt((eph[0, i, 24] - eph_sun[i]['x']) ** 2 + (eph[0, i, 25] - eph_sun[i]['y']) ** 2
-                                        + (eph[0, i, 26] - eph_sun[i]['z'])**2) for i in range(len(eph[0]))]
+                                        + (eph[0, i, 26] - eph_sun[i]['z'])**2) for i in range(nsteps)]
 
         # for elements 3 to 8, state vector should be converted to cometary and keplarian orbital elements
-        orbits = np.zeros([len(eph[0]), 1, 12], dtype=np.double, order='F')
+        orbits = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
         sun_c = 11  # 11 for Sun, 3 for Earth
-        for i in range(len(eph[0])):
+        print("Getting helio keplarian osculating elements...")
+        for i in range(nsteps):
             # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
             orbits[i, :] = [i, eph[0, i, 24], eph[0, i, 25], eph[0, i, 26], eph[0, i, 27], eph[0, i, 28],
                            eph[0, i, 29], 1., eph[0, i, 0], 1., mm_parser.mm_data["x7"].iloc[2], 0.15]
@@ -824,6 +843,7 @@ class MmAnalyzer:
         # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
         new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
                                                                                   in_element_type=3, in_center=sun_c)
+        print("...done")
 
         # element 3 - Helio q
         new_data["Helio q"] = new_orbits_com[:, 1]
@@ -844,33 +864,26 @@ class MmAnalyzer:
         new_data["Helio M"] = np.rad2deg(new_orbits_kep[:, 6])
 
         # element 9-14 - State vector
-        new_data["Helio x"] = eph[0, :, 24]
-        new_data["Helio y"] = eph[0, :, 25]
-        new_data["Helio z"] = eph[0, :, 26]
-        new_data["Helio vx"] = eph[0, :, 27]
-        new_data["Helio vy"] = eph[0, :, 28]
-        new_data["Helio vz"] = eph[0, :, 29]
+        new_data["Helio x"] = eph[0, :nsteps, 24]
+        new_data["Helio y"] = eph[0, :nsteps, 25]
+        new_data["Helio z"] = eph[0, :nsteps, 26]
+        new_data["Helio vx"] = eph[0, :nsteps, 27]
+        new_data["Helio vy"] = eph[0, :nsteps, 28]
+        new_data["Helio vz"] = eph[0, :nsteps, 29]
 
         # element 15-20 - Geocentric State vector
-        if len(eph[0, :, 24]) == len(eph_sun[:]['x']):
-            new_data["Geo x"] = eph[0, :, 24] - eph_sun[:]['x']  # sun-mm pos vec - sun-earth pos vec
-            new_data["Geo y"] = eph[0, :, 25] - eph_sun[:]['y']
-            new_data["Geo z"] = eph[0, :, 26] - eph_sun[:]['z']
-            new_data["Geo vx"] = eph[0, :, 27] - eph_sun[:]['vx']  # geo is non-rotating frame vrel = vmm - ve
-            new_data["Geo vy"] = eph[0, :, 28] - eph_sun[:]['vy']
-            new_data["Geo vz"] = eph[0, :, 29] - eph_sun[:]['vz']
-        else:
-            new_data["Geo x"] = eph[0, :, 24] - eph_sun[:-1]['x']  # sun-mm pos vec - sun-earth pos vec
-            new_data["Geo y"] = eph[0, :, 25] - eph_sun[:-1]['y']
-            new_data["Geo z"] = eph[0, :, 26] - eph_sun[:-1]['z']
-            new_data["Geo vx"] = eph[0, :, 27] - eph_sun[:-1]['vx']  # geo is non-rotating frame vrel = vmm - ve
-            new_data["Geo vy"] = eph[0, :, 28] - eph_sun[:-1]['vy']
-            new_data["Geo vz"] = eph[0, :, 29] - eph_sun[:-1]['vz']
+        new_data["Geo x"] = eph[0, :nsteps, 24] - eph_sun[:nsteps]['x']  # sun-mm pos vec - sun-earth pos vec
+        new_data["Geo y"] = eph[0, :nsteps, 25] - eph_sun[:nsteps]['y']
+        new_data["Geo z"] = eph[0, :nsteps, 26] - eph_sun[:nsteps]['z']
+        new_data["Geo vx"] = eph[0, :nsteps, 27] - eph_sun[:nsteps]['vx']  # geo is non-rotating frame vrel = vmm - ve
+        new_data["Geo vy"] = eph[0, :nsteps, 28] - eph_sun[:nsteps]['vy']
+        new_data["Geo vz"] = eph[0, :nsteps, 29] - eph_sun[:nsteps]['vz']
 
         # for elements 21 to 26, geo state vector should be converted to cometary and keplarian orbital elements
-        orbits_geo = np.zeros([len(eph[0]), 1, 12], dtype=np.double, order='F')
+        orbits_geo = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
         earth_c = 3
-        for i in range(len(eph[0])):
+        print("Getting geocentric osculating keplarian elements...")
+        for i in range(nsteps):
             # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
             orbits_geo[i, :, :] = [i, new_data["Geo x"].iloc[i], new_data["Geo y"].iloc[i], new_data["Geo z"].iloc[i],
                                 new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
@@ -879,7 +892,7 @@ class MmAnalyzer:
         # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
         new_orbits_com_geo, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits_geo,
                                                                                   in_element_type=2, in_center=earth_c)
-
+        print("...Done")
 
         # element 21 - Geo q
         new_data["Geo q"] = new_orbits_com_geo[:, 1]
@@ -897,51 +910,46 @@ class MmAnalyzer:
         new_data["Geo omega"] = np.rad2deg(new_orbits_com_geo[:, 5])
 
         # element 26 - Geo M
-        temp = np.rad2deg(self.get_M(new_data, new_orbits_com_geo[:, 6], grav_param))
+        print("Calculating mean anomaly...")
+        temp = np.rad2deg(get_M(new_data, new_orbits_com_geo[:, 6], grav_param))
         new_data["Geo M"] = temp[0, :]
+        print("...done")
 
 
         # element 27-32 - Heliocentric state vector of Earth
-        if len(eph[0, :, 24]) == len(eph_sun[:]['x']):
-            new_data["Earth x (Helio)"] = eph_sun[:]['x']
-            new_data["Earth y (Helio)"] = eph_sun[:]['y']
-            new_data["Earth z (Helio)"] = eph_sun[:]['z']
-            new_data["Earth vx (Helio)"] = eph_sun[:]['vx']
-            new_data["Earth vy (Helio)"] = eph_sun[:]['vy']
-            new_data["Earth vz (Helio)"] = eph_sun[:]['vz']
+        new_data["Earth x (Helio)"] = eph_sun[:nsteps]['x']
+        new_data["Earth y (Helio)"] = eph_sun[:nsteps]['y']
+        new_data["Earth z (Helio)"] = eph_sun[:nsteps]['z']
+        new_data["Earth vx (Helio)"] = eph_sun[:nsteps]['vx']
+        new_data["Earth vy (Helio)"] = eph_sun[:nsteps]['vy']
+        new_data["Earth vz (Helio)"] = eph_sun[:nsteps]['vz']
 
-            # element 33-38 - Heliocentric state vector of moon
-            new_data["Moon x (Helio)"] = eph_moon[:]['x']
-            new_data["Moon y (Helio)"] = eph_moon[:]['y']
-            new_data["Moon z (Helio)"] = eph_moon[:]['z']
-            new_data["Moon vx (Helio)"] = eph_moon[:]['vx']
-            new_data["Moon vy (Helio)"] = eph_moon[:]['vy']
-            new_data["Moon vz (Helio)"] = eph_moon[:]['vz']
-        else:
-            new_data["Earth x (Helio)"] = eph_sun[:-1]['x']
-            new_data["Earth y (Helio)"] = eph_sun[:-1]['y']
-            new_data["Earth z (Helio)"] = eph_sun[:-1]['z']
-            new_data["Earth vx (Helio)"] = eph_sun[:-1]['vx']
-            new_data["Earth vy (Helio)"] = eph_sun[:-1]['vy']
-            new_data["Earth vz (Helio)"] = eph_sun[:-1]['vz']
+        # element 33-38 - Heliocentric state vector of moon
+        new_data["Moon x (Helio)"] = eph_moon[:nsteps]['x']
+        new_data["Moon y (Helio)"] = eph_moon[:nsteps]['y']
+        new_data["Moon z (Helio)"] = eph_moon[:nsteps]['z']
+        new_data["Moon vx (Helio)"] = eph_moon[:nsteps]['vx']
+        new_data["Moon vy (Helio)"] = eph_moon[:nsteps]['vy']
+        new_data["Moon vz (Helio)"] = eph_moon[:nsteps]['vz']
 
-            # element 33-38 - Heliocentric state vector of moon
-            new_data["Moon x (Helio)"] = eph_moon[:-1]['x']
-            new_data["Moon y (Helio)"] = eph_moon[:-1]['y']
-            new_data["Moon z (Helio)"] = eph_moon[:-1]['z']
-            new_data["Moon vx (Helio)"] = eph_moon[:-1]['vx']
-            new_data["Moon vy (Helio)"] = eph_moon[:-1]['vy']
-            new_data["Moon vz (Helio)"] = eph_moon[:-1]['vz']
+
+        print("Getting synodic x,y,z, ecliptic longitude...")
+        earth_xyz = np.array([new_data["Earth x (Helio)"], new_data["Earth y (Helio)"], new_data["Earth z (Helio)"]])
+        mm_xyz = np.array([new_data["Geo x"], new_data["Geo y"], new_data["Geo z"]])
+        trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_xyz)  # minus is to have sun relative to earth
+
+        new_data["Synodic x"] = trans_xyz[0, :]
+        new_data["Synodic y"] = trans_xyz[1, :]
+        new_data["Synodic z"] = trans_xyz[2, :]
+
+        eclip_long = get_eclip_long(trans_xyz)
+        new_data["Eclip Long"] = eclip_long[0, :]
+
+        print("...done")
 
         # Encapsulate comparison graphs into function to compare with fedorets data
         #if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
         #    self.compare(eph, data, new_data)
-
-        ##########
-        # To do
-        #########
-
-        # save files into csvs to make a new set of minimoon files with good integration step
 
         return new_data
 
@@ -1114,41 +1122,6 @@ class MmAnalyzer:
 
         return
 
-    @staticmethod
-    def get_M(new_data, tps, mu):
-        mean_anomaly = np.zeros([1, len(new_data["Geo e"])])
-        mu = (mu * u.m * u.m * u.m / u.s / u.s).to(u.km * u.km * u.km / u.s / u.s) / (u.km * u.km * u.km / u.s / u.s)
-
-        for idx in range(len(new_data["Geo e"])):
-            # Calculate Mean anamoly for elliptic
-            tps_jd = Time(tps[idx], format='mjd', scale='utc').to_value(format='jd')
-            e = new_data["Geo e"].iloc[idx]
-            v = ([new_data["Geo vx"].iloc[idx], new_data["Geo vy"].iloc[idx],
-                  new_data["Geo vz"].iloc[idx]] * u.AU / cds.d).to(u.km / u.s) / (u.km / u.s)
-            r = ([new_data["Geo x"].iloc[idx], new_data["Geo y"].iloc[idx], new_data["Geo z"].iloc[idx]] * u.AU).to(
-                u.km) / u.km
-            h = np.linalg.norm(np.cross(r, v))
-            t = (new_data["Julian Date"].iloc[idx] - tps_jd) * 24 * 60 * 60  # convert from days to seconds
-            if e < 1.:
-                T = 2 * np.pi / (mu ** 2) * np.power(h / np.sqrt(1 - (e ** 2)), 3)
-                if t < 0:
-                    mean_anomaly[0, idx] = 2*np.pi + 2 * np.pi / T * t
-                else:
-                    mean_anomaly[0, idx] = 2 * np.pi / T * t
-            # Calculate Mean anomoly for parabolic
-            elif e == 1.:
-                if t < 0:
-                    mean_anomaly[0, idx] = 2 * np.pi + mu ** 2 / np.power(h, 3) * t
-                else:
-                    mean_anomaly[0, idx] = mu ** 2 / np.power(h, 3) * t
-            # Calcluate mean anomaly for hyperbolic
-            else:
-                if t < 0:
-                    mean_anomaly[0, idx] = 2 * np.pi + mu ** 2 / np.power(h, 3) * np.power(e ** 2 - 1, 3/2) * t
-                else:
-                    mean_anomaly[0, idx] = mu ** 2 / np.power(h, 3) * np.power(e ** 2 - 1, 3/2) * t
-
-        return np.mod(mean_anomaly, 2*np.pi)
 
 if __name__ == '__main__':
 
@@ -1185,6 +1158,10 @@ if __name__ == '__main__':
     # create an analyzer
     mm_analyzer = MmAnalyzer()
 
+    ####################################################################
+    # Integrating data to generate new data from fedorets original data, generate new data file
+    ####################################################################
+
     # Perturbers (for OpenOrb) - Array of ints (0 = FALSE (i.e. not included) and 1 = TRUE) if a gravitational body
     # should be included in integrations
     mercury = 1
@@ -1199,11 +1176,36 @@ if __name__ == '__main__':
     moon = 1
     perturbers = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, moon]
 
+    my_master_file = pd.DataFrame(columns=['Object id', 'H', 'D', 'Capture Date', 'Helio x at Capture',
+                                           'Helio y at Capture', 'Helio z at Capture', 'Helio vx at Capture',
+                                           'Helio vy at Capture','Helio vz at Capture', 'Helio q at Capture',
+                                           'Helio e at Capture', 'Helio i at Capture', 'Helio Omega at Capture',
+                                           'Helio omega at Capture', 'Helio M at Capture', 'Geo x at Capture',
+                                           'Geo y at Capture', 'Geo z at Capture', 'Geo vx at Capture', 'Geo vy at Capture',
+                                           'Geo vz at Capture', 'Geo q at Capture', 'Geo e at Capture',
+                                           'Geo i at Capture', 'Geo Omega at Capture', 'Geo omega at Capture',
+                                           'Geo M at Capture','Moon (Helio) x at Capture', 'Moon (Helio) y at Capture',
+                                           'Moon (Helio) z at Capture', 'Moon (Helio) vx at Capture',
+                                           'Moon (Helio) vy at Capture', 'Moon (Helio) vz at Capture',
+                                           'Capture Duration', 'Spec. En. Duration', '3 Hill Duration', 'Number of Rev',
+                                           '1 Hill Duration', 'Min. Distance', 'Release Date', 'Helio x at Release',
+                                           'Helio y at Release', 'Helio z at Release', 'Helio vx at Release',
+                                           'Helio vy at Release','Helio vz at Release', 'Helio q at Release',
+                                           'Helio e at Release', 'Helio i at Release', 'Helio Omega at Release',
+                                           'Helio omega at Release', 'Helio M at Release', 'Geo x at Release',
+                                           'Geo y at Release', 'Geo z at Release', 'Geo vx at Release', 'Geo vy at Release',
+                                           'Geo vz at Release', 'Geo q at Release', 'Geo e at Release',
+                                           'Geo i at Release', 'Geo Omega at Release', 'Geo omega at Release',
+                                           'Geo M at Release','Moon (Helio) x at Release', 'Moon (Helio) y at Release',
+                                           'Moon (Helio) z at Release', 'Moon (Helio) vx at Release',
+                                           'Moon (Helio) vy at Release', 'Moon (Helio) vz at Release'])
+
     int_step = 1 / 24
     errors = []
     # Loop over all the files
     for i in range(len(mm_parser.mm_data["File Name"])):
-        i += 522
+        i += 11
+        print(i)
         mm_file_name = mm_parser.mm_data["File Name"].iloc[i] + ".dat"
         temp_file = source_path + '/' + mm_file_name
         header = None
@@ -1234,9 +1236,130 @@ if __name__ == '__main__':
             new_data = mm_analyzer.get_data_mm_oorb_w_horizons(mm_parser, data, int_step, perturbers,
                                                            start_time, end_time, mu_e, minimoon)
 
+            mm_analyzer.H = mm_parser.mm_data['x7'].iloc[i]
             new_data.to_csv(destination_path + '/' + minimoon + '.csv', sep=' ', header=True, index=False)
 
-            print(i)
+            ########################################################################################################
+            # generate a new master file, which contains pertinant information about the capture for each minimoon
+            #########################################################################################################
+
+            # perform a minimoon_check analysis on it
+            mm_analyzer.minimoon_check(new_data, mu_e)
+
+            hx = new_data['Helio x'].iloc[mm_analyzer.cap_idx]
+            hy = new_data['Helio y'].iloc[mm_analyzer.cap_idx]
+            hz = new_data['Helio z'].iloc[mm_analyzer.cap_idx]
+            hvx = new_data['Helio vx'].iloc[mm_analyzer.cap_idx]
+            hvy = new_data['Helio vy'].iloc[mm_analyzer.cap_idx]
+            hvz = new_data['Helio vz'].iloc[mm_analyzer.cap_idx]
+            #caphelstavec = [hx, hy, hz, hvx, hvy, hvz]
+
+            hq = new_data['Helio q'].iloc[mm_analyzer.cap_idx]
+            he = new_data['Helio e'].iloc[mm_analyzer.cap_idx]
+            hi = new_data['Helio i'].iloc[mm_analyzer.cap_idx]
+            hOm = new_data['Helio Omega'].iloc[mm_analyzer.cap_idx]
+            hom = new_data['Helio omega'].iloc[mm_analyzer.cap_idx]
+            hM = new_data['Helio M'].iloc[mm_analyzer.cap_idx]
+            #caphelkep = [hq, he, hi, hOm, hom, hM]
+
+            gx = new_data['Geo x'].iloc[mm_analyzer.cap_idx]
+            gy = new_data['Geo y'].iloc[mm_analyzer.cap_idx]
+            gz = new_data['Geo z'].iloc[mm_analyzer.cap_idx]
+            gvx = new_data['Geo vx'].iloc[mm_analyzer.cap_idx]
+            gvy = new_data['Geo vy'].iloc[mm_analyzer.cap_idx]
+            gvz = new_data['Geo vz'].iloc[mm_analyzer.cap_idx]
+            #capgeostavec = [gx, gy, gz, gvx, gvy, gvz]
+
+            gq = new_data['Geo q'].iloc[mm_analyzer.cap_idx]
+            ge = new_data['Geo e'].iloc[mm_analyzer.cap_idx]
+            gi = new_data['Geo i'].iloc[mm_analyzer.cap_idx]
+            gOm = new_data['Geo Omega'].iloc[mm_analyzer.cap_idx]
+            gom = new_data['Geo omega'].iloc[mm_analyzer.cap_idx]
+            gM = new_data['Geo M'].iloc[mm_analyzer.cap_idx]
+            #capgeokep = [gq, ge, gi, gOm, gom, gM]
+
+            hmx = new_data['Moon x (Helio)'].iloc[mm_analyzer.cap_idx]
+            hmy = new_data['Moon y (Helio)'].iloc[mm_analyzer.cap_idx]
+            hmz = new_data['Moon z (Helio)'].iloc[mm_analyzer.cap_idx]
+            hmvx = new_data['Moon vx (Helio)'].iloc[mm_analyzer.cap_idx]
+            hmvy = new_data['Moon vy (Helio)'].iloc[mm_analyzer.cap_idx]
+            hmvz = new_data['Moon vz (Helio)'].iloc[mm_analyzer.cap_idx]
+            #capmoonstavec = [hmx, hmy, hmz, hmvx, hmvy, hmvz]
+
+            rhx = new_data['Helio x'].iloc[mm_analyzer.rel_idx]
+            rhy = new_data['Helio y'].iloc[mm_analyzer.rel_idx]
+            rhz = new_data['Helio z'].iloc[mm_analyzer.rel_idx]
+            rhvx = new_data['Helio vx'].iloc[mm_analyzer.rel_idx]
+            rhvy = new_data['Helio vy'].iloc[mm_analyzer.rel_idx]
+            rhvz = new_data['Helio vz'].iloc[mm_analyzer.rel_idx]
+            #relhelstavec = [rhx, rhy, rhz, rhvx, rhvy, rhvz]
+
+            rhq = new_data['Helio q'].iloc[mm_analyzer.rel_idx]
+            rhe = new_data['Helio e'].iloc[mm_analyzer.rel_idx]
+            rhi = new_data['Helio i'].iloc[mm_analyzer.rel_idx]
+            rhOm = new_data['Helio Omega'].iloc[mm_analyzer.rel_idx]
+            rhom = new_data['Helio omega'].iloc[mm_analyzer.rel_idx]
+            rhM = new_data['Helio M'].iloc[mm_analyzer.rel_idx]
+            #relhelkep = [rhq, rhe, rhi, rhOm, rhom, rhM]
+
+            rgx = new_data['Geo x'].iloc[mm_analyzer.rel_idx]
+            rgy = new_data['Geo y'].iloc[mm_analyzer.rel_idx]
+            rgz = new_data['Geo z'].iloc[mm_analyzer.rel_idx]
+            rgvx = new_data['Geo vx'].iloc[mm_analyzer.rel_idx]
+            rgvy = new_data['Geo vy'].iloc[mm_analyzer.rel_idx]
+            rgvz = new_data['Geo vz'].iloc[mm_analyzer.rel_idx]
+            #relgeostavec = [rgx, rgy, rgz, rgvx, rgvy, rgvz]
+
+            rgq = new_data['Geo q'].iloc[mm_analyzer.rel_idx]
+            rge = new_data['Geo e'].iloc[mm_analyzer.rel_idx]
+            rgi = new_data['Geo i'].iloc[mm_analyzer.rel_idx]
+            rgOm = new_data['Geo Omega'].iloc[mm_analyzer.rel_idx]
+            rgom = new_data['Geo omega'].iloc[mm_analyzer.rel_idx]
+            rgM = new_data['Geo M'].iloc[mm_analyzer.rel_idx]
+            #relgeokep = [rgq, rge, rgi, rgOm, rgom, rgM]
+
+            rhmx = new_data['Moon x (Helio)'].iloc[mm_analyzer.rel_idx]
+            rhmy = new_data['Moon y (Helio)'].iloc[mm_analyzer.rel_idx]
+            rhmz = new_data['Moon z (Helio)'].iloc[mm_analyzer.rel_idx]
+            rhmvx = new_data['Moon vx (Helio)'].iloc[mm_analyzer.rel_idx]
+            rhmvy = new_data['Moon vy (Helio)'].iloc[mm_analyzer.rel_idx]
+            rhmvz = new_data['Moon vz (Helio)'].iloc[mm_analyzer.rel_idx]
+            #relmoonstavec = [rhmx, rhmy, rhmz, rhmvx, rhmvy, rhmvz]
+
+            D = getH2D(mm_analyzer.H) * 1000
+
+            new_row = pd.DataFrame({'Object id': new_data["Object id"].iloc[0], 'H': mm_analyzer.H, 'D': D,
+                       'Capture Date': mm_analyzer.capture_start, 'Helio x at Capture': hx, 'Helio y at Capture': hy,
+                       'Helio z at Capture': hz, 'Helio vx at Capture': hvx, 'Helio vy at Capture': hvy,
+                       'Helio vz at Capture': hvz, 'Helio q at Capture': hq, 'Helio e at Capture': he,
+                       'Helio i at Capture': hi, 'Helio Omega at Capture': hOm, 'Helio omega at Capture': hom,
+                       'Helio M at Capture': hM, 'Geo x at Capture': gx, 'Geo y at Capture': gy, 'Geo z at Capture': gz,
+                       'Geo vx at Capture': gvx, 'Geo vy at Capture': gvy, 'Geo vz at Capture': gvz,
+                       'Geo q at Capture': gq, 'Geo e at Capture': ge, 'Geo i at Capture': gi,
+                       'Geo Omega at Capture': gOm, 'Geo omega at Capture': gom, 'Geo M at Capture': gM,
+                       'Moon (Helio) x at Capture': hmx, 'Moon (Helio) y at Capture': hmy,
+                       'Moon (Helio) z at Capture': hmz, 'Moon (Helio) vx at Capture': hmvx,
+                       'Moon (Helio) vy at Capture': hmvy, 'Moon (Helio) vz at Capture': hmvz,
+                       'Capture Duration': mm_analyzer.capture_duration,
+                       'Spec. En. Duration': mm_analyzer.epsilon_duration,
+                       '3 Hill Duration': mm_analyzer.three_eh_duration, 'Number of Rev': mm_analyzer.revolutions,
+                       '1 Hill Duration': mm_analyzer.one_eh_duration, 'Min. Distance': mm_analyzer.min_dist,
+                       'Release Date': mm_analyzer.capture_end, 'Helio x at Release': rhx, 'Helio y at Release': rhy,
+                       'Helio z at Release': rhz, 'Helio vx at Release': rhvx, 'Helio vy at Release': rhvy,
+                       'Helio vz at Release': rhvz, 'Helio q at Release': rhq, 'Helio e at Release': rhe,
+                       'Helio i at Release': rhi, 'Helio Omega at Release': rhOm, 'Helio omega at Release': rhom,
+                       'Helio M at Release': rhM, 'Geo x at Release': rgx, 'Geo y at Release': rgy,
+                       'Geo z at Release': rgz, 'Geo vx at Release': rgvx, 'Geo vy at Release': rgvy,
+                       'Geo vz at Release': rgvz, 'Geo q at Release': rgq, 'Geo e at Release': rge,
+                       'Geo i at Release': rgi, 'Geo Omega at Release': rgOm, 'Geo omega at Release': rgom,
+                       'Geo M at Release': rgM, 'Moon (Helio) x at Release': rhmx, 'Moon (Helio) y at Release': rhmy,
+                       'Moon (Helio) z at Release': rhmz, 'Moon (Helio) vx at Release': rhmvx,
+                       'Moon (Helio) vy at Release': rhmvy, 'Moon (Helio) vz at Release': rhmvz}, index=[1])
+
+            #my_master_file = pd.concat([my_master_file, new_row], ignore_index=True)
+            new_row.to_csv(destination_path + '/' + 'minimoon_master.csv', sep=' ', mode='a', header=False, index=False)
+
         else:
             errors.append([i, str(data["Object id"].iloc[0])])
             print("Horizons error at:" + str(i) + " for minimoon " + str(data["Object id"].iloc[0]))
+
