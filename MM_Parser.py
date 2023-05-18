@@ -46,6 +46,61 @@ class MmParser:
 
         return
 
+    def organize_data_new(self, header):
+        """
+        used to organize the data present in the minimoon file
+        :return: Returns a data frame of the minimoon_file for ease of use, where file names are the first column of data
+        data frame column names: "File Name", "Element Type", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
+        "x10", "x11", "Integrator"
+
+        """
+
+        # read file into dataframe using panda
+        self.mm_data = pd.read_csv(self.mmfile, sep=" ", header=header, names=['Object id', 'H', 'D', 'Capture Date',
+                                                                             'Helio x at Capture', 'Helio y at Capture',
+                                                                             'Helio z at Capture', 'Helio vx at Capture',
+                                                                             'Helio vy at Capture', 'Helio vz at Capture',
+                                                                             'Helio q at Capture', 'Helio e at Capture',
+                                                                             'Helio i at Capture', 'Helio Omega at Capture',
+                                                                             'Helio omega at Capture', 'Helio M at Capture',
+                                                                             'Geo x at Capture', 'Geo y at Capture',
+                                                                             'Geo z at Capture', 'Geo vx at Capture',
+                                                                             'Geo vy at Capture', 'Geo vz at Capture',
+                                                                             'Geo q at Capture', 'Geo e at Capture',
+                                                                             'Geo i at Capture', 'Geo Omega at Capture',
+                                                                             'Geo omega at Capture', 'Geo M at Capture',
+                                                                             'Moon (Helio) x at Capture',
+                                                                             'Moon (Helio) y at Capture',
+                                                                             'Moon (Helio) z at Capture',
+                                                                             'Moon (Helio) vx at Capture',
+                                                                             'Moon (Helio) vy at Capture',
+                                                                             'Moon (Helio) vz at Capture',
+                                                                             'Capture Duration', 'Spec. En. Duration',
+                                                                             '3 Hill Duration', 'Number of Rev',
+                                                                             '1 Hill Duration', 'Min. Distance',
+                                                                             'Release Date', 'Helio x at Release',
+                                                                             'Helio y at Release', 'Helio z at Release',
+                                                                             'Helio vx at Release', 'Helio vy at Release',
+                                                                             'Helio vz at Release', 'Helio q at Release',
+                                                                             'Helio e at Release', 'Helio i at Release',
+                                                                             'Helio Omega at Release',
+                                                                             'Helio omega at Release',
+                                                                             'Helio M at Release', 'Geo x at Release',
+                                                                             'Geo y at Release', 'Geo z at Release',
+                                                                             'Geo vx at Release', 'Geo vy at Release',
+                                                                             'Geo vz at Release', 'Geo q at Release',
+                                                                             'Geo e at Release', 'Geo i at Release',
+                                                                             'Geo Omega at Release',
+                                                                             'Geo omega at Release', 'Geo M at Release',
+                                                                             'Moon (Helio) x at Release',
+                                                                             'Moon (Helio) y at Release',
+                                                                             'Moon (Helio) z at Release',
+                                                                             'Moon (Helio) vx at Release',
+                                                                             'Moon (Helio) vy at Release',
+                                                                             'Moon (Helio) vz at Release'])
+
+        return
+
     def fetch_files(self):
         """
         This function fetches all relevant minimoon files in the top level directory according to the names in the
