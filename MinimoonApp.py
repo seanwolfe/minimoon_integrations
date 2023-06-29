@@ -1,3 +1,16 @@
+#############################################################################################################
+# MiniViz
+# This is the main working file for the MiniViz application.
+# It uses the PyQt5 framework to construct the application.
+# The TableModel class creates is used by the MyTableWidget class to create the two viewing tabs.
+# The MplCanvas class is used for incorporating Matplotlib figures into the application, it should be specified upon
+# initialization whether the figure is 2-D or 3-D.
+# The MainWindow class creates the entire gui, with functions to generate the first and second tab respectively, then
+# individual windows
+# Clicks by the user on the scroll bar are handled by the 'index_change_windows' function
+############################################################################################################
+
+
 import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -19,12 +32,6 @@ import typing
 
 
 matplotlib.use('Qt5Agg')
-
-##############################
-# TO DO
-#############################
-
-# Add visualizations for 2006 RH120 and 2020 CD3 2022 NX1
 
 class TableModel(QAbstractTableModel):
     """

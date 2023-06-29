@@ -122,3 +122,7 @@ Running MiniViz may require installation of:
 - PyOrb (if running integrations)
 - Astroquery (if running integrations)
 
+## Running MiniViz
+
+MiniViz should be able to run directly through the execution of the **MinimoonApp.py** file. 
+
