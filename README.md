@@ -90,7 +90,8 @@ master_data = pd.read_csv(file_path, sep=",", header=0, names=['Object id', 'H',
                                                              'Z at Earth Hill', 'Taxonomy'])
 ```
 
-Units are AU, AU/day, degrees, days, Julian date, unless specified.
+Units are AU, AU/day, degrees, days, Julian date, unless specified.  
+
 *Synodic*: Refers to a Sun-Earth co-rotating frame centered at Earth
 *Eclip Long*: The angle the TCO makes with the x-axis of the synodic reference frame in the ecliptic plane
 *H* and *D*: Object absolute magnitude and diameter (meters)  
