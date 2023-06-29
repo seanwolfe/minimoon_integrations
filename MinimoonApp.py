@@ -390,12 +390,10 @@ class MainWindow(QMainWindow):
 
         # Generate new data from clicked minimoon - fedorets
         # destination_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'minimoon_integrations', 'minimoon_files_oorb') # windows
-        destination_path = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
-                                        'minimoon_files_oorb')
+        destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
         mm_file_name = i.text() + ".csv"
         temp_file = destination_path + '/' + mm_file_name
-        header = 0
-        data = self.mm_parser.mm_file_parse_new(temp_file, header)
+        data = self.mm_parser.mm_file_parse_new(temp_file)
         master = self.mm_parser.parse_master(destination_path + '/minimoon_master_final.csv')
         idx = master[master['Object id'] == i.text()].index[0]
         data_cap = data.iloc[int(master['Capture Index'].iloc[idx]):int(master['Release Index'].iloc[idx])]
@@ -446,7 +444,7 @@ class MainWindow(QMainWindow):
         # name of the directory where the mm file is located,
         # also top level directory where all the integration data is located
         # mm_file_dir = os.path.join(os.path.expanduser('~'), 'Desktop', 'minimoon_integrations', 'minimoon_files_oorb') # windows
-        mm_file_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations', 'minimoon_files_oorb')
+        mm_file_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
 
         mm_file_path = mm_file_dir + '/' + mm_master_file_name  # path for the minimoon file
         destination_path_new = mm_file_dir
@@ -459,7 +457,7 @@ class MainWindow(QMainWindow):
         mm_file_name_new = master["Object id"].iloc[0] + ".csv"
         temp_file_new = destination_path_new + '/' + mm_file_name_new
 
-        data = self.mm_parser.mm_file_parse_new(temp_file_new, 0)
+        data = self.mm_parser.mm_file_parse_new(temp_file_new)
 
         return data, master
 

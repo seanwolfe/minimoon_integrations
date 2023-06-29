@@ -98,7 +98,7 @@ class MmParser:
         return data
 
     @staticmethod
-    def mm_file_parse_new(file_path, header):
+    def mm_file_parse_new(file_path):
         """
         Units are au, au/day, degrees
         This function parses a single minimoon file into a appropriately labelled dataframe, the input file
