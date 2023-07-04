@@ -7,6 +7,7 @@ from astropy import constants as const
 from MmAnalyzer import MmAnalyzer
 from MM_Parser import MmParser
 import astropy.units as u
+import multiprocessing
 
 class MmPopulation:
     """
@@ -258,64 +259,102 @@ if __name__ == '__main__':
     #
     master = mm_pop.population
 
-    print(master)
-    print(len(master["Object id"]))
+    pool = multiprocessing.Pool()
+    pool.map(mm_analyzer.short_term_capture, master['Object id'])
+    pool.close()
+    pool.map()
 
-    tco_pop = master[(master['Became Minimoon'] == 1)]
-    print(len(tco_pop["Object id"]))
-    retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]
-    prograde_pop = master[(master['Retrograde'] == 0) & (master['Became Minimoon'] == 1)]
-    tcf_pop = master[(master['Became Minimoon'] == 0)]
-    print(len(tcf_pop["Object id"]))
-    print(len(tcf_pop[tcf_pop['3 Hill Duration'] == 0]))
-    print(len(tcf_pop[tcf_pop['1 Hill Duration'] == 0]))
-    print(len(tcf_pop[tcf_pop['Spec. En. Duration'] == 0]))
-    print(len(tcf_pop[abs(tcf_pop['Number of Rev']) < 1]))
+    # total_pop = master[(master['Became Minimoon'] == 1)]
+    # retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]
+    # prograde_pop = master[(master['Retrograde'] == 0) & (master['Became Minimoon'] == 1)]
+    # tcf_pop = master[(master['Became Minimoon'] == 0)]
+    #
+    # total_t1a = total_pop[(total_pop['Taxonomy'] == '1A')]
+    # total_t1b = total_pop[(total_pop['Taxonomy'] == '1B')]
+    # total_t1c = total_pop[(total_pop['Taxonomy'] == '1C')]
+    # total_t2a = total_pop[(total_pop['Taxonomy'] == '2A')]
+    # total_t2b = total_pop[(total_pop['Taxonomy'] == '2B')]
+    #
+    # pd.set_option('display.max_rows', None)
+    # print(total_t2b['Object id'])
+    # retrograde_t1 = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '1A') | (retrograde_pop['Taxonomy'] == '1B') |
+    #                                    (retrograde_pop['Taxonomy'] == '1C')])
+    # retrograde_t2 = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '2A') | (retrograde_pop['Taxonomy'] == '2B')])
+    # retrograde_t1a = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '1A')])
+    # retrograde_t1b = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '1B')])
+    # retrograde_t1c = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '1C')])
+    # retrograde_t2a = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '2A')])
+    # retrograde_t2b = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '2B')])
+    #
+    # prograde_t1 = len(prograde_pop[(prograde_pop['Taxonomy'] == '1A') | (prograde_pop['Taxonomy'] == '1B') |
+    #                                (prograde_pop['Taxonomy'] == '1C')])
+    # prograde_t2 = len(prograde_pop[(prograde_pop['Taxonomy'] == '2A') | (prograde_pop['Taxonomy'] == '2B')])
+    # prograde_t1a = len(prograde_pop[(prograde_pop['Taxonomy'] == '1A')])
+    # prograde_t1b = len(prograde_pop[(prograde_pop['Taxonomy'] == '1B')])
+    # prograde_t1c = len(prograde_pop[(prograde_pop['Taxonomy'] == '1C')])
+    # prograde_t2a = len(prograde_pop[(prograde_pop['Taxonomy'] == '2A')])
+    # prograde_t2b = len(prograde_pop[(prograde_pop['Taxonomy'] == '2B')])
 
-    for idx in range(len(master['Object id'])):
-        idx = idx + 1
-        print(idx)
+
+
+    # print(master)
+    # print(len(master["Object id"]))
+    #
+    # tco_pop = master[(master['Became Minimoon'] == 1)]
+    # print(len(tco_pop["Object id"]))
+    # retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]
+    # prograde_pop = master[(master['Retrograde'] == 0) & (master['Became Minimoon'] == 1)]
+    # tcf_pop = master[(master['Became Minimoon'] == 0)]
+    # print(len(tcf_pop["Object id"]))
+    # print(len(tcf_pop[tcf_pop['3 Hill Duration'] == 0]))
+    # print(len(tcf_pop[tcf_pop['1 Hill Duration'] == 0]))
+    # print(len(tcf_pop[tcf_pop['Spec. En. Duration'] == 0]))
+    # print(len(tcf_pop[abs(tcf_pop['Number of Rev']) < 1]))
+    #
+    # for idx in range(len(master['Object id'])):
+    #     idx = idx + 1
+    #     print(idx)
 
         # go through all the files of test particles
-        for root, dirs, files in os.walk(population_dir):
+        # for root, dirs, files in os.walk(population_dir):
         #     find files that are minimoons
-            name = str(tco_pop['Object id'].iloc[idx]) + ".csv"
-
-            if name in files:
-                file_path = os.path.join(root, name)
-
-
+        #     name = str(tco_pop['Object id'].iloc[idx]) + ".csv"
+        #
+        #     if name in files:
+        #         file_path = os.path.join(root, name)
+        #
+        #
                 # read the file
-                header = 0
-                data = mm_parser.mm_file_parse_new(file_path, 0)
+                # header = 0
+                # data = mm_parser.mm_file_parse_new(file_path, 0)
 
                 # Important constants
                 # Constants
-                mu = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
-                aupd = u.AU / u.d  # AU per day
-                mps = u.m / u.s  # Meters per second
+                # mu = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
+                # aupd = u.AU / u.d  # AU per day
+                # mps = u.m / u.s  # Meters per second
                 #
-                steps = len(data["Geo vx"])
+                # steps = len(data["Geo vx"])
                 # State vector components of the minimoon with respect to earth
-                vx = np.array([(data["Geo vx"].iloc[i] * aupd).to(mps) / mps for i in range(0, steps)])
-                vy = np.array([(data["Geo vy"].iloc[i] * aupd).to(mps) / mps for i in range(0, steps)])
-                vz = np.array([(data["Geo vz"].iloc[i] * aupd).to(mps) / mps for i in range(0, steps)])
-                r = np.array([(data["Distance"].iloc[i] * u.AU).to(u.m) / u.m for i in range(0, steps)])
+                # vx = np.array([(data["Geo vx"].iloc[i] * aupd).to(mps) / mps for i in range(0, steps)])
+                # vy = np.array([(data["Geo vy"].iloc[i] * aupd).to(mps) / mps for i in range(0, steps)])
+                # vz = np.array([(data["Geo vz"].iloc[i] * aupd).to(mps) / mps for i in range(0, steps)])
+                # r = np.array([(data["Distance"].iloc[i] * u.AU).to(u.m) / u.m for i in range(0, steps)])
+                #
+                # eps = (0.5 * (vx ** 2 + vy ** 2 + vz ** 2) - mu/r) / 1e6  # to put in km^2/s^2
 
-                eps = (0.5 * (vx ** 2 + vy ** 2 + vz ** 2) - mu/r) / 1e6  # to put in km^2/s^2
-
-                fig = plt.figure(idx)
-                zero = np.zeros((steps))
-                plt.plot(data["Julian Date"] - data["Julian Date"].iloc[0], eps, color="blue")
-                plt.plot(data["Julian Date"] - data["Julian Date"].iloc[0], zero, linestyle="--", color='green')
-                plt.xlabel('Time (Days)')
-                plt.ylabel('Specific Energy $(km^2/s^2)$')
-                plt.xlim([0,1200])
+                # fig = plt.figure(idx)
+                # zero = np.zeros((steps))
+                # plt.plot(data["Julian Date"] - data["Julian Date"].iloc[0], eps, color="blue")
+                # plt.plot(data["Julian Date"] - data["Julian Date"].iloc[0], zero, linestyle="--", color='green')
+                # plt.xlabel('Time (Days)')
+                # plt.ylabel('Specific Energy $(km^2/s^2)$')
+                # plt.xlim([0,1200])
                 # plt.ylim([-0.15, 0.7])
                 # plt.savefig("figures/f13.svg", format="svg")
                 # plt.show()
-                pd.set_option('display.max_rows', None)
-                print(tco_pop.iloc[idx])
+                # pd.set_option('display.max_rows', None)
+                # print(tco_pop.iloc[idx])
                 # fig = plt.figure(idx)
                 # plt.plot(data["Synodic x"], data["Synodic y"], color='grey', label='TCF Trajectory')
                 # c1 = plt.Circle((0, 0), radius=0.01, alpha=0.1, label='Earth Hill Sphere')
@@ -334,29 +373,29 @@ if __name__ == '__main__':
                 # plt.gca().set_aspect('equal')
                 # plt.savefig("figures/f10.svg", format="svg")
 
-                data_cap = data.iloc[int(master['Capture Index'].iloc[idx]):int(master['Release Index'].iloc[idx])]
-                trans_cap = np.array([data_cap["Synodic x"], data_cap["Synodic y"], data_cap["Synodic z"]])
-                fig2 = plt.figure(idx+1)
-                plt.plot(trans_cap[0, :], trans_cap[1, :], color='#5599ff', linewidth=5, label='Period of Capture')
-                plt.plot(data["Synodic x"], data["Synodic y"], 'gray', linewidth=2, label='TCO Trajectory')
-                plt.scatter(trans_cap[0, 0], trans_cap[1, 0], color='#e9afaf', linewidth=3, label='Start',
-                                        zorder=5)
-                plt.scatter(trans_cap[0, -1], trans_cap[1, -1], color='#afe9af', linewidth=3, label='End',
-                                        zorder=5)
-                c1 = plt.Circle((0, 0), radius=0.01, alpha=0.1, label='Earth Hill Sphere')
-                c2 = plt.Circle((0, 0), radius=4.504075e-5, color='blue', label='Earth')
-                x_moon = data["Moon x (Helio)"] - data["Earth x (Helio)"]
-                y_moon = data["Moon y (Helio)"] - data["Earth y (Helio)"]
-                z_moon = data["Moon z (Helio)"] - data["Earth z (Helio)"]
-                plt.plot(x_moon, y_moon, color='red', label='Moon Orbit')
-                plt.gca().add_artist(c1)
-                plt.gca().add_artist(c2)
-                plt.xlabel('Synodic x (AU)')
-                plt.ylabel('Synodic y (AU)')
-                plt.legend()
-                plt.xlim([-0.03, 0.03])
-                plt.ylim([-0.05, 0.05])
-                plt.gca().set_aspect('equal')
+                # data_cap = data.iloc[int(master['Capture Index'].iloc[idx]):int(master['Release Index'].iloc[idx])]
+                # trans_cap = np.array([data_cap["Synodic x"], data_cap["Synodic y"], data_cap["Synodic z"]])
+                # fig2 = plt.figure(idx+1)
+                # plt.plot(trans_cap[0, :], trans_cap[1, :], color='#5599ff', linewidth=5, label='Period of Capture')
+                # plt.plot(data["Synodic x"], data["Synodic y"], 'gray', linewidth=2, label='TCO Trajectory')
+                # plt.scatter(trans_cap[0, 0], trans_cap[1, 0], color='#e9afaf', linewidth=3, label='Start',
+                #                         zorder=5)
+                # plt.scatter(trans_cap[0, -1], trans_cap[1, -1], color='#afe9af', linewidth=3, label='End',
+                #                         zorder=5)
+                # c1 = plt.Circle((0, 0), radius=0.01, alpha=0.1, label='Earth Hill Sphere')
+                # c2 = plt.Circle((0, 0), radius=4.504075e-5, color='blue', label='Earth')
+                # x_moon = data["Moon x (Helio)"] - data["Earth x (Helio)"]
+                # y_moon = data["Moon y (Helio)"] - data["Earth y (Helio)"]
+                # z_moon = data["Moon z (Helio)"] - data["Earth z (Helio)"]
+                # plt.plot(x_moon, y_moon, color='red', label='Moon Orbit')
+                # plt.gca().add_artist(c1)
+                # plt.gca().add_artist(c2)
+                # plt.xlabel('Synodic x (AU)')
+                # plt.ylabel('Synodic y (AU)')
+                # plt.legend()
+                # plt.xlim([-0.03, 0.03])
+                # plt.ylim([-0.05, 0.05])
+                # plt.gca().set_aspect('equal')
                 # plt.savefig("figures/f14.svg", format="svg")
 
                 # fig3 = plt.figure(idx + 2)
@@ -382,7 +421,7 @@ if __name__ == '__main__':
                 # plt.gca().set_aspect('equal')
                 # plt.savefig("figures/f12.svg", format="svg")
 
-                plt.show()
+                # plt.show()
 
                 # distance = data['Distance']
                 # eh_crossing = min(distance, key=lambda x: abs(x-0.01))
@@ -445,14 +484,14 @@ if __name__ == '__main__':
     # destination_path = population_dir + '/' + destination_file
     # mm_pop.population.to_csv(destination_path, sep=' ', header=True, index=False)
 
-    master = mm_pop.population
+    # master = mm_pop.population
 
     # Get retrograde and prograde TCOs
-    tco_pop = master[(master['Became Minimoon'] == 1)]
-    retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]
-    prograde_pop = master[(master['Retrograde'] == 0) & (master['Became Minimoon'] == 1)]
-
-    pd.set_option('display.max_rows', None)
+    # tco_pop = master[(master['Became Minimoon'] == 1)]
+    # retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]
+    # prograde_pop = master[(master['Retrograde'] == 0) & (master['Became Minimoon'] == 1)]
+    #
+    # pd.set_option('display.max_rows', None)
     # pd.set_option('display.max_columns', None)
     # pd.set_option('display.float_format', lambda x: '%.5f' % x)
     # print(tco_pop[tco_pop['Max. Distance'] > 0.03])
@@ -464,12 +503,12 @@ if __name__ == '__main__':
     # print(wrong_rev)
 
     # Make taxonomy table
-    mm_pop.tax_table(tco_pop, retrograde_pop, prograde_pop)
+    # mm_pop.tax_table(tco_pop, retrograde_pop, prograde_pop)
 
     # Generate visualization
-    mm_pop.pop_viz()
+    # mm_pop.pop_viz()
 
-    plt.show()
+    # plt.show()
 
 
 

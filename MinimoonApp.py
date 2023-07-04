@@ -194,6 +194,7 @@ class MainWindow(QMainWindow):
         layout1 = QHBoxLayout()  # contains all the widgets a single box
         layout2 = QVBoxLayout()  # contains left two widgets
         layout3 = QVBoxLayout()  # contains middle two widgets
+        layout4 = QVBoxLayout()  # for the right list and search
 
         layout1.setContentsMargins(0, 0, 0, 0)
         layout1.setSpacing(5)
@@ -257,14 +258,29 @@ class MainWindow(QMainWindow):
         layout1.addLayout(layout3, 44)  # add right viz (layout 3) to overall layout (layout 1)
 
         # Make the rightmost part of miniviz, the scrolling list to switch between minimoons
-        list_widget = QListWidget()
-        list_widget.addItems(master["Object id"])  # all the minimoon names
-        list_widget.currentItemChanged.connect(
+        self.list_widget = QListWidget()
+        self.list_widget.addItems(master["Object id"])  # all the minimoon names
+        self.Search_bar = QLineEdit()
+        self.list_widget.currentItemChanged.connect(
             self.index_changed_windows)  # this is the callback for when the user clicks a
         # different minimoon in the scroll list
-        layout1.addWidget(list_widget, 12)  # add the scrolling list to the overall layout
+        self.Search_bar.textChanged.connect(self.Search)
+        layout4.addWidget(self.Search_bar)
+        layout4.addWidget(self.list_widget)  # add the scrolling list to the overall layout
+
+        layout1.addLayout(layout4, 12)
 
         return layout1
+
+    def Search(self, text):
+        model = self.list_widget.model()
+        match = model.match(model.index(0, self.list_widget.modelColumn()),
+                             Qt.DisplayRole,
+                            text,
+                            hits=1,
+                            flags=Qt.MatchStartsWith)
+        if match:
+            self.list_widget.setCurrentIndex(match[0])
 
     def gen_tab_2(self, master):
         """
