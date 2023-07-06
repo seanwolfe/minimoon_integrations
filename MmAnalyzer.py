@@ -6,6 +6,7 @@ import numpy
 from space_fncs import eci_ecliptic_to_sunearth_synodic
 from space_fncs import get_M
 from space_fncs import getH2D
+from space_fncs import get_emb_synodic
 import pyoorb
 import numpy as np
 import os
@@ -824,15 +825,19 @@ class MmAnalyzer:
 
         # constants
         three_eh = 0.03
-        m_e = 5.97219e24  # mass of Earth
-        m_m = 7.34767309e22  # mass of the Moon
         r_ems = 0.0038752837677  # sphere of influence of earth-moon system
+        two_hill = 0.02
+        one_hill = 0.01
+
+        stc = np.NAN
 
         # go through all the files of test particles
         population_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
-                                      'minimoon_files_oorb')
+                                      'Test_Set')
 
         mm_parser = MmParser("", population_dir, "")
+
+        results=[]
 
         for root, dirs, files in os.walk(population_dir):
             # find files that are minimoons
@@ -844,17 +849,9 @@ class MmAnalyzer:
                 # read the file
                 data = mm_parser.mm_file_parse_new(file_path)
 
-                # generate the x, y, z of the trajectory in the Sun-Earth/Moon synodic frame, centered at the earth-moon barycentre
-                # calcualte the position of the earth-moon barycentr
-                barycentre = (m_e * data[['Earth x (Helio)', 'Earth y (Helio)', 'Earth z (Helio)']].values + m_m * data[['Moon x (Helio)', 'Moon y (Helio)', 'Moon z (Helio)']].values) \
-                             / (m_m + m_e)
+                # get data with respect to the earth-moon barycentre in a co-rotating frame
+                emb_xyz_synodic = get_emb_synodic(data)
 
-                # translate x, y, z to EMB
-                emb_xyz = data[['Helio x', 'Helio y', 'Helio z']].values - barycentre
-
-                # get synodic in emb frame
-                emb_xyz_synodic = eci_ecliptic_to_sunearth_synodic(-barycentre.T, emb_xyz.T)
-                emb_xyz_synodic = emb_xyz_synodic.T
                 distance_emb_synodic = np.sqrt(emb_xyz_synodic[:, 0] ** 2 + emb_xyz_synodic[:, 1] ** 2 + emb_xyz_synodic[:, 2] ** 2)
 
                 # identify when inside the 3 earth hill sphere
@@ -871,7 +868,7 @@ class MmAnalyzer:
                 # identify periapses that exist in the 3 earth hill sphere
                 local_minima_indices = argrelextrema(captured_distance, np.less)[0]
                 local_dist = captured_distance[local_minima_indices]
-                time = data["Julian Date"] - data["Julian Date"].iloc[0]
+                time = data["Julian Date"] #- data["Julian Date"].iloc[0]
                 local_time = time.iloc[local_minima_indices]
 
                 # identify when inside the sphere of influence of the EMS
@@ -890,8 +887,42 @@ class MmAnalyzer:
                 local_dist_ems = captured_distance_ems[local_minima_indices_ems]
                 local_time_ems = time.iloc[local_minima_indices_ems]
 
+                # identify when inside the sphere of influence of the EMS
+                in_2hill = np.NAN * np.zeros((len(distance_emb_synodic),))
+                in_2hill_idxs = [index for index, value in enumerate(distance_emb_synodic) if value <= two_hill]
+                for index in in_2hill_idxs:
+                    in_2hill[index] = 1
+
+                twohill_x = emb_xyz_synodic[:, 0] * in_2hill
+                twohill_y = emb_xyz_synodic[:, 1] * in_2hill
+                twohill_z = emb_xyz_synodic[:, 2] * in_2hill
+                captured_distance_2hill = distance_emb_synodic * in_2hill
+
+                # identify periapses that exist in the EMS SOI
+                local_minima_indices_2hill = argrelextrema(captured_distance_2hill, np.less)[0]
+                local_dist_2hill = captured_distance_2hill[local_minima_indices_2hill]
+                local_time_2hill = time.iloc[local_minima_indices_2hill]
+
+                # identify when inside the sphere of influence of the EMS
+                in_1hill = np.NAN * np.zeros((len(distance_emb_synodic),))
+                in_1hill_idxs = [index for index, value in enumerate(distance_emb_synodic) if value <= one_hill]
+                for index in in_1hill_idxs:
+                    in_1hill[index] = 1
+
+                onehill_x = emb_xyz_synodic[:, 0] * in_1hill
+                onehill_y = emb_xyz_synodic[:, 1] * in_1hill
+                onehill_z = emb_xyz_synodic[:, 2] * in_1hill
+                captured_distance_1hill = distance_emb_synodic * in_1hill
+
+                # identify periapses that exist in the EMS SOI
+                local_minima_indices_1hill = argrelextrema(captured_distance_1hill, np.less)[0]
+                local_dist_1hill = captured_distance_1hill[local_minima_indices_1hill]
+                local_time_1hill = time.iloc[local_minima_indices_1hill]
+
                 ems_line = r_ems * np.ones(len(time),)
                 three_eh_line = three_eh * np.ones(len(time),)
+                two_eh_line = two_hill * np.ones(len(time), )
+                one_eh_line = one_hill * np.ones(len(time), )
 
                 stc = False
                 # decide if short-term capture or not
@@ -901,18 +932,72 @@ class MmAnalyzer:
 
                 print(str(object_id) + ": " + str(stc))
 
-                fig = plt.figure()
-                plt.plot(time, captured_distance_ems, color='red', linewidth=5)
-                plt.plot(time, captured_distance, color='green', linewidth=3)
-                plt.plot(time, distance_emb_synodic, color='grey',
-                         linewidth=1)
-                plt.scatter(local_time, local_dist, color='yellow')
-                plt.scatter(local_time_ems, local_dist_ems, color='blue')
-                plt.plot(time, three_eh_line, linestyle='--', color='red')
-                plt.plot(time, ems_line, linestyle='--', color='green')
-                plt.show()
+                # Data of interest (for the master):
+                # Whether a STC took place or not
+                # Time spent in SOI EMS
+                time_step = data["Julian Date"].iloc[1] - data["Julian Date"].iloc[0]
+                time_SOI_EMS = time_step * len(in_ems_idxs)
 
-        return
+                # Number of periapsides inside SOI EMS
+                peri_in_SOI_EMS = len(local_minima_indices_ems)
+                # Number of periapsides inside three Earth Hill
+                peri_in_3_hill = len(local_minima_indices)
+                # Number of periapsides inside two earth Hill
+                peri_in_2_hill = len(local_minima_indices_2hill)
+                # Number of periapsides inside one Earth Hill
+                peri_in_1_hill = len(local_minima_indices_1hill)
+
+                # STC start
+                stc_start = data['Julian Date'].iloc[three_hill_idxs[0]]
+                stc_start_idx = three_hill_idxs[0]
+                # STC end
+                stc_end_idx = three_hill_idxs[-1]
+                stc_end = data['Julian Date'].iloc[stc_end_idx]
+
+                # State of TCO at entrance to SOI EMS
+                if in_ems_idxs:
+                    Earth_state = data[['Earth x (Helio)', 'Earth y (Helio)', 'Earth z (Helio)', 'Earth vx (Helio)',
+                                  'Earth vy (Helio)', 'Earth vz (Helio)']].iloc[in_ems_idxs[0]]
+                    # Helio TCO at entrance to SOI EMS
+                    TCO_state = data[['Helio x', 'Helio y', 'Helio z', 'Helio vx', 'Helio vy', 'Helio vz']].iloc[in_ems_idxs[0]]
+                    # Helio Moon at entrance to SOI EMS
+                    moon_state = data[['Moon x (Helio)', 'Moon y (Helio)', 'Moon z (Helio)', 'Moon vx (Helio)',
+                                    'Moon vy (Helio)', 'Moon vz (Helio)']].iloc[in_ems_idxs[0]]
+                else:
+                    Earth_state = np.full(6, np.nan)
+                    TCO_state = np.full(6, np.nan)
+                    moon_state = np.full(6, np.nan)
+
+
+                results = [stc, time_SOI_EMS, peri_in_SOI_EMS, peri_in_3_hill, peri_in_2_hill, peri_in_1_hill,
+                           stc_start, stc_start_idx, stc_end, stc_end_idx, TCO_state, Earth_state, moon_state]
+
+                # print(results)
+                #
+                # fig = plt.figure()
+                # plt.plot(time, captured_distance, color='#5599ff', linewidth=3, zorder=5, label='Inside 3 Earth Hill')
+                # plt.plot(time, captured_distance_ems, color='red', linewidth=5, zorder=6, label='Inside SOI of EMS')
+                # plt.plot(time, distance_emb_synodic, color='grey',
+                #          linewidth=1, zorder=7, label='TCO Trajectory')
+                # plt.scatter(local_time, local_dist, color='#ff80ff', zorder=8, label='Periapsides Inside 3 Earth Hill')
+                # plt.scatter(local_time_ems, local_dist_ems, color='blue', zorder=9, label='Periapsides Inside SOI of EMS')
+                # if in_ems_idxs:
+                #     plt.scatter(time.iloc[in_ems_idxs[0]], distance_emb_synodic[in_ems_idxs[0]], zorder=15)
+                # plt.plot(time, three_eh_line, linestyle='--', color='red', zorder=4, label='3 Earth Hill')
+                # plt.plot(time, two_eh_line, linestyle='--', zorder=4, label='2 Earth Hill')
+                # plt.plot(time, one_eh_line, linestyle='--', zorder=4, label='1 Earth Hill')
+                # plt.plot(time, ems_line, linestyle='--', color='green', zorder=3, label='SOI of EMS')
+                #plt.legend()
+                # plt.xlabel('Time (days)')
+                # plt.ylabel('Distance from Earth/Moon Barycentre (AU)')
+                # plt.title(str(object_id))
+                # plt.ylim([0, 0.06])
+                # plt.xlim([0, time.iloc[-1]])
+                # plt.savefig("figures/" + str(object_id) + ".svg", format="svg")
+                # plt.show()
+
+
+        return results
 
 
 if __name__ == '__main__':

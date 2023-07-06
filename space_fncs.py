@@ -103,3 +103,20 @@ def get_eclip_long(synodic_xyz):
         eclip_long[0, j] = angle
 
     return eclip_long
+
+def get_emb_synodic(data):
+    # generate the x, y, z of the trajectory in the Sun-Earth/Moon synodic frame, centered at the earth-moon barycentre
+    # calcualte the position of the earth-moon barycentr
+    m_e = 5.97219e24  # mass of Earth
+    m_m = 7.34767309e22  # mass of the Moon
+    barycentre = (m_e * data[['Earth x (Helio)', 'Earth y (Helio)', 'Earth z (Helio)']].values + m_m * data[
+        ['Moon x (Helio)', 'Moon y (Helio)', 'Moon z (Helio)']].values) \
+                 / (m_m + m_e)
+
+    # translate x, y, z to EMB
+    emb_xyz = data[['Helio x', 'Helio y', 'Helio z']].values - barycentre
+
+    # get synodic in emb frame
+    emb_xyz_synodic = eci_ecliptic_to_sunearth_synodic(-barycentre.T, emb_xyz.T)
+
+    return emb_xyz_synodic.T

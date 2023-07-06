@@ -259,10 +259,22 @@ if __name__ == '__main__':
     #
     master = mm_pop.population
 
+    stcs = np.full(len(master['Object id']), np.nan)
+
     pool = multiprocessing.Pool()
-    pool.map(mm_analyzer.short_term_capture, master['Object id'])
+    results = pool.map(mm_analyzer.short_term_capture, master['Object id'])
     pool.close()
-    pool.map()
+
+    # To do: figure out how to unpack results (without a for loop hopefully)
+    print(len(results))
+    print(len(results[0]))
+
+    # print(stcs)
+    # master['STC'] = stc
+    # pd.set_option('display.max_rows', None)
+    # print(master[['Object id', 'STC']])
+
+
 
     # total_pop = master[(master['Became Minimoon'] == 1)]
     # retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]
