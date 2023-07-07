@@ -240,7 +240,7 @@ if __name__ == '__main__':
     population_path = population_dir + '/' + population_file
 
     mm_analyzer = MmAnalyzer()
-    mm_parser = MmParser("", population_dir, "")
+    # mm_parser = MmParser("", population_dir, "")
     mm_pop = MmPopulation(population_path)
 
     # Retrograde vs. Prograde
@@ -265,16 +265,43 @@ if __name__ == '__main__':
     results = pool.map(mm_analyzer.short_term_capture, master['Object id'])
     pool.close()
 
-    # To do: figure out how to unpack results (without a for loop hopefully)
-    print(len(results))
-    print(len(results[0]))
+    # repack list according to index
+    repacked_results = [list(items) for items in zip(*results)]
 
-    # print(stcs)
-    # master['STC'] = stc
-    # pd.set_option('display.max_rows', None)
-    # print(master[['Object id', 'STC']])
+    # assign new columns to master file
+    master['STC'] = repacked_results[0]
+    master['EMS Duration'] = repacked_results[1]
+    master['Periapsides in EMS'] = repacked_results[2]
+    master['Periapsides in 3 Hill'] = repacked_results[3]
+    master['Periapsides in 2 Hill'] = repacked_results[4]
+    master['Periapsides in 1 Hill'] = repacked_results[5]
+    master['STC Start'] = repacked_results[6]
+    master['STC Start Index'] = repacked_results[7]
+    master['STC End'] = repacked_results[8]
+    master['STC End Index'] = repacked_results[9]
+    TCO_state = np.array(repacked_results[10])
+    master['Helio x at EMS'] = TCO_state[:, 0]
+    master['Helio y at EMS'] = TCO_state[:, 1]
+    master['Helio z at EMS'] = TCO_state[:, 2]
+    master['Helio vx at EMS'] = TCO_state[:, 3]
+    master['Helio vy at EMS'] = TCO_state[:, 4]
+    master['Helio vz at EMS'] = TCO_state[:, 5]
+    Earth_state = np.array(repacked_results[11])
+    master['Earth x at EMS (Helio)'] = Earth_state[:, 0]
+    master['Earth y at EMS (Helio)'] = Earth_state[:, 1]
+    master['Earth z at EMS (Helio)'] = Earth_state[:, 2]
+    master['Earth vx at EMS (Helio)'] = Earth_state[:, 3]
+    master['Earth vy at EMS (Helio)'] = Earth_state[:, 4]
+    master['Earth vz at EMS (Helio)'] = Earth_state[:, 5]
+    Moon_state = np.array(repacked_results[12])
+    master['Moon x at EMS (Helio)'] = Moon_state[:, 0]
+    master['Moon y at EMS (Helio)'] = Moon_state[:, 1]
+    master['Moon z at EMS (Helio)'] = Moon_state[:, 2]
+    master['Moon vx at EMS (Helio)'] = Moon_state[:, 3]
+    master['Moon vy at EMS (Helio)'] = Moon_state[:, 4]
+    master['Moon vz at EMS (Helio)'] = Moon_state[:, 5]
 
-
+    master.to_csv(population_path, sep=' ', header=True, index=False)
 
     # total_pop = master[(master['Became Minimoon'] == 1)]
     # retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]

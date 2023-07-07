@@ -833,11 +833,13 @@ class MmAnalyzer:
 
         # go through all the files of test particles
         population_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
-                                      'Test_Set')
+                                      'minimoon_files_oorb')
 
         mm_parser = MmParser("", population_dir, "")
 
-        results=[]
+        # Initial: will be result if no file found with that name
+        results = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.full(6, np.nan),
+                   np.full(6, np.nan), np.full(6, np.nan)]
 
         for root, dirs, files in os.walk(population_dir):
             # find files that are minimoons
