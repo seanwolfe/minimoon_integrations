@@ -42,6 +42,19 @@ class MmAnalyzer:
     rel_idx = ""
     H = ""
     retrograde = ""
+    x_eh = ""
+    y_eh = ""
+    z_eh = ""
+    stc = ""
+    t_ems = ""
+    peri_ems = ""
+    peri_3hill = ""
+    peri_2hill = ""
+    peri_1hill = ""
+    stc_start = ""
+    stc_start_idx = ""
+    stc_end = ""
+    stc_end_idx = ""
 
 
     def __init__(self):
@@ -126,6 +139,7 @@ class MmAnalyzer:
         ident = 0
         release_idxs = []
         release_dates = []
+        one_hill = 0.01
 
         # State vector components of the minimoon with respect to earth
         vx = data["Geo vx"]
@@ -221,6 +235,10 @@ class MmAnalyzer:
         if abs(revolutions[0, 0]) >= 1:
             satisfied_3[0, 0] = 1
 
+        distance = data['Distance']  # don't grab other crossing for the exit of SOI
+        hill_idxs = [index for index, value in enumerate(distance) if value <= one_hill]
+        data_eh_crossing = data.iloc[hill_idxs[0]]
+
 
         if time_captured > 0 and satisfied_3[0, 0] == 1 and satisfied_4_overall[0, 0] == 1:
             print("Object became minimoon: YES")
@@ -252,6 +270,8 @@ class MmAnalyzer:
         print("...Done")
         print("\n")
 
+
+
         # Properties
         self.capture_start = capture_date
         self.capture_end = release_date
@@ -268,14 +288,9 @@ class MmAnalyzer:
         self.cap_idx = int(capture_idx)
         self.rel_idx = int(release_idx)
         self.max_dist = max_distance
-
-
-
-        # fig = plt.figure()
-        # plt.plot(data["Julian Date"], data["Geo e"], color='blue', label='Geo e')
-        # plt.plot(data["Julian Date"], satisfied_2[0, :], color='red', label='Spec. Energy')
-        # plt.legend()
-        # plt.show()
+        self.x_eh = data_eh_crossing['Synodic x']
+        self.y_eh = data_eh_crossing['Synodic y']
+        self.z_eh = data_eh_crossing['Synodic z']
 
         return
 
@@ -531,7 +546,7 @@ class MmAnalyzer:
         for i in range(nsteps):
             # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
             orbits[i, :] = [i, eph[0, i, 24], eph[0, i, 25], eph[0, i, 26], eph[0, i, 27], eph[0, i, 28],
-                           eph[0, i, 29], 1., eph[0, i, 0], 1., mm_parser.mm_data["x7"].iloc[2], 0.15]
+                           eph[0, i, 29], 1., eph[0, i, 0], 1., self.H, 0.15]
 
         # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
         new_orbits_com, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
@@ -584,7 +599,7 @@ class MmAnalyzer:
             # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
             orbits_geo[i, :, :] = [i, new_data["Geo x"].iloc[i], new_data["Geo y"].iloc[i], new_data["Geo z"].iloc[i],
                                 new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
-                                1., eph[0, i, 0], 1, mm_parser.mm_data["x7"].iloc[2], 0.15]
+                                1., eph[0, i, 0], 1, self.H, 0.15]
 
         # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
         new_orbits_com_geo, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits_geo,
@@ -823,6 +838,8 @@ class MmAnalyzer:
 
     def short_term_capture(self, object_id):
 
+        print("Analyzing the Short-Term Capture Statistics of minimoon: " + str(object_id))
+
         # constants
         three_eh = 0.03
         r_ems = 0.0038752837677  # sphere of influence of earth-moon system
@@ -832,8 +849,9 @@ class MmAnalyzer:
         stc = np.NAN
 
         # go through all the files of test particles
-        population_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
-                                      'minimoon_files_oorb')
+        # population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        population_dir = os.path.join(os.getcwd(), 'Test_Set')
+
 
         mm_parser = MmParser("", population_dir, "")
 
@@ -889,7 +907,7 @@ class MmAnalyzer:
                 local_dist_ems = captured_distance_ems[local_minima_indices_ems]
                 local_time_ems = time.iloc[local_minima_indices_ems]
 
-                # identify when inside the sphere of influence of the EMS
+                # identify when inside the sphere of influence 2 hill
                 in_2hill = np.NAN * np.zeros((len(distance_emb_synodic),))
                 in_2hill_idxs = [index for index, value in enumerate(distance_emb_synodic) if value <= two_hill]
                 for index in in_2hill_idxs:
@@ -905,7 +923,7 @@ class MmAnalyzer:
                 local_dist_2hill = captured_distance_2hill[local_minima_indices_2hill]
                 local_time_2hill = time.iloc[local_minima_indices_2hill]
 
-                # identify when inside the sphere of influence of the EMS
+                # identify when inside the sphere of influence 1 hill
                 in_1hill = np.NAN * np.zeros((len(distance_emb_synodic),))
                 in_1hill_idxs = [index for index, value in enumerate(distance_emb_synodic) if value <= one_hill]
                 for index in in_1hill_idxs:
@@ -974,6 +992,28 @@ class MmAnalyzer:
                 results = [stc, time_SOI_EMS, peri_in_SOI_EMS, peri_in_3_hill, peri_in_2_hill, peri_in_1_hill,
                            stc_start, stc_start_idx, stc_end, stc_end_idx, TCO_state, Earth_state, moon_state]
 
+                self.stc = stc
+                self.t_ems = time_SOI_EMS
+                self.peri_ems = peri_in_SOI_EMS
+                self.peri_3hill = peri_in_3_hill
+                self.peri_2hill = peri_in_2_hill
+                self.peri_1hill = peri_in_1_hill
+                self.stc_start = stc_start
+                self.stc_start_idx = stc_start_idx
+                self.stc_end = stc_end
+                self.stc_end_idx = stc_end_idx
+
+                print("STC: " + str(stc))
+                print("Time spent in EMS: " + str(time_SOI_EMS))
+                print("Number of periapsides in the EMS: " + str(peri_in_SOI_EMS))
+                print("Number of periapsides in 3 hill: " + str(peri_in_3_hill))
+                print("Number of periapsides in 2 hill: " + str(peri_in_2_hill))
+                print("Number of periapsides in 1 hill: " + str(peri_in_1_hill))
+                print("STC start: " + str(stc_start))
+                print("STC end: " + str(stc_end))
+                print("...Done")
+                print("\n")
+
                 # print(results)
                 #
                 # fig = plt.figure()
@@ -998,7 +1038,6 @@ class MmAnalyzer:
                 # plt.savefig("figures/" + str(object_id) + ".svg", format="svg")
                 # plt.show()
 
-
         return results
 
 
@@ -1008,27 +1047,27 @@ if __name__ == '__main__':
     mu_e = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
 
     # Amount before and after you want oorb integrations to start (in days) with respect to Fedorets data
-    leadtime = 1 * cds.d
+    leadtime = 365 * cds.d
 
     # Get the data for the first minimoon file
-    mm_master_file_name = 'Test_Set/NESCv9reintv1.TCO.withH.kep.des'  # name of the minimoon file to parsed
+    # mm_master_file_name = 'Test_Set/NESCv9reintv1.TCO.withH.kep.des'  # name of the minimoon file to parsed
 
     # name of the directory where the mm file is located,
     # also top level directory where all the integration data is located
     # mm_file_dir = os.path.join(os.path.expanduser('~'), 'OneDrive', 'Thesis', 'Minimoon_Integrations',
     #                           'minimoon_data')
-    mm_file_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations')
-    mm_file_path = mm_file_dir + '/' + mm_master_file_name  # path for the minimoon file
-    source_path = os.path.join('/media', 'aeromec', 'a309bc3f-5615-4f84-b401-c01b43bd2be3',
-                               'aeromec', 'minimoon_files')
-    destination_path = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
-                               'minimoon_files_oorb')
+    # mm_file_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations')
+    # mm_file_path = mm_file_dir + '/' + mm_master_file_name  # path for the minimoon file
+    # source_path = os.path.join('/media', 'aeromec', 'a309bc3f-5615-4f84-b401-c01b43bd2be3',
+    #                            'aeromec', 'minimoon_files')
+    destination_path = os.path.join(os.getcwd(), 'Test_Set')
+    destination_file = destination_path + '/minimoon_master_final.csv'
 
     # create parser
-    mm_parser = MmParser(mm_file_path, mm_file_dir, source_path)
+    mm_parser = MmParser(destination_file, "", "")
 
     # organize the data in the minimoon_file
-    mm_parser.organize_data()
+    # mm_parser.organize_data()
 
     # fetch all the files from all the folders within the top level directory
     # mm_parser.fetch_files()
@@ -1054,53 +1093,87 @@ if __name__ == '__main__':
     moon = 1
     perturbers = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, moon]
 
-    my_master_file = pd.DataFrame(columns=['Object id', 'H', 'D', 'Capture Date', 'Helio x at Capture',
-                                           'Helio y at Capture', 'Helio z at Capture', 'Helio vx at Capture',
-                                           'Helio vy at Capture','Helio vz at Capture', 'Helio q at Capture',
-                                           'Helio e at Capture', 'Helio i at Capture', 'Helio Omega at Capture',
-                                           'Helio omega at Capture', 'Helio M at Capture', 'Geo x at Capture',
-                                           'Geo y at Capture', 'Geo z at Capture', 'Geo vx at Capture', 'Geo vy at Capture',
-                                           'Geo vz at Capture', 'Geo q at Capture', 'Geo e at Capture',
-                                           'Geo i at Capture', 'Geo Omega at Capture', 'Geo omega at Capture',
-                                           'Geo M at Capture','Moon (Helio) x at Capture', 'Moon (Helio) y at Capture',
-                                           'Moon (Helio) z at Capture', 'Moon (Helio) vx at Capture',
-                                           'Moon (Helio) vy at Capture', 'Moon (Helio) vz at Capture',
-                                           'Capture Duration', 'Spec. En. Duration', '3 Hill Duration', 'Number of Rev',
-                                           '1 Hill Duration', 'Min. Distance', 'Release Date', 'Helio x at Release',
-                                           'Helio y at Release', 'Helio z at Release', 'Helio vx at Release',
-                                           'Helio vy at Release','Helio vz at Release', 'Helio q at Release',
-                                           'Helio e at Release', 'Helio i at Release', 'Helio Omega at Release',
-                                           'Helio omega at Release', 'Helio M at Release', 'Geo x at Release',
-                                           'Geo y at Release', 'Geo z at Release', 'Geo vx at Release', 'Geo vy at Release',
-                                           'Geo vz at Release', 'Geo q at Release', 'Geo e at Release',
-                                           'Geo i at Release', 'Geo Omega at Release', 'Geo omega at Release',
-                                           'Geo M at Release','Moon (Helio) x at Release', 'Moon (Helio) y at Release',
-                                           'Moon (Helio) z at Release', 'Moon (Helio) vx at Release',
-                                           'Moon (Helio) vy at Release', 'Moon (Helio) vz at Release'])
+    my_master_file = pd.DataFrame(columns=['Object id', 'H', 'D', 'Capture Date',
+                                                             'Helio x at Capture', 'Helio y at Capture',
+                                                             'Helio z at Capture', 'Helio vx at Capture',
+                                                             'Helio vy at Capture', 'Helio vz at Capture',
+                                                             'Helio q at Capture', 'Helio e at Capture',
+                                                             'Helio i at Capture', 'Helio Omega at Capture',
+                                                             'Helio omega at Capture', 'Helio M at Capture',
+                                                             'Geo x at Capture', 'Geo y at Capture',
+                                                             'Geo z at Capture', 'Geo vx at Capture',
+                                                             'Geo vy at Capture', 'Geo vz at Capture',
+                                                             'Geo q at Capture', 'Geo e at Capture',
+                                                             'Geo i at Capture', 'Geo Omega at Capture',
+                                                             'Geo omega at Capture', 'Geo M at Capture',
+                                                             'Moon (Helio) x at Capture',
+                                                             'Moon (Helio) y at Capture',
+                                                             'Moon (Helio) z at Capture',
+                                                             'Moon (Helio) vx at Capture',
+                                                             'Moon (Helio) vy at Capture',
+                                                             'Moon (Helio) vz at Capture',
+                                                             'Capture Duration', 'Spec. En. Duration',
+                                                             '3 Hill Duration', 'Number of Rev',
+                                                             '1 Hill Duration', 'Min. Distance',
+                                                             'Release Date', 'Helio x at Release',
+                                                             'Helio y at Release', 'Helio z at Release',
+                                                             'Helio vx at Release', 'Helio vy at Release',
+                                                             'Helio vz at Release', 'Helio q at Release',
+                                                             'Helio e at Release', 'Helio i at Release',
+                                                             'Helio Omega at Release',
+                                                             'Helio omega at Release',
+                                                             'Helio M at Release', 'Geo x at Release',
+                                                             'Geo y at Release', 'Geo z at Release',
+                                                             'Geo vx at Release', 'Geo vy at Release',
+                                                             'Geo vz at Release', 'Geo q at Release',
+                                                             'Geo e at Release', 'Geo i at Release',
+                                                             'Geo Omega at Release',
+                                                             'Geo omega at Release', 'Geo M at Release',
+                                                             'Moon (Helio) x at Release',
+                                                             'Moon (Helio) y at Release',
+                                                             'Moon (Helio) z at Release',
+                                                             'Moon (Helio) vx at Release',
+                                                             'Moon (Helio) vy at Release',
+                                                             'Moon (Helio) vz at Release', 'Retrograde',
+                                                             'Became Minimoon', 'Max. Distance', 'Capture Index',
+                                                             'Release Index', 'X at Earth Hill', 'Y at Earth Hill',
+                                                             'Z at Earth Hill', 'Taxonomy', 'STC', "EMS Duration",
+                                                             "Periapsides in EMS", "Periapsides in 3 Hill",
+                                                             "Periapsides in 2 Hill", "Periapsides in 1 Hill",
+                                                             "STC Start", "STC Start Index", "STC End", "STC End Index",
+                                                             "Helio x at EMS", "Helio y at EMS", "Helio z at EMS",
+                                                             "Helio vx at EMS", "Helio vy at EMS", "Helio vz at EMS",
+                                                             "Earth x at EMS (Helio)", "Earth y at EMS (Helio)",
+                                                             "Earth z at EMS (Helio)", "Earth vx at EMS (Helio)",
+                                                             "Earth vy at EMS (Helio)", "Earth vz at EMS (Helio)",
+                                                             "Moon x at EMS (Helio)", "Moon y at EMS (Helio)",
+                                                             "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
+                                                             "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)"])
 
-    error_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations')
-    error_file = 'errors.csv'
-    error_path = error_dir + '/' + error_file
-    my_errors = pd.read_csv(error_path, sep=",", header=None, names=["Index", "Object id"])
-    print(my_errors)
+    # error_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations')
+    # error_file = 'errors.csv'
+    # error_path = error_dir + '/' + error_file
+    # my_errors = pd.read_csv(error_path, sep=",", header=None, names=["Index", "Object id"])
+    # print(my_errors)
 
-    int_step = 1
-    errors = []
+    int_step = 1 / 24
+    # errors = []
     # Loop over all the files
-    for i in range(len(my_errors["Index"])):
+    for i in range(1):
 
-        print(my_errors["Index"].iloc[i])
-        mm_file_name = mm_parser.mm_data["File Name"].iloc[my_errors["Index"].iloc[i]] + ".dat"
-        temp_file = source_path + '/' + mm_file_name
-        data = mm_parser.mm_file_parse(temp_file)
+        # print(my_errors["Index"].iloc[i])
+        # mm_file_name = mm_parser.mm_data["File Name"].iloc[my_errors["Index"].iloc[i]] + ".dat"
+        # temp_file = source_path + '/' + mm_file_name
+        # data = mm_parser.mm_file_parse(temp_file)
+        data = []
 
-        minimoon = str(data["Object id"].iloc[0])
-        # minimoon = '2020 CD3'
+        # minimoon = str(data["Object id"].iloc[0])
+        minimoon = '2020 CD3'
 
         if minimoon == '2006 RH120':
-            # Integration range start and end dates - if you change dates here you have to change orbital elements
-            start_time = '2006-01-01T00:00:00'
-            end_time = '2008-02-01T00:00:00'
+            # Integration range start and end dates - if you change dates here you have to change orbital elements - is this true?
+            start_time = '2005-01-01T00:00:00'
+            end_time = '2009-02-01T00:00:00'
         elif minimoon == '2020 CD3':
             # Integration range start and end dates
             start_time = '2018-01-01T00:00:00'
@@ -1111,16 +1184,24 @@ if __name__ == '__main__':
             end_time = str(
                 Time(data["Julian Date"].iloc[-1] * cds.d + leadtime, format="jd", scale='utc').to_value('isot'))
 
-        steps = (Time(data["Julian Date"].iloc[-1] * cds.d + leadtime, format="jd", scale='utc').to_value('jd')
-                 - Time(data["Julian Date"].iloc[0] * cds.d - leadtime, format="jd", scale='utc').to_value('jd'))/int_step
-        print("Number of integration steps: " + str(steps))
-
+        # steps = (Time(data["Julian Date"].iloc[-1] * cds.d + leadtime, format="jd", scale='utc').to_value('jd')
+        #          - Time(data["Julian Date"].iloc[0] * cds.d - leadtime, format="jd", scale='utc').to_value('jd'))/int_step
+        # print("Number of integration steps: " + str(steps))
+        steps = 0
         if steps < 90000:  # JPL Horizons limit
+
+            if minimoon == '2006 RH120':
+                mm_analyzer.H = 29.9
+            elif minimoon == '2020 CD3':
+                mm_analyzer.H = 31.9
+            else:
+                mm_analyzer.H = mm_parser.mm_data['x7'].iloc[i]
 
             new_data = mm_analyzer.get_data_mm_oorb_w_horizons(mm_parser, data, int_step, perturbers,
                                                            start_time, end_time, mu_e, minimoon)
 
-            mm_analyzer.H = mm_parser.mm_data['x7'].iloc[i]
+
+
             new_data.to_csv(destination_path + '/' + minimoon + '.csv', sep=' ', header=True, index=False)
 
             ########################################################################################################
@@ -1212,6 +1293,37 @@ if __name__ == '__main__':
 
             D = getH2D(mm_analyzer.H) * 1000
 
+            repacked_results = mm_analyzer.short_term_capture(new_data["Object id"].iloc[0])
+
+            # repack list according to index
+            # repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
+
+            # assign new columns to master file
+            TCO_state = np.array(repacked_results[10])
+            hxems = TCO_state[0]
+            hyems = TCO_state[1]
+            hzems = TCO_state[2]
+            hvxems = TCO_state[3]
+            hvyems = TCO_state[4]
+            hvzems = TCO_state[5]
+
+            Earth_state = np.array(repacked_results[11])
+            hexems = Earth_state[0]
+            heyems = Earth_state[1]
+            hezems = Earth_state[2]
+            hevxems = Earth_state[3]
+            hevyems = Earth_state[4]
+            hevzems = Earth_state[5]
+
+            Moon_state = np.array(repacked_results[12])
+            hmxems = Moon_state[0]
+            hmyems = Moon_state[1]
+            hmzems = Moon_state[2]
+            hmvxems = Moon_state[3]
+            hmvyems = Moon_state[4]
+            hmvzems = Moon_state[5]
+
+            # assign all the data for the minimoon in question into the master file
             new_row = pd.DataFrame({'Object id': new_data["Object id"].iloc[0], 'H': mm_analyzer.H, 'D': D,
                        'Capture Date': mm_analyzer.capture_start, 'Helio x at Capture': hx, 'Helio y at Capture': hy,
                        'Helio z at Capture': hz, 'Helio vx at Capture': hvx, 'Helio vy at Capture': hvy,
@@ -1238,13 +1350,91 @@ if __name__ == '__main__':
                        'Geo i at Release': rgi, 'Geo Omega at Release': rgOm, 'Geo omega at Release': rgom,
                        'Geo M at Release': rgM, 'Moon (Helio) x at Release': rhmx, 'Moon (Helio) y at Release': rhmy,
                        'Moon (Helio) z at Release': rhmz, 'Moon (Helio) vx at Release': rhmvx,
-                       'Moon (Helio) vy at Release': rhmvy, 'Moon (Helio) vz at Release': rhmvz}, index=[1])
+                       'Moon (Helio) vy at Release': rhmvy, 'Moon (Helio) vz at Release': rhmvz,
+                       'Retrograde': mm_analyzer.retrograde, 'Became Minimoon': mm_analyzer.minimoon_flag,
+                       'Max. Distance': mm_analyzer.max_dist, 'Capture Index': mm_analyzer.cap_idx,
+                       'Release Index': mm_analyzer.rel_idx, 'X at Earth Hill': mm_analyzer.x_eh,
+                       'Y at Earth Hill': mm_analyzer.y_eh, 'Z at Earth Hill': mm_analyzer.z_eh,
+                       'Taxonomy': 'U', 'STC': mm_analyzer.stc, "EMS Duration": mm_analyzer.t_ems,
+                       "Periapsides in EMS": mm_analyzer.peri_ems, "Periapsides in 3 Hill": mm_analyzer.peri_3hill,
+                       "Periapsides in 2 Hill": mm_analyzer.peri_2hill, "Periapsides in 1 Hill": mm_analyzer.peri_1hill,
+                       "STC Start": mm_analyzer.stc_start, "STC Start Index": mm_analyzer.stc_start_idx,
+                       "STC End": mm_analyzer.stc_end, "STC End Index": mm_analyzer.stc_end_idx, "Helio x at EMS": hxems,
+                       "Helio y at EMS": hyems, "Helio z at EMS": hzems, "Helio vx at EMS": hvxems,
+                       "Helio vy at EMS": hvyems, "Helio vz at EMS": hvzems, "Earth x at EMS (Helio)": hexems,
+                       "Earth y at EMS (Helio)": heyems, "Earth z at EMS (Helio)": hezems,
+                       "Earth vx at EMS (Helio)": hevxems, "Earth vy at EMS (Helio)": hevyems,
+                       "Earth vz at EMS (Helio)": hevzems, "Moon x at EMS (Helio)": hmxems,
+                       "Moon y at EMS (Helio)": hmyems, "Moon z at EMS (Helio)": hmzems,
+                       "Moon vx at EMS (Helio)": hmvxems, "Moon vy at EMS (Helio)": hmvyems,
+                       "Moon vz at EMS (Helio)": hmvzems}, index=[1])
 
-            #my_master_file = pd.concat([my_master_file, new_row], ignore_index=True)
-            new_row.to_csv(destination_path + '/' + 'minimoon_master.csv', sep=' ', mode='a', header=False, index=False)
+
+            # use the initial row to update the taxonomy
+            new_row2 = pd.DataFrame({'Object id': new_data["Object id"].iloc[0], 'H': mm_analyzer.H, 'D': D,
+                                    'Capture Date': mm_analyzer.capture_start, 'Helio x at Capture': hx,
+                                    'Helio y at Capture': hy,
+                                    'Helio z at Capture': hz, 'Helio vx at Capture': hvx, 'Helio vy at Capture': hvy,
+                                    'Helio vz at Capture': hvz, 'Helio q at Capture': hq, 'Helio e at Capture': he,
+                                    'Helio i at Capture': hi, 'Helio Omega at Capture': hOm,
+                                    'Helio omega at Capture': hom,
+                                    'Helio M at Capture': hM, 'Geo x at Capture': gx, 'Geo y at Capture': gy,
+                                    'Geo z at Capture': gz,
+                                    'Geo vx at Capture': gvx, 'Geo vy at Capture': gvy, 'Geo vz at Capture': gvz,
+                                    'Geo q at Capture': gq, 'Geo e at Capture': ge, 'Geo i at Capture': gi,
+                                    'Geo Omega at Capture': gOm, 'Geo omega at Capture': gom, 'Geo M at Capture': gM,
+                                    'Moon (Helio) x at Capture': hmx, 'Moon (Helio) y at Capture': hmy,
+                                    'Moon (Helio) z at Capture': hmz, 'Moon (Helio) vx at Capture': hmvx,
+                                    'Moon (Helio) vy at Capture': hmvy, 'Moon (Helio) vz at Capture': hmvz,
+                                    'Capture Duration': mm_analyzer.capture_duration,
+                                    'Spec. En. Duration': mm_analyzer.epsilon_duration,
+                                    '3 Hill Duration': mm_analyzer.three_eh_duration,
+                                    'Number of Rev': mm_analyzer.revolutions,
+                                    '1 Hill Duration': mm_analyzer.one_eh_duration,
+                                    'Min. Distance': mm_analyzer.min_dist,
+                                    'Release Date': mm_analyzer.capture_end, 'Helio x at Release': rhx,
+                                    'Helio y at Release': rhy,
+                                    'Helio z at Release': rhz, 'Helio vx at Release': rhvx, 'Helio vy at Release': rhvy,
+                                    'Helio vz at Release': rhvz, 'Helio q at Release': rhq, 'Helio e at Release': rhe,
+                                    'Helio i at Release': rhi, 'Helio Omega at Release': rhOm,
+                                    'Helio omega at Release': rhom,
+                                    'Helio M at Release': rhM, 'Geo x at Release': rgx, 'Geo y at Release': rgy,
+                                    'Geo z at Release': rgz, 'Geo vx at Release': rgvx, 'Geo vy at Release': rgvy,
+                                    'Geo vz at Release': rgvz, 'Geo q at Release': rgq, 'Geo e at Release': rge,
+                                    'Geo i at Release': rgi, 'Geo Omega at Release': rgOm, 'Geo omega at Release': rgom,
+                                    'Geo M at Release': rgM, 'Moon (Helio) x at Release': rhmx,
+                                    'Moon (Helio) y at Release': rhmy,
+                                    'Moon (Helio) z at Release': rhmz, 'Moon (Helio) vx at Release': rhmvx,
+                                    'Moon (Helio) vy at Release': rhmvy, 'Moon (Helio) vz at Release': rhmvz,
+                                    'Retrograde': mm_analyzer.retrograde, 'Became Minimoon': mm_analyzer.minimoon_flag,
+                                    'Max. Distance': mm_analyzer.max_dist, 'Capture Index': mm_analyzer.cap_idx,
+                                    'Release Index': mm_analyzer.rel_idx, 'X at Earth Hill': mm_analyzer.x_eh,
+                                    'Y at Earth Hill': mm_analyzer.y_eh, 'Z at Earth Hill': mm_analyzer.z_eh,
+                                    'Taxonomy': mm_analyzer.taxonomy(new_data, new_row), 'STC': mm_analyzer.stc, "EMS Duration": mm_analyzer.t_ems,
+                                    "Periapsides in EMS": mm_analyzer.peri_ems,
+                                    "Periapsides in 3 Hill": mm_analyzer.peri_3hill,
+                                    "Periapsides in 2 Hill": mm_analyzer.peri_2hill,
+                                    "Periapsides in 1 Hill": mm_analyzer.peri_1hill,
+                                    "STC Start": mm_analyzer.stc_start, "STC Start Index": mm_analyzer.stc_start_idx,
+                                    "STC End": mm_analyzer.stc_end, "STC End Index": mm_analyzer.stc_end_idx,
+                                    "Helio x at EMS": hxems,
+                                    "Helio y at EMS": hyems, "Helio z at EMS": hzems, "Helio vx at EMS": hvxems,
+                                    "Helio vy at EMS": hvyems, "Helio vz at EMS": hvzems,
+                                    "Earth x at EMS (Helio)": hexems,
+                                    "Earth y at EMS (Helio)": heyems, "Earth z at EMS (Helio)": hezems,
+                                    "Earth vx at EMS (Helio)": hevxems, "Earth vy at EMS (Helio)": hevyems,
+                                    "Earth vz at EMS (Helio)": hevzems, "Moon x at EMS (Helio)": hmxems,
+                                    "Moon y at EMS (Helio)": hmyems, "Moon z at EMS (Helio)": hmzems,
+                                    "Moon vx at EMS (Helio)": hmvxems, "Moon vy at EMS (Helio)": hmvyems,
+                                    "Moon vz at EMS (Helio)": hmvzems}, index=[1])
+
+            pd.set_option('display.max_columns', None)
+            # pd.set_option('display.max_rows', None)
+            pd.set_option('display.float_format', lambda x: '%.5f' % x)
+            new_row.to_csv(destination_path + '/' + 'minimoon_master_final.csv', sep=' ', mode='a', header=False, index=False)
 
         else:
-            errors.append([i, str(data["Object id"].iloc[0])])
+            # errors.append([i, str(data["Object id"].iloc[0])])
             print("Horizons error at:" + str(i) + " for minimoon " + str(data["Object id"].iloc[0]))
 
-    print(errors)
+    # print(errors)

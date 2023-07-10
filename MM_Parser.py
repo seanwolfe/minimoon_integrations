@@ -143,7 +143,13 @@ class MmParser:
         'Geo Omega at Release', 'Geo omega at Release', 'Geo M at Release', 'Moon (Helio) x at Release',
          'Moon (Helio) y at Release', 'Moon (Helio) z at Release', 'Moon (Helio) vx at Release',
          'Moon (Helio) vy at Release', 'Moon (Helio) vz at Release', 'Retrograde', 'Became Minimoon', 'Max. Distance',
-         'Capture Index', 'Release Index', 'X at Earth Hill', 'Y at Earth Hill', 'Z at Earth Hill', 'Taxonomy'
+         'Capture Index', 'Release Index', 'X at Earth Hill', 'Y at Earth Hill', 'Z at Earth Hill', 'Taxonomy', 'STC'
+         "EMS Duration", "Periapsides in EMS", "Periapsides in 3 Hill", "Periapsides in 2 Hill", "Periapsides in 1 Hill",
+        "STC Start", "STC Start Index", "STC End", "STC End Index", "Helio x at EMS", "Helio y at EMS", "Helio z at EMS",
+         "Helio vx at EMS", "Helio vy at EMS", "Helio vz at EMS", "Earth x at EMS (Helio)", "Earth y at EMS (Helio)",
+        "Earth z at EMS (Helio)", "Earth vx at EMS (Helio)", "Earth vy at EMS (Helio)", "Earth vz at EMS (Helio)",
+         "Moon x at EMS (Helio)", "Moon y at EMS (Helio)", "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
+          "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)"
         :return:
         """
         master_data = pd.read_csv(file_path, sep=",", header=0, names=['Object id', 'H', 'D', 'Capture Date',
@@ -190,7 +196,18 @@ class MmParser:
                                                              'Moon (Helio) vz at Release', 'Retrograde',
                                                              'Became Minimoon', 'Max. Distance', 'Capture Index',
                                                              'Release Index', 'X at Earth Hill', 'Y at Earth Hill',
-                                                             'Z at Earth Hill', 'Taxonomy'])
+                                                             'Z at Earth Hill', 'Taxonomy', 'STC', "EMS Duration",
+                                                             "Periapsides in EMS", "Periapsides in 3 Hill",
+                                                             "Periapsides in 2 Hill", "Periapsides in 1 Hill",
+                                                             "STC Start", "STC Start Index", "STC End", "STC End Index",
+                                                             "Helio x at EMS", "Helio y at EMS", "Helio z at EMS",
+                                                             "Helio vx at EMS", "Helio vy at EMS", "Helio vz at EMS",
+                                                             "Earth x at EMS (Helio)", "Earth y at EMS (Helio)",
+                                                             "Earth z at EMS (Helio)", "Earth vx at EMS (Helio)",
+                                                             "Earth vy at EMS (Helio)", "Earth vz at EMS (Helio)",
+                                                             "Moon x at EMS (Helio)", "Moon y at EMS (Helio)",
+                                                             "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
+                                                             "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)"])
 
         return master_data
 
