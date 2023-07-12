@@ -152,7 +152,7 @@ class MmParser:
           "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)"
         :return:
         """
-        master_data = pd.read_csv(file_path, sep=",", header=0, names=['Object id', 'H', 'D', 'Capture Date',
+        master_data = pd.read_csv(file_path, sep=" ", header=0, names=['Object id', 'H', 'D', 'Capture Date',
                                                              'Helio x at Capture', 'Helio y at Capture',
                                                              'Helio z at Capture', 'Helio vx at Capture',
                                                              'Helio vy at Capture', 'Helio vz at Capture',
@@ -208,6 +208,7 @@ class MmParser:
                                                              "Moon x at EMS (Helio)", "Moon y at EMS (Helio)",
                                                              "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
                                                              "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)"])
+
 
         return master_data
 

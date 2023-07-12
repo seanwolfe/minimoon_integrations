@@ -128,11 +128,11 @@ class MmPopulation:
         """
 
         # Get retrograde and prograde TCOs
-        tco_pop = mm_pop.population[(mm_pop.population['Became Minimoon'] == 1)]
-        retrograde_pop = mm_pop.population[
-            (mm_pop.population['Retrograde'] == 1) & (mm_pop.population['Became Minimoon']
+        tco_pop = self.population[(mm_pop.population['Became Minimoon'] == 1)]
+        retrograde_pop = self.population[
+            (self.population['Retrograde'] == 1) & (self.population['Became Minimoon']
                                                       == 1)]
-        prograde_pop = mm_pop.population[(mm_pop.population['Retrograde'] == 0) & (mm_pop.population['Became Minimoon']
+        prograde_pop = self.population[(mm_pop.population['Retrograde'] == 0) & (self.population['Became Minimoon']
                                                                                    == 1)]
 
         fig = plt.figure()
@@ -230,6 +230,164 @@ class MmPopulation:
         plt.ylabel('Synodic y at Earth Hill sphere (AU)')
         plt.savefig("figures/f8.svg", format="svg")
 
+    def stc_pop_viz(self):
+
+        stc_pop = self.population[self.population['STC'] == True]
+        non_stc_pop = self.population[self.population['STC'] == False]
+
+        # Set the bin size
+        bin_size = 1
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_stc = max(stc_pop['EMS Duration']) - min(stc_pop['EMS Duration'])
+        num_bins_stc = int(data_range_stc / bin_size)
+        data_range_nonstc = max(non_stc_pop['EMS Duration']) - min(non_stc_pop['EMS Duration'])
+        num_bins_nonstc = int(data_range_nonstc / bin_size)
+
+        fig = plt.figure()
+        plt.hist(stc_pop['EMS Duration'], bins=num_bins_stc, label='STCs', edgecolor="#038cfc",
+                 color="#03b1fc")
+        plt.hist(non_stc_pop['EMS Duration'], bins=num_bins_nonstc, label='Non-STCs', edgecolor="#ed0000", color="#f54747")
+        plt.xlim([0, 60])
+        plt.ylim([0, 3500])
+        plt.xlabel('Duration in the SOI of EMS (days)')
+        plt.ylabel('Count')
+        plt.legend()
+        plt.savefig("figures/tmes_hist.svg", format="svg")
+
+        # Set the bin size
+        bin_size = 10
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_stc = max(stc_pop['3 Hill Duration']) - min(stc_pop['3 Hill Duration'])
+        num_bins_stc = int(data_range_stc / bin_size)
+        data_range_nonstc = max(non_stc_pop['3 Hill Duration']) - min(non_stc_pop['3 Hill Duration'])
+        num_bins_nonstc = int(data_range_nonstc / bin_size)
+
+        fig2 = plt.figure()
+        plt.hist(stc_pop['3 Hill Duration'], bins=num_bins_stc, label='STCs', edgecolor="#038cfc",
+                 color="#03b1fc", zorder=10, alpha=0.5,)
+        plt.hist(non_stc_pop['3 Hill Duration'], bins=num_bins_nonstc, label='Non-STCs', edgecolor="#ed0000",
+                 color="#f54747", zorder=5)
+        plt.xlim([0, 1600])
+        plt.ylim([0, 650])
+        plt.xlabel('Capture Duration (days)')
+        plt.ylabel('Count')
+        plt.legend()
+        plt.savefig("figures/t_hist.svg", format="svg")
+
+
+        string = 'Periapsides in 2 Hill'
+        # Set the bin size
+        bin_size = 1
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_stc = max(stc_pop[string]) - min(stc_pop[string])
+        num_bins_stc = int(data_range_stc / bin_size)
+        data_range_nonstc = max(non_stc_pop[string]) - min(non_stc_pop[string])
+        num_bins_nonstc = int(data_range_nonstc / bin_size)
+
+        fig3 = plt.figure()
+        plt.hist(stc_pop[string], bins=num_bins_stc, label='STCs', edgecolor="#038cfc",
+                 color="#03b1fc", alpha=0.5, zorder=10)
+        plt.hist(non_stc_pop[string], bins=num_bins_nonstc, label='Non-STCs', edgecolor="#ed0000",
+                 color="#f54747", zorder=5)
+        plt.xlim([0, 20])
+        plt.xticks(range(0, 20))
+        plt.ylim([0, 6500])
+        plt.xlabel('Number of Periapsides Within Two Earth Hill Radii')
+        plt.ylabel('Count')
+        plt.legend()
+        plt.savefig("figures/peri_2.svg", format="svg")
+
+        string = 'Periapsides in 3 Hill'
+        # Set the bin size
+        bin_size = 1
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_stc = max(stc_pop[string]) - min(stc_pop[string])
+        num_bins_stc = int(data_range_stc / bin_size)
+        data_range_nonstc = max(non_stc_pop[string]) - min(non_stc_pop[string])
+        num_bins_nonstc = int(data_range_nonstc / bin_size)
+
+        fig4 = plt.figure()
+        plt.hist(stc_pop[string], bins=num_bins_stc, label='STCs', edgecolor="#038cfc",
+                 color="#03b1fc", zorder=10, alpha=0.5)
+        plt.hist(non_stc_pop[string], bins=num_bins_nonstc, label='Non-STCs', edgecolor="#ed0000",
+                 color="#f54747", zorder=5)
+        plt.xlim([0, 20])
+        plt.xticks(range(0, 20))
+        plt.ylim([0, 6000])
+        plt.xlabel('Number of Periapsides Within Three Earth Hill Radii')
+        plt.ylabel('Count')
+        plt.legend()
+        plt.savefig("figures/peri_3.svg", format="svg")
+
+        string = 'Periapsides in 1 Hill'
+        # Set the bin size
+        bin_size = 1
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_stc = max(stc_pop[string]) - min(stc_pop[string])
+        num_bins_stc = int(data_range_stc / bin_size)
+        data_range_nonstc = max(non_stc_pop[string]) - min(non_stc_pop[string])
+        num_bins_nonstc = int(data_range_nonstc / bin_size)
+
+        fig5 = plt.figure()
+        plt.hist(stc_pop[string], bins=num_bins_stc, label='STCs', edgecolor="#038cfc",
+                 color="#03b1fc", zorder=10, alpha=0.5)
+        plt.hist(non_stc_pop[string], bins=num_bins_nonstc, label='Non-STCs', edgecolor="#ed0000",
+                 color="#f54747",  zorder=5)
+        plt.xlim([0, 20])
+        plt.xticks(range(0, 20))
+        plt.ylim([0, 12000])
+        plt.xlabel('Number of Periapsides Within One Earth Hill Radii')
+        plt.ylabel('Count')
+        plt.legend()
+        plt.savefig("figures/peri_1.svg", format="svg")
+
+        string = 'Periapsides in EMS'
+        # Set the bin size
+        bin_size = 1
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_stc = max(stc_pop[string]) - min(stc_pop[string])
+        num_bins_stc = int(data_range_stc / bin_size)
+        data_range_nonstc = max(non_stc_pop[string]) - min(non_stc_pop[string])
+        num_bins_nonstc = int(data_range_nonstc / bin_size)
+
+        fig6 = plt.figure()
+        plt.hist(stc_pop[string], bins=num_bins_stc, label='STCs', edgecolor="#038cfc",
+                 color="#03b1fc", zorder=10)
+        plt.hist(non_stc_pop[string], bins=2, label='Non-STCs', edgecolor="#ed0000",
+                 color="#f54747", zorder=5)
+        plt.xlim([0, 10])
+        plt.ylim([0, 12000])
+        plt.xlabel('Number of Periapsides Within the EMS')
+        plt.xticks(range(0, 10))
+        plt.ylabel('Count')
+        plt.legend()
+        plt.savefig("figures/peri_ems.svg", format="svg")
+
+        fig7 = plt.figure()
+        earth_xyz = np.array([stc_pop["Earth x at EMS (Helio)"], stc_pop["Earth y at EMS (Helio)"],
+                              stc_pop["Earth z at EMS (Helio)"]])
+        mm_xyz = np.array([stc_pop["Helio x at EMS"], stc_pop["Helio y at EMS"], stc_pop["Helio z at EMS"]]) - earth_xyz
+        trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_xyz)  # minus is to have sun relative to earth
+        plt.scatter(trans_xyz[0, :], trans_xyz[1, :], s=0.1)
+        plt.xlim([-0.01, 0.01])
+        c1 = plt.Circle((0, 0), radius=0.0038752837677, alpha=0.1)
+        plt.gca().add_artist(c1)
+        plt.gca().set_aspect('equal')
+        plt.xlabel('Synodic x at EMS (AU)')
+        plt.ylabel('Synodic y at EMS (AU)')
+        plt.savefig("figures/stc_at_ems.svg", format="svg")
+
+        plt.show()
+
+        return
+
+
 
 if __name__ == '__main__':
 
@@ -242,6 +400,10 @@ if __name__ == '__main__':
     mm_analyzer = MmAnalyzer()
     # mm_parser = MmParser("", population_dir, "")
     mm_pop = MmPopulation(population_path)
+
+    mm_pop.stc_pop_viz()
+
+
 
     # Retrograde vs. Prograde
     # go through all the minimoon file names
@@ -257,16 +419,21 @@ if __name__ == '__main__':
     # designations = []
     # hill_crossing = np.zeros([len(mm_pop.population['Object id']), 1])
     #
-    master = mm_pop.population
+    # master = mm_pop.population
+    # stc_pop = master[master['STC'] == True]
+    # non_stc_pop = master[master['STC'] == False]
+    # print(len(non_stc_pop))
+    # print(len(stc_pop))
+    # print(len(non_stc_pop) + len(stc_pop))
 
-    stcs = np.full(len(master['Object id']), np.nan)
-
-    pool = multiprocessing.Pool()
-    results = pool.map(mm_analyzer.short_term_capture, master['Object id'])
-    pool.close()
-
-
-    master.to_csv(population_path, sep=' ', header=True, index=False)
+    # stcs = np.full(len(master['Object id']), np.nan)
+    #
+    # pool = multiprocessing.Pool()
+    # results = pool.map(mm_analyzer.short_term_capture, master['Object id'])
+    # pool.close()
+    #
+    #
+    # master.to_csv(population_path, sep=' ', header=True, index=False)
 
     # total_pop = master[(master['Became Minimoon'] == 1)]
     # retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]

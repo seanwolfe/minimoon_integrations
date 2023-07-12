@@ -55,7 +55,10 @@ class MmAnalyzer:
     stc_start_idx = ""
     stc_end = ""
     stc_end_idx = ""
-
+    ems_start = ""
+    ems_start_idx = ""
+    ems_end = ""
+    ems_end_idx = ""
 
     def __init__(self):
         """
@@ -239,7 +242,6 @@ class MmAnalyzer:
         hill_idxs = [index for index, value in enumerate(distance) if value <= one_hill]
         data_eh_crossing = data.iloc[hill_idxs[0]]
 
-
         if time_captured > 0 and satisfied_3[0, 0] == 1 and satisfied_4_overall[0, 0] == 1:
             print("Object became minimoon: YES")
             print("Start of temporary capture: " + str(capture_date.isot))
@@ -262,23 +264,21 @@ class MmAnalyzer:
 
         if revolutions[0, 0] < 0:
             print("Orbit is retrograde")
-            self.retrograde = True
+            self.retrograde = 1
         else:
             print("Orbit is prograde")
-            self.retrograde = False
+            self.retrograde = 0
         print("Minimum distance reached to observer (AU): " + str(min_distances[0, 0]))
         print("...Done")
         print("\n")
-
-
 
         # Properties
         self.capture_start = capture_date
         self.capture_end = release_date
         self.capture_duration = time_captured[0, 0]
         self.three_eh_duration = time_satisfied_1[0, 0]
-        self.minimoon_flag = True if time_captured > 0 and satisfied_3[0, 0] == 1 and satisfied_4_overall[0, 0] == 1 \
-            else False
+        self.minimoon_flag = 1 if time_captured > 0 and satisfied_3[0, 0] == 1 and satisfied_4_overall[0, 0] == 1 \
+            else 0
         self.epsilon_duration = time_satisfied_2[0, 0]
         self.revolutions = revolutions[0, 0]
         self.one_eh_flag = True if satisfied_3[0, 0] == 1 else False
@@ -294,7 +294,8 @@ class MmAnalyzer:
 
         return
 
-    def taxonomy(self, data, master):
+    @staticmethod
+    def taxonomy(data, master):
         """
         Determine the taxonomic designation of the TCO population according to Urrutxua 2017
         :param data: the file containing all relevant ephemeris data of the object in question
@@ -312,7 +313,6 @@ class MmAnalyzer:
 
         # during the temporary capture
         cap_dist = distance[cap_idx:rel_idx]
-
 
         # was its distance smaller than 1 Hill radius for entire capture?
         if all(ele < one_eh for ele in cap_dist):
@@ -361,7 +361,7 @@ class MmAnalyzer:
         :return:
         """
         ######################
-        ### open orb
+        # open orb
         #######################
 
         # Integration step (in days)
@@ -453,9 +453,6 @@ class MmAnalyzer:
         ############################################
 
         # Open orb generates eph
-
-        #print(start_time)
-
         # Time and observer information
         obscode = earth_obs  # Where are you observing from: https://minorplanetcenter.net/iau/lists/ObsCodesF.html
         mjds = np.arange(Time(start_time, format='isot', scale='utc').to_value('mjd', 'long'),
@@ -501,7 +498,6 @@ class MmAnalyzer:
         # Get the vectors table from JPL horizons
         eph_moon = obj_moon.vectors()
         print("...done")
-
 
         #############################################
         # Generate 39 element data frame containing results of the integrations: elements from 0-38
@@ -627,7 +623,6 @@ class MmAnalyzer:
         new_data["Geo M"] = temp[0, :]
         print("...done")
 
-
         # element 27-32 - Heliocentric state vector of Earth
         new_data["Earth x (Helio)"] = eph_sun[:nsteps]['x']
         new_data["Earth y (Helio)"] = eph_sun[:nsteps]['y']
@@ -643,7 +638,6 @@ class MmAnalyzer:
         new_data["Moon vx (Helio)"] = eph_moon[:nsteps]['vx']
         new_data["Moon vy (Helio)"] = eph_moon[:nsteps]['vy']
         new_data["Moon vz (Helio)"] = eph_moon[:nsteps]['vz']
-
 
         print("Getting synodic x,y,z, ecliptic longitude...")
         earth_xyz = np.array([new_data["Earth x (Helio)"], new_data["Earth y (Helio)"], new_data["Earth z (Helio)"]])
@@ -852,7 +846,6 @@ class MmAnalyzer:
         # population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
         population_dir = os.path.join(os.getcwd(), 'Test_Set')
 
-
         mm_parser = MmParser("", population_dir, "")
 
         # Initial: will be result if no file found with that name
@@ -983,14 +976,28 @@ class MmAnalyzer:
                     # Helio Moon at entrance to SOI EMS
                     moon_state = data[['Moon x (Helio)', 'Moon y (Helio)', 'Moon z (Helio)', 'Moon vx (Helio)',
                                     'Moon vy (Helio)', 'Moon vz (Helio)']].iloc[in_ems_idxs[0]]
+
+                    # EMS start
+                    ems_start = data['Julian Date'].iloc[in_ems_idxs[0]]
+                    ems_start_idx = in_ems_idxs[0]
+                    # EMS end
+                    ems_end = data['Julian Date'].iloc[in_ems_idxs[-1]]
+                    ems_end_idx = data['Julian Date'].iloc[in_ems_idxs[-1]]
+
                 else:
                     Earth_state = np.full(6, np.nan)
                     TCO_state = np.full(6, np.nan)
                     moon_state = np.full(6, np.nan)
-
+                    # EMS start
+                    ems_start = np.nan
+                    ems_start_idx = np.nan
+                    # EMS end
+                    ems_end = np.nan
+                    ems_end_idx = np.nan
 
                 results = [stc, time_SOI_EMS, peri_in_SOI_EMS, peri_in_3_hill, peri_in_2_hill, peri_in_1_hill,
-                           stc_start, stc_start_idx, stc_end, stc_end_idx, TCO_state, Earth_state, moon_state]
+                           stc_start, stc_start_idx, stc_end, stc_end_idx, ems_start, ems_start_idx, ems_end,
+                           ems_end_idx, TCO_state, Earth_state, moon_state]
 
                 self.stc = stc
                 self.t_ems = time_SOI_EMS
@@ -1002,6 +1009,10 @@ class MmAnalyzer:
                 self.stc_start_idx = stc_start_idx
                 self.stc_end = stc_end
                 self.stc_end_idx = stc_end_idx
+                self.ems_start = ems_start
+                self.ems_start_idx = ems_start_idx
+                self.ems_end = ems_end
+                self.ems_end_idx = ems_end_idx
 
                 print("STC: " + str(stc))
                 print("Time spent in EMS: " + str(time_SOI_EMS))
@@ -1011,6 +1022,8 @@ class MmAnalyzer:
                 print("Number of periapsides in 1 hill: " + str(peri_in_1_hill))
                 print("STC start: " + str(stc_start))
                 print("STC end: " + str(stc_end))
+                print("EMS start: " + str(ems_start))
+                print("EMS end: " + str(ems_end))
                 print("...Done")
                 print("\n")
 
@@ -1039,6 +1052,87 @@ class MmAnalyzer:
                 # plt.show()
 
         return results
+
+    def alpha_beta_jacobi(self, object_id):
+
+        # go through all the files of test particles
+        # population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        population_dir = os.path.join(os.getcwd(), 'Test_Set')
+        population_file = 'minimoon_master_final.csv'
+        population_file_path = population_dir + '/' + population_file
+
+        mm_parser = MmParser("", population_dir, "")
+
+        # Initial: will be result if no file found with that name
+        results = np.array((len(object_id), 3))
+
+        master = mm_parser.parse_master(population_file_path)
+
+        # get the jacobi constant using ephimeris data
+        mu_s = 1.3271244e11 / np.power(1.496e+8, 3) # km^3/s^2 to AU^3/s^2
+        mu_EMS = 403505.3113 / np.power(1.496e+8, 3) # km^3/s^2 = m_E + mu_M to AU^3/s^2
+        x = master['Helio x at EMS']
+        y = master['Helio y at EMS']
+        z = master['Helio z at EMS']
+        vx = master['Helio vx at EMS']
+        vy = master['Helio vy at EMS']
+        vz = master['Helio vz at EMS']
+        vx_M = master['Moon vx at EMS (Helio)']
+        vy_M = master['Moon vy at EMS (Helio)']
+        vz_M = master['Moon vz at EMS (Helio)']
+        x_M = master['Moon x at EMS (Helio)']
+        y_M = master['Moon y at EMS (Helio)']
+        z_M = master['Moon z at EMS (Helio)']
+        x_E = master['Earth x at EMS (Helio)']
+        y_E = master['Earth y at EMS (Helio)']
+        z_E = master['Earth z at EMS (Helio)']
+        vx_E = master['Earth vx at EMS (Helio)']
+        vy_E = master['Earth vy at EMS (Helio)']
+        vz_E = master['Earth vz at EMS (Helio)']
+
+        h_r_TCO = np.array([x, y, z])
+        h_r_M = np.array([x_M, y_M, z_M])
+        h_r_E = np.array([x_E, y_E, z_E])
+        h_v_TCO = np.array([vx, vy, vz])
+        h_v_M = np.array([vx_M, vy_M, vz_M])
+        h_v_E = np.array([vx_E, vy_E, vz_E])
+
+
+        m_e = 5.97219e24  # mass of Earth
+        m_m = 7.34767309e22  # mass of the Moon
+        ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre
+        vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric position of the ems barycentre
+
+        sun_c = 11  # 11 for Sun, 3 for Earth
+        print("Getting helio keplarian osculating elements...")
+
+        # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
+        # orbit = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
+        #                 vems_barycentre[2], 1., date_ems, 1., 10., 0.15]
+
+        # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
+        # new_orbits_com, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbit,
+        #                                                                 in_element_type=2, in_center=sun_c)
+
+
+        # lambda_h = np.atand(ems_barycentre[1], ems_barycentre[0])  # angle between helio x and sun-ems barycentre synodic x
+        # h_r_EMS_xy = np.sqrt(ems_barycentre[0] ** 2 + ems_barycentre[1] ** 2)  # helio xy projection of ems barycentre
+        # h_r_EMS = np.sqrt(ems_barycentre[0] ** 2 + ems_barycentre[1] ** 2 + ems_barycentre[2] ** 2)  # helio ems barycentre
+        # h_i = np.atand(ems_barycentre[2], h_r_EMS_xy)  # heliocentric inclination of ems barycentre
+
+
+
+        # jacobi_dimensional = -2*(0.5 * v_rel**2 - 0.5 * (x ** 2 + y ** 2) - mu_s / r_s - mu_EMS / r_EMS
+        #
+        # for root, dirs, files in os.walk(population_dir):
+        #     find files that are minimoons
+            # name = str(object_id) + ".csv"
+            #
+            # if name in files:
+            #     file_path = os.path.join(root, name)
+
+        return
+
 
 
 if __name__ == '__main__':
@@ -1168,7 +1262,7 @@ if __name__ == '__main__':
         data = []
 
         # minimoon = str(data["Object id"].iloc[0])
-        minimoon = '2020 CD3'
+        minimoon = '2006 RH120'
 
         if minimoon == '2006 RH120':
             # Integration range start and end dates - if you change dates here you have to change orbital elements - is this true?
@@ -1299,7 +1393,7 @@ if __name__ == '__main__':
             # repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
 
             # assign new columns to master file
-            TCO_state = np.array(repacked_results[10])
+            TCO_state = np.array(repacked_results[14])
             hxems = TCO_state[0]
             hyems = TCO_state[1]
             hzems = TCO_state[2]
@@ -1307,7 +1401,7 @@ if __name__ == '__main__':
             hvyems = TCO_state[4]
             hvzems = TCO_state[5]
 
-            Earth_state = np.array(repacked_results[11])
+            Earth_state = np.array(repacked_results[15])
             hexems = Earth_state[0]
             heyems = Earth_state[1]
             hezems = Earth_state[2]
@@ -1315,7 +1409,7 @@ if __name__ == '__main__':
             hevyems = Earth_state[4]
             hevzems = Earth_state[5]
 
-            Moon_state = np.array(repacked_results[12])
+            Moon_state = np.array(repacked_results[16])
             hmxems = Moon_state[0]
             hmyems = Moon_state[1]
             hmzems = Moon_state[2]
@@ -1367,7 +1461,9 @@ if __name__ == '__main__':
                        "Earth vz at EMS (Helio)": hevzems, "Moon x at EMS (Helio)": hmxems,
                        "Moon y at EMS (Helio)": hmyems, "Moon z at EMS (Helio)": hmzems,
                        "Moon vx at EMS (Helio)": hmvxems, "Moon vy at EMS (Helio)": hmvyems,
-                       "Moon vz at EMS (Helio)": hmvzems}, index=[1])
+                       "Moon vz at EMS (Helio)": hmvzems, "EMS Start": mm_analyzer.ems_start,
+                       "EMS Start Index": mm_analyzer.ems_start_idx, "EMS End": mm_analyzer.ems_end,
+                       "EMS End Index": mm_analyzer.ems_end_idx}, index=[1])
 
 
             # use the initial row to update the taxonomy
@@ -1426,12 +1522,14 @@ if __name__ == '__main__':
                                     "Earth vz at EMS (Helio)": hevzems, "Moon x at EMS (Helio)": hmxems,
                                     "Moon y at EMS (Helio)": hmyems, "Moon z at EMS (Helio)": hmzems,
                                     "Moon vx at EMS (Helio)": hmvxems, "Moon vy at EMS (Helio)": hmvyems,
-                                    "Moon vz at EMS (Helio)": hmvzems}, index=[1])
+                                    "Moon vz at EMS (Helio)": hmvzems, "EMS Start": mm_analyzer.ems_start,
+                                    "EMS Start Index": mm_analyzer.ems_start_idx, "EMS End": mm_analyzer.ems_end,
+                                    "EMS End Index": mm_analyzer.ems_end_idx}, index=[1])
 
-            pd.set_option('display.max_columns', None)
+            # pd.set_option('display.max_columns', None)
             # pd.set_option('display.max_rows', None)
-            pd.set_option('display.float_format', lambda x: '%.5f' % x)
-            new_row.to_csv(destination_path + '/' + 'minimoon_master_final.csv', sep=' ', mode='a', header=False, index=False)
+            # pd.set_option('display.float_format', lambda x: '%.5f' % x)
+            new_row2.to_csv(destination_path + '/' + 'minimoon_master_final.csv', sep=' ', mode='a', header=False, index=False)
 
         else:
             # errors.append([i, str(data["Object id"].iloc[0])])
