@@ -30,17 +30,7 @@ class MmMain():
 
        return
 
-    def integrate(self):
-
-        # Constants
-        mu_e = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
-
-        # Amount before and after you want oorb integrations to start (in days) with respect to Fedorets data
-        leadtime = 365 * cds.d
-
-
-        destination_path = os.path.join(os.getcwd(), 'Test_Set')
-        destination_file = destination_path + '/minimoon_master_final.csv'
+    def integrate(self, master_path, mu_e, leadtime, perturbers, int_step):
 
         # create parser
         mm_parser = MmParser(destination_file, "", "")
@@ -48,91 +38,20 @@ class MmMain():
         # create an analyzer
         mm_analyzer = MmAnalyzer()
 
+        # get the master file - you need a list of initial orbits to integrate with openorb (pyorb)
+        master = mm_parser.parse_master(master_path)
+
+        leadtime = leadtime * cds.d
+
         ####################################################################
         # Integrating data to generate new data from fedorets original data, generate new data file
         ####################################################################
 
-        # Perturbers (for OpenOrb) - Array of ints (0 = FALSE (i.e. not included) and 1 = TRUE) if a gravitational body
-        # should be included in integrations
-        mercury = 1
-        venus = 1
-        earth = 1
-        mars = 1
-        jupiter = 1
-        saturn = 1
-        uranus = 1
-        neptune = 1
-        pluto = 1
-        moon = 1
-        perturbers = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, moon]
+        # catch objects that should be integrated with larger step because number of samples is too large for JPL
+        errors = []
 
-        my_master_file = pd.DataFrame(columns=['Object id', 'H', 'D', 'Capture Date',
-                                               'Helio x at Capture', 'Helio y at Capture',
-                                               'Helio z at Capture', 'Helio vx at Capture',
-                                               'Helio vy at Capture', 'Helio vz at Capture',
-                                               'Helio q at Capture', 'Helio e at Capture',
-                                               'Helio i at Capture', 'Helio Omega at Capture',
-                                               'Helio omega at Capture', 'Helio M at Capture',
-                                               'Geo x at Capture', 'Geo y at Capture',
-                                               'Geo z at Capture', 'Geo vx at Capture',
-                                               'Geo vy at Capture', 'Geo vz at Capture',
-                                               'Geo q at Capture', 'Geo e at Capture',
-                                               'Geo i at Capture', 'Geo Omega at Capture',
-                                               'Geo omega at Capture', 'Geo M at Capture',
-                                               'Moon (Helio) x at Capture',
-                                               'Moon (Helio) y at Capture',
-                                               'Moon (Helio) z at Capture',
-                                               'Moon (Helio) vx at Capture',
-                                               'Moon (Helio) vy at Capture',
-                                               'Moon (Helio) vz at Capture',
-                                               'Capture Duration', 'Spec. En. Duration',
-                                               '3 Hill Duration', 'Number of Rev',
-                                               '1 Hill Duration', 'Min. Distance',
-                                               'Release Date', 'Helio x at Release',
-                                               'Helio y at Release', 'Helio z at Release',
-                                               'Helio vx at Release', 'Helio vy at Release',
-                                               'Helio vz at Release', 'Helio q at Release',
-                                               'Helio e at Release', 'Helio i at Release',
-                                               'Helio Omega at Release',
-                                               'Helio omega at Release',
-                                               'Helio M at Release', 'Geo x at Release',
-                                               'Geo y at Release', 'Geo z at Release',
-                                               'Geo vx at Release', 'Geo vy at Release',
-                                               'Geo vz at Release', 'Geo q at Release',
-                                               'Geo e at Release', 'Geo i at Release',
-                                               'Geo Omega at Release',
-                                               'Geo omega at Release', 'Geo M at Release',
-                                               'Moon (Helio) x at Release',
-                                               'Moon (Helio) y at Release',
-                                               'Moon (Helio) z at Release',
-                                               'Moon (Helio) vx at Release',
-                                               'Moon (Helio) vy at Release',
-                                               'Moon (Helio) vz at Release', 'Retrograde',
-                                               'Became Minimoon', 'Max. Distance', 'Capture Index',
-                                               'Release Index', 'X at Earth Hill', 'Y at Earth Hill',
-                                               'Z at Earth Hill', 'Taxonomy', 'STC', "EMS Duration",
-                                               "Periapsides in EMS", "Periapsides in 3 Hill",
-                                               "Periapsides in 2 Hill", "Periapsides in 1 Hill",
-                                               "STC Start", "STC Start Index", "STC End", "STC End Index",
-                                               "Helio x at EMS", "Helio y at EMS", "Helio z at EMS",
-                                               "Helio vx at EMS", "Helio vy at EMS", "Helio vz at EMS",
-                                               "Earth x at EMS (Helio)", "Earth y at EMS (Helio)",
-                                               "Earth z at EMS (Helio)", "Earth vx at EMS (Helio)",
-                                               "Earth vy at EMS (Helio)", "Earth vz at EMS (Helio)",
-                                               "Moon x at EMS (Helio)", "Moon y at EMS (Helio)",
-                                               "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
-                                               "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)"])
-
-        # error_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations')
-        # error_file = 'errors.csv'
-        # error_path = error_dir + '/' + error_file
-        # my_errors = pd.read_csv(error_path, sep=",", header=None, names=["Index", "Object id"])
-        # print(my_errors)
-
-        int_step = 1 / 24
-        # errors = []
         # Loop over all the files
-        for i in range(1):
+        for i in range(len(master['Object id'])):
 
             # print(my_errors["Index"].iloc[i])
             # mm_file_name = mm_parser.mm_data["File Name"].iloc[my_errors["Index"].iloc[i]] + ".dat"
@@ -140,26 +59,17 @@ class MmMain():
             # data = mm_parser.mm_file_parse(temp_file)
             data = []
 
-            # minimoon = str(data["Object id"].iloc[0])
-            minimoon = '2006 RH120'
+            minimoon = str(master["Object id"].iloc[0])
 
-            if minimoon == '2006 RH120':
-                # Integration range start and end dates - if you change dates here you have to change orbital elements - is this true?
-                start_time = '2005-01-01T00:00:00'
-                end_time = '2009-02-01T00:00:00'
-            elif minimoon == '2020 CD3':
-                # Integration range start and end dates
-                start_time = '2018-01-01T00:00:00'
-                end_time = '2020-09-01T00:00:00'
-            else:
-                start_time = str(
-                    Time(data["Julian Date"].iloc[0] * cds.d - leadtime, format="jd", scale='utc').to_value('isot'))
-                end_time = str(
-                    Time(data["Julian Date"].iloc[-1] * cds.d + leadtime, format="jd", scale='utc').to_value('isot'))
 
-            # steps = (Time(data["Julian Date"].iloc[-1] * cds.d + leadtime, format="jd", scale='utc').to_value('jd')
-            #          - Time(data["Julian Date"].iloc[0] * cds.d - leadtime, format="jd", scale='utc').to_value('jd'))/int_step
-            # print("Number of integration steps: " + str(steps))
+            start_time = str(Time(data["Julian Date"].iloc[0] * cds.d - leadtime,
+                                  format="jd", scale='utc').to_value('isot'))
+            end_time = str(Time(data["Julian Date"].iloc[-1] * cds.d + leadtime,
+                                format="jd", scale='utc').to_value('isot'))
+
+            steps = (Time(data["Julian Date"].iloc[-1] * cds.d + leadtime, format="jd", scale='utc').to_value('jd')
+                      - Time(data["Julian Date"].iloc[0] * cds.d - leadtime, format="jd", scale='utc').to_value('jd'))/int_step
+            print("Number of integration steps: " + str(steps))
             steps = 0
             if steps < 90000:  # JPL Horizons limit
 
@@ -448,7 +358,43 @@ class MmMain():
 
     def add_new_column(self):
 
-# Constants
+if __name__ == '__main__':
+
+    mm_main = MmMain()
+
+    ########################################
+    # Integrate Initializations
+    #########################################
+
+    # Constants
+    mu_e = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
+
+    # Amount before and after you want oorb integrations to start (in days) with respect to Fedorets data
+    leadtime = 365
+
+    destination_path = os.path.join(os.getcwd(), 'Test_Set')
+    destination_file = destination_path + '/minimoon_master_final.csv'
+
+    # Perturbers (for OpenOrb) - Array of ints (0 = FALSE (i.e. not included) and 1 = TRUE) if a gravitational body
+    # should be included in integrations
+    mercury = 1
+    venus = 1
+    earth = 1
+    mars = 1
+    jupiter = 1
+    saturn = 1
+    uranus = 1
+    neptune = 1
+    pluto = 1
+    moon = 1
+    perturbers = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, moon]
+
+    int_step = 1 / 24
+
+    mm_main.integrate(destination_path, mu_e, leadtime, perturbers, int_step)
+
+    ####################### original##################
+    # Constants
     mu_e = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
 
     # Amount before and after you want oorb integrations to start (in days) with respect to Fedorets data
