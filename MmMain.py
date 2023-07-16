@@ -534,7 +534,7 @@ class MmMain():
 
         return
 
-    def add_new_column(self, master_path):
+    def add_new_column(self, master_path, dest_path):
 
         # create parser
         mm_parser = MmParser(master_path, "", "")
@@ -559,11 +559,11 @@ class MmMain():
         master['Exit Date to EMS'] = repacked_results[12]  # end ems
         master['Exit Index to EMS'] = repacked_results[13]  # end ems index
 
-        pd.set_option('display.max_rows', None)
-        print(master['Entry Date to EMS'])
+        # pd.set_option('display.max_rows', None)
+        # print(master['Entry Date to EMS'])
 
         # write the master to csv - only if your sure you have the right data, otherwise in will be over written
-        # master.to_csv(master_path, sep=' ', header=True, index=False)
+        master.to_csv(dest_path, sep=' ', header=True, index=False)
 
 
 if __name__ == '__main__':
@@ -572,6 +572,7 @@ if __name__ == '__main__':
 
     destination_path = os.path.join(os.getcwd(), 'Test_Set')
     destination_file = destination_path + '/minimoon_master_final.csv'
+    start_file = destination_path + '/minimoon_master_final (copy).csv'
 
     ########################################
     # Integrate Initializations
@@ -621,4 +622,4 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    mm_main.add_new_column(destination_file)
+    # mm_main.add_new_column(start_file, destination_file)
