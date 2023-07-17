@@ -128,11 +128,11 @@ class MmPopulation:
         """
 
         # Get retrograde and prograde TCOs
-        tco_pop = self.population[(mm_pop.population['Became Minimoon'] == 1)]
+        tco_pop = self.population[(self.population['Became Minimoon'] == 1)]
         retrograde_pop = self.population[
             (self.population['Retrograde'] == 1) & (self.population['Became Minimoon']
                                                       == 1)]
-        prograde_pop = self.population[(mm_pop.population['Retrograde'] == 0) & (self.population['Became Minimoon']
+        prograde_pop = self.population[(self.population['Retrograde'] == 0) & (self.population['Became Minimoon']
                                                                                    == 1)]
 
         fig = plt.figure()
@@ -143,7 +143,7 @@ class MmPopulation:
         plt.xlabel('Capture Duration (days)')
         plt.ylabel('Count')
         plt.legend()
-        plt.savefig("figures/f1.svg", format="svg")
+        # plt.savefig("figures/f1.svg", format="svg")
 
         fig2 = plt.figure()
         plt.hist(abs(retrograde_pop['Number of Rev']), bins=350*20, label='Retrograde', edgecolor="#038cfc", color="#03b1fc")
@@ -153,7 +153,7 @@ class MmPopulation:
         plt.xlabel('Number of Revolutions')
         plt.ylabel('Count')
         plt.legend()
-        plt.savefig("figures/f2.svg", format="svg")
+        # plt.savefig("figures/f2.svg", format="svg")
 
         fig3 = plt.figure()
         plt.scatter(tco_pop['Geo x at Capture'], tco_pop['Geo y at Capture'], s=0.1)
@@ -162,7 +162,7 @@ class MmPopulation:
         plt.gca().set_aspect('equal')
         plt.xlabel('Geocentric x at Capture (AU)')
         plt.ylabel('Geocentric y at Capture (AU)')
-        plt.savefig("figures/f3.svg", format="svg")
+        # plt.savefig("figures/f3.svg", format="svg")
 
         fig4 = plt.figure()
         earth_xyz = np.array([tco_pop["Helio x at Capture"] - tco_pop["Geo x at Capture"],
@@ -178,7 +178,7 @@ class MmPopulation:
         plt.gca().set_aspect('equal')
         plt.xlabel('Synodic x at Capture (AU)')
         plt.ylabel('Synodic y at Capture (AU)')
-        plt.savefig("figures/f4.svg", format="svg")
+        # plt.savefig("figures/f4.svg", format="svg")
 
         fig5 = plt.figure()
         d = np.sqrt(tco_pop["Geo x at Capture"] ** 2 + tco_pop["Geo y at Capture"] ** 2
@@ -188,7 +188,7 @@ class MmPopulation:
         plt.scatter(tco_pop['Capture Duration'], d, s=1)
         plt.xlabel('Capture Duration (days)')
         plt.ylabel('Geocentric Distance at Capture (AU)')
-        plt.savefig("figures/f5.svg", format="svg")
+        # plt.savefig("figures/f5.svg", format="svg")
 
         fig6 = plt.figure()
         plt.scatter(tco_pop['Capture Duration'], tco_pop['Min. Distance'], color='blue',
@@ -200,7 +200,7 @@ class MmPopulation:
         plt.xlim([0, 500])
         plt.ylim([0, 0.065])
         plt.legend()
-        plt.savefig("figures/f6.svg", format="svg")
+        # plt.savefig("figures/f6.svg", format="svg")
 
         fig7 = plt.figure()
         tco1_retro = retrograde_pop[(retrograde_pop['Taxonomy'] == '1A') | (retrograde_pop['Taxonomy'] == '1B') |
@@ -219,7 +219,7 @@ class MmPopulation:
         plt.xlim([0,500])
         plt.ylim([1,3])
         plt.legend()
-        plt.savefig("figures/f7.svg", format="svg")
+        # plt.savefig("figures/f7.svg", format="svg")
 
         fig8 = plt.figure()
         plt.scatter(tco_pop["X at Earth Hill"], tco_pop["Y at Earth Hill"], s=0.1)
@@ -228,7 +228,7 @@ class MmPopulation:
         plt.gca().set_aspect('equal')
         plt.xlabel('Synodic x at Earth Hill sphere (AU)')
         plt.ylabel('Synodic y at Earth Hill sphere (AU)')
-        plt.savefig("figures/f8.svg", format="svg")
+        # plt.savefig("figures/f8.svg", format="svg")
 
     def stc_pop_viz(self):
 
@@ -388,282 +388,21 @@ class MmPopulation:
         return
 
 
-
 if __name__ == '__main__':
 
     population_file = 'minimoon_master_final.csv'
     # population_dir = os.path.join(os.path.expanduser('~'), 'Desktop', 'minimoon_integrations', 'minimoon_files_oorb')
-    population_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
-                                  'minimoon_files_oorb')
-    population_path = population_dir + '/' + population_file
+    # population_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
+    #                               'minimoon_files_oorb')
+    # population_path = population_dir + '/' + population_file
 
-    mm_analyzer = MmAnalyzer()
+    # mm_analyzer = MmAnalyzer()
     # mm_parser = MmParser("", population_dir, "")
-    mm_pop = MmPopulation(population_path)
+    # mm_pop = MmPopulation(population_path)
 
-    mm_pop.stc_pop_viz()
-
-
-
-    # Retrograde vs. Prograde
-    # go through all the minimoon file names
-    # zero for prograde, one for retrograde
-    # retrograde = np.zeros([len(mm_pop.population['Object id']), 1])
-    # max_dist = np.zeros([len(mm_pop.population['Object id']), 1])
-    # mm_flag = np.zeros([len(mm_pop.population['Object id']), 1])
-    # capture_idx = np.zeros([len(mm_pop.population['Object id']), 1],  dtype=np.int64)
-    # release_idx = np.zeros([len(mm_pop.population['Object id']), 1],  dtype=np.int64)
-    # x_ehs = np.zeros([len(mm_pop.population['Object id']), 1])
-    # y_ehs = np.zeros([len(mm_pop.population['Object id']), 1])
-    # z_ehs = np.zeros([len(mm_pop.population['Object id']), 1])
-    # designations = []
-    # hill_crossing = np.zeros([len(mm_pop.population['Object id']), 1])
-    #
-    # master = mm_pop.population
-    # stc_pop = master[master['STC'] == True]
-    # non_stc_pop = master[master['STC'] == False]
-    # print(len(non_stc_pop))
-    # print(len(stc_pop))
-    # print(len(non_stc_pop) + len(stc_pop))
-
-    # stcs = np.full(len(master['Object id']), np.nan)
-    #
-    # pool = multiprocessing.Pool()
-    # results = pool.map(mm_analyzer.short_term_capture, master['Object id'])
-    # pool.close()
-    #
-    #
-    # master.to_csv(population_path, sep=' ', header=True, index=False)
-
-    # total_pop = master[(master['Became Minimoon'] == 1)]
-    # retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]
-    # prograde_pop = master[(master['Retrograde'] == 0) & (master['Became Minimoon'] == 1)]
-    # tcf_pop = master[(master['Became Minimoon'] == 0)]
-    #
-    # total_t1a = total_pop[(total_pop['Taxonomy'] == '1A')]
-    # total_t1b = total_pop[(total_pop['Taxonomy'] == '1B')]
-    # total_t1c = total_pop[(total_pop['Taxonomy'] == '1C')]
-    # total_t2a = total_pop[(total_pop['Taxonomy'] == '2A')]
-    # total_t2b = total_pop[(total_pop['Taxonomy'] == '2B')]
-    #
-    # pd.set_option('display.max_rows', None)
-    # print(total_t2b['Object id'])
-    # retrograde_t1 = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '1A') | (retrograde_pop['Taxonomy'] == '1B') |
-    #                                    (retrograde_pop['Taxonomy'] == '1C')])
-    # retrograde_t2 = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '2A') | (retrograde_pop['Taxonomy'] == '2B')])
-    # retrograde_t1a = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '1A')])
-    # retrograde_t1b = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '1B')])
-    # retrograde_t1c = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '1C')])
-    # retrograde_t2a = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '2A')])
-    # retrograde_t2b = len(retrograde_pop[(retrograde_pop['Taxonomy'] == '2B')])
-    #
-    # prograde_t1 = len(prograde_pop[(prograde_pop['Taxonomy'] == '1A') | (prograde_pop['Taxonomy'] == '1B') |
-    #                                (prograde_pop['Taxonomy'] == '1C')])
-    # prograde_t2 = len(prograde_pop[(prograde_pop['Taxonomy'] == '2A') | (prograde_pop['Taxonomy'] == '2B')])
-    # prograde_t1a = len(prograde_pop[(prograde_pop['Taxonomy'] == '1A')])
-    # prograde_t1b = len(prograde_pop[(prograde_pop['Taxonomy'] == '1B')])
-    # prograde_t1c = len(prograde_pop[(prograde_pop['Taxonomy'] == '1C')])
-    # prograde_t2a = len(prograde_pop[(prograde_pop['Taxonomy'] == '2A')])
-    # prograde_t2b = len(prograde_pop[(prograde_pop['Taxonomy'] == '2B')])
+    # mm_pop.stc_pop_viz()
 
 
-
-    # print(master)
-    # print(len(master["Object id"]))
-    #
-    # tco_pop = master[(master['Became Minimoon'] == 1)]
-    # print(len(tco_pop["Object id"]))
-    # retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]
-    # prograde_pop = master[(master['Retrograde'] == 0) & (master['Became Minimoon'] == 1)]
-    # tcf_pop = master[(master['Became Minimoon'] == 0)]
-    # print(len(tcf_pop["Object id"]))
-    # print(len(tcf_pop[tcf_pop['3 Hill Duration'] == 0]))
-    # print(len(tcf_pop[tcf_pop['1 Hill Duration'] == 0]))
-    # print(len(tcf_pop[tcf_pop['Spec. En. Duration'] == 0]))
-    # print(len(tcf_pop[abs(tcf_pop['Number of Rev']) < 1]))
-    #
-    # for idx in range(len(master['Object id'])):
-    #     idx = idx + 1
-    #     print(idx)
-
-        # go through all the files of test particles
-        # for root, dirs, files in os.walk(population_dir):
-        #     find files that are minimoons
-        #     name = str(tco_pop['Object id'].iloc[idx]) + ".csv"
-        #
-        #     if name in files:
-        #         file_path = os.path.join(root, name)
-        #
-        #
-                # read the file
-                # header = 0
-                # data = mm_parser.mm_file_parse_new(file_path, 0)
-
-                # Important constants
-                # Constants
-                # mu = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
-                # aupd = u.AU / u.d  # AU per day
-                # mps = u.m / u.s  # Meters per second
-                #
-                # steps = len(data["Geo vx"])
-                # State vector components of the minimoon with respect to earth
-                # vx = np.array([(data["Geo vx"].iloc[i] * aupd).to(mps) / mps for i in range(0, steps)])
-                # vy = np.array([(data["Geo vy"].iloc[i] * aupd).to(mps) / mps for i in range(0, steps)])
-                # vz = np.array([(data["Geo vz"].iloc[i] * aupd).to(mps) / mps for i in range(0, steps)])
-                # r = np.array([(data["Distance"].iloc[i] * u.AU).to(u.m) / u.m for i in range(0, steps)])
-                #
-                # eps = (0.5 * (vx ** 2 + vy ** 2 + vz ** 2) - mu/r) / 1e6  # to put in km^2/s^2
-
-                # fig = plt.figure(idx)
-                # zero = np.zeros((steps))
-                # plt.plot(data["Julian Date"] - data["Julian Date"].iloc[0], eps, color="blue")
-                # plt.plot(data["Julian Date"] - data["Julian Date"].iloc[0], zero, linestyle="--", color='green')
-                # plt.xlabel('Time (Days)')
-                # plt.ylabel('Specific Energy $(km^2/s^2)$')
-                # plt.xlim([0,1200])
-                # plt.ylim([-0.15, 0.7])
-                # plt.savefig("figures/f13.svg", format="svg")
-                # plt.show()
-                # pd.set_option('display.max_rows', None)
-                # print(tco_pop.iloc[idx])
-                # fig = plt.figure(idx)
-                # plt.plot(data["Synodic x"], data["Synodic y"], color='grey', label='TCF Trajectory')
-                # c1 = plt.Circle((0, 0), radius=0.01, alpha=0.1, label='Earth Hill Sphere')
-                # c2 = plt.Circle((0, 0), radius=4.504075e-5, color='blue', label='Earth')
-                # x_moon = data["Moon x (Helio)"] - data["Earth x (Helio)"]
-                # y_moon = data["Moon y (Helio)"] - data["Earth y (Helio)"]
-                # z_moon = data["Moon z (Helio)"] - data["Earth z (Helio)"]
-                # plt.plot(x_moon, y_moon, color = 'red', label='Moon Orbit')
-                # plt.gca().add_artist(c1)
-                # plt.gca().add_artist(c2)
-                # plt.xlabel('Synodic x (AU)')
-                # plt.ylabel('Synodic y (AU)')
-                # plt.legend()
-                # plt.xlim([-0.015, 0.015])
-                # plt.ylim([-0.015, 0.015])
-                # plt.gca().set_aspect('equal')
-                # plt.savefig("figures/f10.svg", format="svg")
-
-                # data_cap = data.iloc[int(master['Capture Index'].iloc[idx]):int(master['Release Index'].iloc[idx])]
-                # trans_cap = np.array([data_cap["Synodic x"], data_cap["Synodic y"], data_cap["Synodic z"]])
-                # fig2 = plt.figure(idx+1)
-                # plt.plot(trans_cap[0, :], trans_cap[1, :], color='#5599ff', linewidth=5, label='Period of Capture')
-                # plt.plot(data["Synodic x"], data["Synodic y"], 'gray', linewidth=2, label='TCO Trajectory')
-                # plt.scatter(trans_cap[0, 0], trans_cap[1, 0], color='#e9afaf', linewidth=3, label='Start',
-                #                         zorder=5)
-                # plt.scatter(trans_cap[0, -1], trans_cap[1, -1], color='#afe9af', linewidth=3, label='End',
-                #                         zorder=5)
-                # c1 = plt.Circle((0, 0), radius=0.01, alpha=0.1, label='Earth Hill Sphere')
-                # c2 = plt.Circle((0, 0), radius=4.504075e-5, color='blue', label='Earth')
-                # x_moon = data["Moon x (Helio)"] - data["Earth x (Helio)"]
-                # y_moon = data["Moon y (Helio)"] - data["Earth y (Helio)"]
-                # z_moon = data["Moon z (Helio)"] - data["Earth z (Helio)"]
-                # plt.plot(x_moon, y_moon, color='red', label='Moon Orbit')
-                # plt.gca().add_artist(c1)
-                # plt.gca().add_artist(c2)
-                # plt.xlabel('Synodic x (AU)')
-                # plt.ylabel('Synodic y (AU)')
-                # plt.legend()
-                # plt.xlim([-0.03, 0.03])
-                # plt.ylim([-0.05, 0.05])
-                # plt.gca().set_aspect('equal')
-                # plt.savefig("figures/f14.svg", format="svg")
-
-                # fig3 = plt.figure(idx + 2)
-                # plt.plot(trans_cap[0, :], trans_cap[2, :], color='#5599ff', linewidth=5, label='Period of Capture')
-                # plt.plot(data["Synodic x"], data["Synodic z"], 'gray', linewidth=2, label='TCO Trajectory')
-                # plt.scatter(trans_cap[0, 0], trans_cap[2, 0], color='#e9afaf', linewidth=3, label='Start',
-                #             zorder=5)
-                # plt.scatter(trans_cap[0, -1], trans_cap[2, -1], color='#afe9af', linewidth=3, label='End',
-                #             zorder=5)
-                # c1 = plt.Circle((0, 0), radius=0.01, alpha=0.1, label='Earth Hill Sphere')
-                # c2 = plt.Circle((0, 0), radius=4.504075e-5, color='blue', label='Earth')
-                # x_moon = data["Moon x (Helio)"] - data["Earth x (Helio)"]
-                # y_moon = data["Moon y (Helio)"] - data["Earth y (Helio)"]
-                # z_moon = data["Moon z (Helio)"] - data["Earth z (Helio)"]
-                # plt.plot(x_moon, z_moon, color='red', label='Moon Orbit')
-                # plt.gca().add_artist(c1)
-                # plt.gca().add_artist(c2)
-                # plt.xlabel('Synodic x (AU)')
-                # plt.ylabel('Synodic z (AU)')
-                # plt.legend()
-                # plt.xlim([-0.03, 0.03])
-                # plt.ylim(([-0.01, 0.01]))
-                # plt.gca().set_aspect('equal')
-                # plt.savefig("figures/f12.svg", format="svg")
-
-                # plt.show()
-
-
-        #
-        # mm_pop.population["Retrograde"] = retrograde[:, 0]
-        # mm_pop.population["Became Minimoon"] = mm_flag[:, 0]
-        # mm_pop.population["Max. Distance"] = max_dist[:, 0]
-        # mm_pop.population["Capture Index"] = capture_idx[:, 0]
-        # mm_pop.population["Release Index"] = release_idx[:, 0]
-        # mm_pop.population["X at Earth Hill"] = x_ehs[:, 0]
-        # mm_pop.population["Y at Earth Hill"] = y_ehs[:, 0]
-        # mm_pop.population["Z at Earth Hill"] = z_ehs[:, 0]
-        #
-        # destination_file = 'minimoon_master_final.csv'
-        # destination_path = population_dir + '/' + destination_file
-        # mm_pop.population.to_csv(destination_path, sep=' ', header=True, index=False)
-
-    # for idx in range(len(mm_pop.population['Object id'])):
-    #
-    #     print(idx)
-    #
-        # go through all the files of test particles
-        # for root, dirs, files in os.walk(population_dir):
-        #     find files that are minimoons
-            # name = str(mm_pop.population['Object id'].iloc[idx]) + ".csv"
-            # if name in files:
-            #     file_path = os.path.join(root, name)
-                # read the file
-                # header = 0
-                # data = mm_parser.mm_file_parse_new(file_path, 0)
-                # designation = mm_analyzer.taxonomy(data, mm_pop.population)
-                # designations.append(designation)
-    #
-    # tax = mm_pop.population["Taxonomy"]
-    # pd.set_option('display.max_rows', None)
-    # pd.set_option('display.float_format', lambda x: '%.5f' % x)
-    # tax[(tax == '2A')] = '3A'
-    # tax[(tax == '2B')] = '2A'
-    # tax[(tax == '3A')] = '2B'
-    # mm_pop.population["Taxonomy"] = tax
-    # print(mm_pop.population)
-
-
-    # destination_file = 'minimoon_master_final.csv'
-    # destination_path = population_dir + '/' + destination_file
-    # mm_pop.population.to_csv(destination_path, sep=' ', header=True, index=False)
-
-    # master = mm_pop.population
-
-    # Get retrograde and prograde TCOs
-    # tco_pop = master[(master['Became Minimoon'] == 1)]
-    # retrograde_pop = master[(master['Retrograde'] == 1) & (master['Became Minimoon'] == 1)]
-    # prograde_pop = master[(master['Retrograde'] == 0) & (master['Became Minimoon'] == 1)]
-    #
-    # pd.set_option('display.max_rows', None)
-    # pd.set_option('display.max_columns', None)
-    # pd.set_option('display.float_format', lambda x: '%.5f' % x)
-    # print(tco_pop[tco_pop['Max. Distance'] > 0.03])
-
-    # wrong_rev = tco_pop[(tco_pop["Number of Rev"] < 1)]
-    # pd.set_option('display.max_rows', None)
-    # pd.set_option('display.max_columns', None)
-    # pd.set_option('display.float_format', lambda x: '%.5f' % x)
-    # print(wrong_rev)
-
-    # Make taxonomy table
-    # mm_pop.tax_table(tco_pop, retrograde_pop, prograde_pop)
-
-    # Generate visualization
-    # mm_pop.pop_viz()
-
-    # plt.show()
 
 
 
