@@ -120,3 +120,14 @@ def get_emb_synodic(data):
     emb_xyz_synodic = eci_ecliptic_to_sunearth_synodic(-barycentre.T, emb_xyz.T)
 
     return emb_xyz_synodic.T
+
+def get_geo_v(dec, ra, ddec, dra, d, dd):
+
+    geo_vx = dd * np.cos(np.deg2rad(ra)) * np.cos(np.deg2rad(dec)) - d * (np.deg2rad(dra) * np.sin(np.deg2rad(ra)) *
+                np.cos(np.deg2rad(dec)) + np.deg2rad(ddec) * np.cos(np.deg2rad(ra)) * np.sin(np.deg2rad(dec)))
+    geo_vy = dd * np.sin(np.deg2rad(ra)) * np.cos(np.deg2rad(dec)) + d * (
+                np.deg2rad(dra) * np.cos(np.deg2rad(ra)) * np.cos(np.deg2rad(dec)) - np.deg2rad(ddec) *
+                np.sin(np.deg2rad(ra)) * np.sin(np.deg2rad(dec)))
+    geo_vz = dd * np.sin(np.deg2rad(dec)) + d * np.deg2rad(ddec) * np.cos(np.deg2rad(dec))
+
+    return geo_vx, geo_vy, geo_vz
