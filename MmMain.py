@@ -9,6 +9,7 @@ from astropy.units import cds
 from MM_Parser import MmParser
 from MmAnalyzer import MmAnalyzer
 import multiprocessing
+from MmPopulation import MmPopulation
 import matplotlib.pyplot as plt
 from space_fncs import eci_ecliptic_to_sunearth_synodic
 from astropy import constants as const
@@ -82,8 +83,10 @@ class MmMain():
 
         return errors
 
-    def integrate_parallel(self, object_id):
+    def integrate_parallel(self, idx, object_id):
 
+        print(idx)
+        print(object_id)
         # create an analyzer
         mm_analyzer = MmAnalyzer()
 
@@ -107,47 +110,54 @@ class MmMain():
         moon = 0
         perturbers = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, moon]
 
-        int_step = 1 / 24
-
         # go through all the files of test particles
         population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
         name = "minimoon_master_final.csv"
         file_path = os.path.join(population_dir, name)
+        mm_parser = MmParser("", "", "")
 
         # get master
         master = mm_parser.parse_master(file_path)
+        # get old data
+        old_name = str(object_id) + '.csv'
+        file_path_old_data = os.path.join(population_dir, old_name)
+        old_data = mm_parser.mm_file_parse_new(file_path_old_data)
 
         ####################################################################
         # Integrating data to generate new data from reintegrated data, generate new data file - check perturbers
         ####################################################################
 
-        start_date = master.loc[master['Object id'] == object_id, 'Capture Date'].iloc[0]
-        end_date = master.loc[master['Object id'] == object_id, 'Release Date'].iloc[0]
-        start_time = Time(start_date * cds.d - leadtime, format="jd", scale='utc')
-        end_time = Time(end_date * cds.d + leadtime, format="jd", scale='utc')
-        steps = int((end_time.to_value('jd') - start_time.to_value('jd'))/int_step)
+        start_date = old_data['Julian Date'].iloc[0]
+        end_date = old_data['Julian Date'].iloc[-1]
+        int_step_rev = int(1/(old_data['Julian Date'].iloc[1] - old_data['Julian Date'].iloc[0]))
+        int_step = 1/int_step_rev
+        start_time = Time(start_date, format="jd", scale='utc')
+        end_time = Time(end_date, format="jd", scale='utc')
+        steps = int((end_time.to_value('jd') - start_time.to_value('jd')) / int_step)
         master_i = master[master['Object id'] == object_id]
+        new_data = mm_analyzer.get_data_mm_oorb(master_i, old_data, int_step, perturbers, start_time, end_time, mu_e)
 
         print("Number of integration steps: " + str(steps))
+        """
         if steps < 90000:  # JPL Horizons limit
 
-            new_data = mm_analyzer.get_data_mm_oorb(master_i, int_step, perturbers, start_time, end_time, mu_e)
+            new_data = mm_analyzer.get_data_mm_oorb(master_i, old_data, int_step, perturbers, start_time, end_time, mu_e)
 
         else:
-            # Amount before and after you want oorb integrations to start (in days) with respect to Fedorets data
-            leadtime = 1 * cds.d
+
             start_time = Time(start_date * cds.d - leadtime, format="jd", scale='utc')
             end_time = Time(end_date * cds.d + leadtime, format="jd", scale='utc')
             steps = int((end_time.to_value('jd') - start_time.to_value('jd'))/int_step)
 
             if steps < 90000:
-                new_data = mm_analyzer.get_data_mm_oorb(master_i, int_step, perturbers, start_time, end_time, mu_e)
+                new_data = mm_analyzer.get_data_mm_oorb(master_i, old_data, int_step, perturbers, start_time, end_time, mu_e)
 
             else:
                 int_step = 1
-                new_data = mm_analyzer.get_data_mm_oorb(master_i, int_step, perturbers, start_time, end_time, mu_e)
+                new_data = mm_analyzer.get_data_mm_oorb(master_i, old_data, int_step, perturbers, start_time, end_time, mu_e)
 
 
+        """
         destination_path = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
         new_data.to_csv(destination_path + '/' + str(object_id) + '.csv', sep=' ', header=True, index=False)
 
@@ -155,8 +165,6 @@ class MmMain():
 
         # add a new row of data to the master file
         mm_main.add_new_row(new_data, mu_e, H, destination_path)
-
-        print(new_data)
 
         return
 
@@ -257,7 +265,7 @@ class MmMain():
         repacked_results = mm_analyzer.short_term_capture(new_data["Object id"].iloc[0])
 
         # repack list according to index
-        # repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
+        # repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing just this function
 
         # assign new columns to master file
         TCO_state = np.array(repacked_results[14])
@@ -628,169 +636,46 @@ class MmMain():
         master = mm_parser.parse_master_previous(master_path)
 
         # parrelelized version of short term capture
-        pool = multiprocessing.Pool()
-        results = pool.map(mm_analyzer.short_term_capture, master['Object id'])  # input your function
-        pool.close()
+        # pool = multiprocessing.Pool()
+        # results = pool.map(mm_analyzer.short_term_capture, master['Object id'])  # input your function
+        # pool.close()
+
+        # parallel version of jacobi alpha beta
+        stc_pop = master[master['STC'] == True]
+        for i in range(len(master['Object id'])):
+            res = mm_analyzer.alpha_beta_jacobi(stc_pop['Object id'].iloc[i])
+            # res = mm_analyzer.short_term_capture(master['Object id'].iloc[i])
+        # pool = multiprocessing.Pool()
+        # results = pool.map(mm_analyzer.alpha_beta_jacobi, master['Object id'])
+        # pool.close()
 
         # repack list according to index
         repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
 
         # create your columns according to the data in results
-        master['Entry Date to EMS'] = repacked_results[10]  # start of ems stay
-        master['Entry to EMS Index'] = repacked_results[11]  # ems start index
-        master['Exit Date to EMS'] = repacked_results[12]  # end ems
-        master['Exit Index to EMS'] = repacked_results[13]  # end ems index
+        # master['Entry Date to EMS'] = repacked_results[10]  # start of ems stay
+        # master['Entry to EMS Index'] = repacked_results[11]  # ems start index
+        # master['Exit Date to EMS'] = repacked_results[12]  # end ems
+        # master['Exit Index to EMS'] = repacked_results[13]  # end ems index
 
         # pd.set_option('display.max_rows', None)
         # print(master['Entry Date to EMS'])
 
         # write the master to csv - only if your sure you have the right data, otherwise in will be over written
-        master.to_csv(dest_path, sep=' ', header=True, index=False)
+        # master.to_csv(dest_path, sep=' ', header=True, index=False)
 
     @staticmethod
-    def cluster_viz(master_path):
+    def cluster_viz_main(master_file):
 
-        # create parser
-        mm_parser = MmParser(master_path, "", "")
+        mm_pop = MmPopulation(master_file)
+        mm_pop.cluster_viz()
 
-        # get the master file - you need a list of initial orbits to integrate with openorb (pyorb)
-        master = mm_parser.parse_master(master_path)
 
-        mm_geo = np.array([master['Geo x at Capture'], master['Geo y at Capture'], master['Geo z at Capture']])
-        mm_helio = np.array([master["Helio x at Capture"], master["Helio y at Capture"], master["Helio z at Capture"]])
-        earth_xyz = mm_helio - mm_geo
+    @staticmethod
+    def stc_viz_main(master_file):
 
-        fig8 = plt.figure()
-        plt.scatter(master['Helio x at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio x at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/helx_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Helio y at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio y at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/hely_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Helio z at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio z at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/helz_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Geo x at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Geo x at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/geox_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Geo y at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Geo y at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/geoy_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Geo z at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Geo z at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/geoz_3hill.svg", format="svg")
-
-        trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_geo)  # minus is to have sun relative to earth
-        fig8 = plt.figure()
-        plt.scatter(trans_xyz[0], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Synodic Earth Centered x at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/synx_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(trans_xyz[1], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Synodic Earth Centered y at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/syny_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(trans_xyz[2], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Synodic Earth Centered z at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/synz_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Capture Date'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Capture Date (JD)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/capdate_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Capture Date'] - master['STC Start'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Time from Crossing 3 Hill to Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/3hill_to_cap_time_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Helio vx at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio vx at Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/helvx_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Helio vy at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio vy at Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/helvy_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Helio vz at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio vz at Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/helvz_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Geo vx at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Geo vx at Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/geovx_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Geo vy at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Geo vy at Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/geovy_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Geo vz at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Geo vz at Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/geovz_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(trans_xyz[0], master['1 Hill Duration'], s=0.1)
-        plt.xlabel('Synodic Earth Centered x at Capture (AU)')
-        plt.ylabel('Time Spend in 1 Hill (days)')
-
-        fig8 = plt.figure()
-        plt.scatter(trans_xyz[1], master['1 Hill Duration'], s=0.1)
-        plt.xlabel('Synodic Earth Centered y at Capture (AU)')
-        plt.ylabel('Time Spend in 1 Hill (days)')
-
-        fig8 = plt.figure()
-        plt.scatter(trans_xyz[2], master['1 Hill Duration'], s=0.1)
-        plt.xlabel('Synodic Earth Centered z at Capture (AU)')
-        plt.ylabel('Time Spend in 1 Hill (days)')
-
-        fig8 = plt.figure()
-        plt.scatter(master['Capture Date'], master['1 Hill Duration'], s=0.1)
-        plt.xlabel('Capture Date (JD)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-
-        fig8 = plt.figure()
-        plt.scatter(master['Capture Date'] - master['STC Start'], master['1 Hill Duration'], s=0.1)
-        plt.xlabel('Time from Crossing 3 Hill to Capture')
-        plt.ylabel('1 Hill Duration (days)')
-        plt.show()
-        # plt.savefig("figures/stc_at_ems.svg", format="svg")
-
-        return
+        mm_pop = MmPopulation(master_file)
+        mm_pop.stc_pop_viz()
 
 if __name__ == '__main__':
 
@@ -798,7 +683,7 @@ if __name__ == '__main__':
 
     destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
     destination_file = destination_path + '/minimoon_master_final.csv'
-    start_file = destination_path + '/minimoon_master_final (1).csv'
+    start_file = destination_path + '/minimoon_master_final (copy).csv'
 
     ########################################
     # Integrate Initializations
@@ -830,21 +715,21 @@ if __name__ == '__main__':
         errors = mm_main.integrate(destination_file, mu_e, leadtime, perturbers, int_step)
 
     #########################################
-    # integrating data in parallel
+    # integrating data in parallel - check all functions for initializations within
     #########################################
 
     # create parser
-    mm_parser = MmParser("", "", "")
+    # mm_parser = MmParser("", "", "")
 
     # get the master file - you need a list of initial orbits to integrate with openorb (pyorb)
-    master = mm_parser.parse_master(destination_file)
+    # master = mm_parser.parse_master(destination_file)
 
     # get the object ids of all minimoons
-    object_ids = master['Object id']
+    # object_ids = master['Object id']
 
-    pool = multiprocessing.Pool()
-    pool.map(mm_main.integrate_parallel, object_ids)  # input your function
-    pool.close()
+    # pool = multiprocessing.Pool()
+    # pool.starmap(mm_main.integrate_parallel, enumerate(object_ids))  # input your function
+    # pool.close()
 
     ##########################################
     # adding a new row to the master file
@@ -862,11 +747,16 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    # mm_main.add_new_column(start_file, destination_file)
+    mm_main.add_new_column(start_file, destination_file)
 
     ########################################
     # clustering graphs
     ########################################
 
-    # mm_main.cluster_viz(destination_file)
+    # mm_main.cluster_viz_main(destination_file)
 
+    ########################################
+    # STC population visualization
+    #######################################
+
+    # mm_main.stc_viz_main(destination_file)

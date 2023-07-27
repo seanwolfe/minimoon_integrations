@@ -2,7 +2,26 @@ import numpy as np
 from astropy.time import Time
 import astropy.units as u
 from astropy.units import cds
+from scipy.optimize import fsolve
 cds.enable()
+
+
+def keplers_eq(E, M, e):
+    return E - e * np.sin(E) - M
+
+def get_theta_from_M(M, e):
+    """
+    converts mean anomaly to true anomaly, assuming elliptical orbit
+    :param M: Mean anomaly
+    :param e: eccentricity
+    :return: theta (rad)
+    """
+
+    # Use fsolve to find the value of E
+    E = fsolve(keplers_eq, x0=0, args=(M, e))
+    theta = 2 * np.arctan(np.sqrt((1 + e)/(1 - e)) * np.tan(E[0]/2))
+
+    return theta
 
 
 def get_M(new_data, tps, mu):

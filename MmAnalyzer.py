@@ -5,6 +5,7 @@ import astropy.units as u
 import numpy
 from space_fncs import eci_ecliptic_to_sunearth_synodic
 from space_fncs import get_M
+from space_fncs import get_theta_from_M
 from space_fncs import getH2D
 from space_fncs import get_emb_synodic
 import pyoorb
@@ -206,10 +207,10 @@ class MmAnalyzer:
                         release_dates.append(strt_tm + (j * conv_day) * u.day)
                         release_idxs.append(j)
                         ident += 1
-            elif ident == 0 and (j == steps - 1):
+
+            if ident == 0 and (j == steps - 1):
                 release_dates.append(strt_tm + (steps * conv_day) * u.day)
                 release_idxs.append(steps - 1)
-                print("here")
 
             # Check to see how many revolutions were made during capture phase
             if captured[0, j] == 1 and j > 0:
@@ -242,7 +243,15 @@ class MmAnalyzer:
 
         distance = data['Distance']  # don't grab other crossing for the exit of SOI
         hill_idxs = [index for index, value in enumerate(distance) if value <= one_hill]
-        data_eh_crossing = data.iloc[hill_idxs[0]]
+        if hill_idxs:
+            data_eh_crossing = data.iloc[hill_idxs[0]]
+            self.x_eh = data_eh_crossing['Synodic x']
+            self.y_eh = data_eh_crossing['Synodic y']
+            self.z_eh = data_eh_crossing['Synodic z']
+        else:
+            self.x_eh = np.nan
+            self.y_eh = np.nan
+            self.z_eh = np.nan
 
         if time_captured > 0 and satisfied_3[0, 0] == 1 and satisfied_4_overall[0, 0] == 1:
             print("Object became minimoon: YES")
@@ -275,12 +284,12 @@ class MmAnalyzer:
         print("\n")
 
         # Properties
+        self.minimoon_flag = 1 if time_captured > 0 and satisfied_3[0, 0] == 1 and satisfied_4_overall[0, 0] == 1 \
+            else 0
         self.capture_start = capture_date
         self.capture_end = release_date
         self.capture_duration = time_captured[0, 0]
         self.three_eh_duration = time_satisfied_1[0, 0]
-        self.minimoon_flag = 1 if time_captured > 0 and satisfied_3[0, 0] == 1 and satisfied_4_overall[0, 0] == 1 \
-            else 0
         self.epsilon_duration = time_satisfied_2[0, 0]
         self.revolutions = revolutions[0, 0]
         self.one_eh_flag = True if satisfied_3[0, 0] == 1 else False
@@ -290,9 +299,6 @@ class MmAnalyzer:
         self.cap_idx = int(capture_idx)
         self.rel_idx = int(release_idx)
         self.max_dist = max_distance
-        self.x_eh = data_eh_crossing['Synodic x']
-        self.y_eh = data_eh_crossing['Synodic y']
-        self.z_eh = data_eh_crossing['Synodic z']
 
         return
 
@@ -664,7 +670,7 @@ class MmAnalyzer:
 
         return new_data
 
-    def get_data_mm_oorb(self, master_i, int_step, perturbers, start_time, end_time, grav_param):
+    def get_data_mm_oorb(self, master_i, old_data, int_step, perturbers, start_time, end_time, grav_param):
         """
         Retrieve data, organize as pandas dataframe, store to file, starting with one the newly integreated files
 
@@ -710,7 +716,7 @@ class MmAnalyzer:
         orbit[0][5] = master_i["Helio vy at Capture"].iloc[0]  # vy
         orbit[0][6] = master_i["Helio vz at Capture"].iloc[0]  # vz
         orbit[0][7] = 1.  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
-        orbit[0][8] = start_time.to_value('mjd', 'long')  # Epoch of osculating
+        orbit[0][8] = Time(master_i['Capture Date'].iloc[0], format='jd', scale='utc').to_value('mjd', 'long')  # Epoch of osculating
         orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
         orbit[0][10] = master_i['H'].iloc[0]  # absolute magnitude of object (H)
         orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
@@ -861,12 +867,12 @@ class MmAnalyzer:
         new_data["Earth vz (Helio)"] = eph[0, :, 35]
 
         # element 33-38 - Heliocentric state vector of moon
-        new_data["Moon x (Helio)"] = np.full((nsteps,), np.nan)
-        new_data["Moon y (Helio)"] = np.full((nsteps,), np.nan)
-        new_data["Moon z (Helio)"] = np.full((nsteps,), np.nan)
-        new_data["Moon vx (Helio)"] = np.full((nsteps,), np.nan)
-        new_data["Moon vy (Helio)"] = np.full((nsteps,), np.nan)
-        new_data["Moon vz (Helio)"] = np.full((nsteps,), np.nan)
+        new_data["Moon x (Helio)"] = old_data["Moon x (Helio)"]
+        new_data["Moon y (Helio)"] = old_data["Moon y (Helio)"]
+        new_data["Moon z (Helio)"] = old_data["Moon z (Helio)"]
+        new_data["Moon vx (Helio)"] = old_data["Moon vx (Helio)"]
+        new_data["Moon vy (Helio)"] = old_data["Moon vy (Helio)"]
+        new_data["Moon vz (Helio)"] = old_data["Moon vz (Helio)"]
 
         print("Getting synodic x,y,z, ecliptic longitude...")
         earth_xyz = np.array([new_data["Earth x (Helio)"], new_data["Earth y (Helio)"], new_data["Earth z (Helio)"]])
@@ -884,7 +890,7 @@ class MmAnalyzer:
 
         # Encapsulate comparison graphs into function to compare with fedorets data
         #if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
-        #    self.compare(eph, data, new_data)
+        # self.compare(eph, old_data, new_data)
 
         return new_data
 
@@ -1061,8 +1067,6 @@ class MmAnalyzer:
 
     def short_term_capture(self, object_id):
 
-
-
         # constants
         three_eh = 0.03
         r_ems = 0.0038752837677  # sphere of influence of earth-moon system
@@ -1072,7 +1076,8 @@ class MmAnalyzer:
         stc = np.NAN
 
         # go through all the files of test particles
-        population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        # population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        population_dir = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
         # population_dir = os.path.join(os.getcwd(), 'Test_Set')
 
         mm_parser = MmParser("", population_dir, "")
@@ -1209,6 +1214,34 @@ class MmAnalyzer:
                     moon_state = data[['Moon x (Helio)', 'Moon y (Helio)', 'Moon z (Helio)', 'Moon vx (Helio)',
                                     'Moon vy (Helio)', 'Moon vz (Helio)']].iloc[in_ems_idxs[0]]
 
+                    Earth_statem1 = data[['Earth x (Helio)', 'Earth y (Helio)', 'Earth z (Helio)', 'Earth vx (Helio)',
+                                        'Earth vy (Helio)', 'Earth vz (Helio)']].iloc[in_ems_idxs[0] - 1]
+                    # Helio TCO at entrance to SOI EMS
+                    TCO_statem1 = data[['Helio x', 'Helio y', 'Helio z', 'Helio vx', 'Helio vy', 'Helio vz']].iloc[
+                        in_ems_idxs[0] - 1]
+                    fig = plt.figure()
+                    fac = 0.01
+                    plt.scatter(Earth_state[0], Earth_state[1], color='blue')
+                    plt.scatter(TCO_state[0], TCO_state[1], color='red')
+                    plt.plot([TCO_state[0], TCO_state[0] + fac * TCO_state[3]], [TCO_state[1], TCO_state[1] + fac * TCO_state[4]], color='blue')
+                    c1 = plt.Circle((Earth_state[0], Earth_state[1]), radius=0.0038752837677, alpha=0.1)
+                    plt.plot(data['Helio x'], data['Helio y'], color='grey')
+                    plt.gca().add_artist(c1)
+                    # plt.xlim([-0.01 + Earth_state[0], 0.01 + Earth_state[0]])
+                    # plt.gca().set_aspect('equal')
+                    plt.scatter(Earth_statem1[0], Earth_statem1[1], color='blue')
+                    plt.scatter(TCO_statem1[0], TCO_statem1[1], color='red')
+                    plt.plot([TCO_statem1[0], TCO_statem1[0] + fac * TCO_statem1[3]], [TCO_statem1[1], TCO_statem1[1] + fac * TCO_statem1[4]],
+                             color='red')
+
+                    fig2 = plt.figure()
+                    ax = fig2.add_subplot(111, projection='3d')
+                    ax.scatter(Earth_state[0], Earth_state[1], Earth_state[2], color='blue')
+                    ax.scatter(TCO_state[0], TCO_state[1], TCO_state[2], color='red')
+                    ax.plot3D([TCO_state[0], TCO_state[0] + fac * TCO_state[3]],
+                             [TCO_state[1], TCO_state[1] + fac * TCO_state[4]], [TCO_state[2], TCO_state[2] + fac * TCO_state[5]], color='blue')
+
+                    plt.show()
                     # EMS start
                     ems_start = data['Julian Date'].iloc[in_ems_idxs[0]]
                     ems_start_idx = in_ems_idxs[0]
@@ -1298,9 +1331,12 @@ class MmAnalyzer:
         # Initial: will be result if no file found with that name
         results = np.array((len(object_id), 3))
 
-        master = mm_parser.parse_master(population_file_path)
+        full_master = mm_parser.parse_master(population_file_path)
+        master = full_master[full_master['Object id'] == object_id]
+        print(master)
 
         # get the jacobi constant using ephimeris data
+
         mu_s = 1.3271244e11 / np.power(1.496e+8, 3)  # km^3/s^2 to AU^3/s^2
         mu_EMS = 403505.3113 / np.power(1.496e+8, 3)  # km^3/s^2 = m_E + mu_M to AU^3/s^2
         x = master['Helio x at EMS']
@@ -1321,44 +1357,53 @@ class MmAnalyzer:
         vx_E = master['Earth vx at EMS (Helio)']
         vy_E = master['Earth vy at EMS (Helio)']
         vz_E = master['Earth vz at EMS (Helio)']
-        date_ems = master['Entry Date to EMS']
+        date_ems = master['Entry Date to EMS'].iloc[0]
+        date_mjd = Time(date_ems, format='jd').to_value('mjd')
 
-        h_r_TCO = np.array([x, y, z])
-        h_r_M = np.array([x_M, y_M, z_M])
-        h_r_E = np.array([x_E, y_E, z_E])
-        h_v_TCO = np.array([vx, vy, vz])
-        h_v_M = np.array([vx_M, vy_M, vz_M])
-        h_v_E = np.array([vx_E, vy_E, vz_E])
+        h_r_TCO = np.array([x, y, z]).ravel()
+        h_r_M = np.array([x_M, y_M, z_M]).ravel()
+        h_r_E = np.array([x_E, y_E, z_E]).ravel()
+        h_v_TCO = np.array([vx, vy, vz]).ravel()
+        h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
+        h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
 
         m_e = 5.97219e24  # mass of Earth
         m_m = 7.34767309e22  # mass of the Moon
         m_s = 1.9891e30  # mass of the Sun
         ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre
-        vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric position of the ems barycentre
+        vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric velocity of the ems barycentre
 
         r_C = (m_e + m_m) * ems_barycentre / (m_e + m_m + m_s)  # barycentre of sun-earth/moon
         r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun
-        omega = np.sqrt(mu_EMS/np.power(r_sE, 3))  # angular velocity of sun-ems barycentre
+        omega = np.sqrt((mu_s + mu_EMS)/np.power(r_sE, 3))  # angular velocity of sun-ems barycentre
 
         v_C = r_C / r_sE * vems_barycentre  # velocity of barycentre
+
+        # not sure if this part is necessary
+        ephfile = ""
+        if os.getenv('OORB_DATA'):
+            ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
+        pyoorb.pyoorb.oorb_init(ephfile)
 
         sun_c = 11  # 11 for Sun, 3 for Earth
         print("Getting helio keplarian osculating elements...")
 
-        # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
-        orbit = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
-                        vems_barycentre[2], 1., date_ems, 1., 10., 0.15]
+        # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
+        orbits = np.zeros([1, 12], dtype=np.double, order='F')  # the pyorb function takes slice of 3-d list
+        orbits[0][:] = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
+                        vems_barycentre[2], 1, date_mjd, 1, 10., 0.15]
 
-        # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
-        new_orbits_com, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbit,
-                                                                        in_element_type=2, in_center=sun_c)
+        new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
+                                                                        in_element_type=3, in_center=sun_c)
 
-        Om = new_orbits_com[:, 4]
-        om = new_orbits_com[:, 5]
-        i = new_orbits_com[:, 3]
+        Om = new_orbits_kep[0][4]  # in rad
+        om = new_orbits_kep[0][5]
+        i = new_orbits_kep[0][3]
+        M = new_orbits_kep[0][6]
+        e = new_orbits_kep[0][2]
 
         # convert from heliocentric to synodic with a euler rotation
-        C_R_h = np.array([[-np.sin(Om) * np.cos(i) * np.sin(om) + np.cos(Om) * np.cos(om),
+        h_R_C_peri = np.array([[-np.sin(Om) * np.cos(i) * np.sin(om) + np.cos(Om) * np.cos(om),
                            -np.sin(Om) * np.cos(i) * np.cos(om) - np.cos(Om) * np.sin(om),
                            np.sin(Om) * np.cos(i)],
                            [np.cos(Om) * np.cos(i) * np.sin(om) + np.sin(Om) * np.cos(om),
@@ -1366,14 +1411,22 @@ class MmAnalyzer:
                            -np.cos(Om) * np.sin(i)],
                            [np.sin(i) * np.sin(om), np.sin(i) * np.cos(om), np.cos(om)]])
 
+        # rotation from perihelion to location of ems_barycentre (i.e. rotation by true anomaly)
+        theta = get_theta_from_M(M, e)
+        C_peri_R_C = np.array([[np.cos(theta), -np.sin(theta), 0.],
+                               [np.sin(theta), np.cos(theta), 0.],
+                               [0., 0., 1.]])
+
+        C_R_h = C_peri_R_C.T @ h_R_C_peri.T
+
         # translation
-        C_T_h = np.array([r_C, 0., 0.])
+        C_T_h = np.array([np.linalg.norm(r_C), 0., 0.]).ravel()
 
         # in sun-earth/moon corotating
         C_r_TCO = C_R_h @ h_r_TCO + C_T_h
 
         # v_rel in Jacobi constant
-        C_v_TCO = h_v_TCO - v_C + np.cross(np.array([omega, 0, 0]), C_r_TCO)
+        C_v_TCO = C_R_h @ (h_v_TCO - v_C - np.cross(np.array([0, 0, omega]), C_r_TCO))
         v_rel = np.linalg.norm(C_v_TCO)
 
         # sun-TCO distance
@@ -1383,25 +1436,60 @@ class MmAnalyzer:
         r_EMS = np.linalg.norm([x - ems_barycentre[0], y - ems_barycentre[1], z - ems_barycentre[2]])
 
         # dimensional Jacobi constant
-        C_J_dimensional = -2*(0.5 * v_rel**2 - 0.5 * (C_r_TCO[0] ** 2 + C_r_TCO[1] ** 2) - mu_s / r_s - mu_EMS / r_EMS)
+        C_J_dimensional = omega ** 2 * (C_r_TCO[0] ** 2 + C_r_TCO[1] ** 2) + 2 * mu_s / r_s + 2 * mu_EMS / r_EMS - v_rel**2  # might be missing a constant
 
         # non dimensional Jacobi constant
-        C_J_nondimensional = C_J_dimensional / (np.power(r_sE, 3) * omega ** 2)
+        x_prime = C_r_TCO[0] / r_sE
+        y_prime = C_r_TCO[1] / r_sE
+        z_prime = C_r_TCO[2] / r_sE
+        mu = mu_EMS / (mu_EMS + mu_s)
+        v_prime = v_rel / (1 / omega ** 2 * r_sE ** 2)
+        r_s_prime = np.sqrt((x_prime + mu) ** 2 + y_prime ** 2 + z_prime ** 2)
+        r_EMS_prime = np.sqrt((x_prime - (1 - mu)) ** 2 + y_prime ** 2 + z_prime ** 2)
+        C_J_nondimensional = x_prime ** 2 + y_prime ** 2 + 2 * (1 - mu) / r_s_prime + 2 * mu / r_EMS_prime - v_prime ** 2 + mu * (1 - mu)
+
 
         # angle between x-axis of C and TCO at SOI of EMS centered at EMS barycentre
         C_ems = C_R_h @ ems_barycentre + C_T_h
-        alpha = np.arctan2((C_r_TCO[1] - C_ems[1]), (C_r_TCO[0] - C_ems[0]))
+        alpha = np.rad2deg(np.arctan2((C_r_TCO[1] - C_ems[1]), (C_r_TCO[0] - C_ems[0])))
+        if alpha < 0:
+            alpha += 360
 
         # angle between x-axis of C and Moon when TCO is at SOI of EMS
-        C_moon = C_R_h @ np.array([x_M, y_M, z_M]) + C_T_h
-        theta_M = np.arctan2((C_moon[1] - C_ems[1]), (C_moon[0] - C_ems[0]))
+        C_moon = C_R_h @ np.array([x_M, y_M, z_M]).ravel() + C_T_h
+        theta_M = np.rad2deg(np.arctan2((C_moon[1] - C_ems[1]), (C_moon[0] - C_ems[0])))
+        if theta_M < 0:
+            theta_M += 360
 
         # to calculate beta, first calculate psi, the angle from the x-axis of C centered at EMS-barycentre to the
         # vector described by the velocity of the TCO in the C frame
-        psi = np.arctan2(C_v_TCO[1], C_v_TCO[0])
-        beta = psi - 90 - alpha
+        psi = np.rad2deg(np.arctan2(C_v_TCO[1], C_v_TCO[0]))
+        if psi < 0:
+            psi += 360
+        beta = (psi - 90 - alpha)  # negative to follow Qi convention
+        if beta < 0:
+            beta += 360
+        beta = -beta  # negative to follow Qi convention
 
         results = [C_J_dimensional, C_J_nondimensional, alpha, beta, theta_M]
+        print(results)
+
+        fig = plt.figure()
+        plt.scatter(ems_barycentre[0], ems_barycentre[1], color='red')
+        plt.scatter(h_r_TCO[0], h_r_TCO[1], color='blue')
+        plt.plot([ems_barycentre[0], h_r_M[0]], [ems_barycentre[1], h_r_M[1]], color='orange')
+        plt.plot([ems_barycentre[0], h_r_TCO[0]], [ems_barycentre[1], h_r_TCO[1]], color='red')
+        plt.plot([h_r_TCO[0], h_r_TCO[0] + C_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + C_v_TCO[1]], color='green')
+        plt.plot([h_r_TCO[0], h_r_TCO[0] + h_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + h_v_TCO[1]], color='grey')
+        # plt.plot([r_C[0], r_C[0] + C_R_h[0, 0]], [r_C[1], r_C[1] + C_R_h[0, 1]], color='red')
+        # plt.plot([r_C[0], r_C[0] + C_R_h[1, 0]], [r_C[1], r_C[1] + C_R_h[1, 1]], color='green')
+        # plt.xlim([-1.5, 1.5])
+        # plt.ylim([-1.5, 1.5])
+        plt.gca().set_aspect('equal')
+        # plt.plot([r_C[0], ems_barycentre[0]], [r_C[1], ems_barycentre[1]])
+        plt.show()
+
+
 
         return results
 
