@@ -241,7 +241,7 @@ class MmParser:
         "Earth z at EMS (Helio)", "Earth vx at EMS (Helio)", "Earth vy at EMS (Helio)", "Earth vz at EMS (Helio)",
          "Moon x at EMS (Helio)", "Moon y at EMS (Helio)", "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
           "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)", 'Entry Date to EMS', 'Entry to EMS Index',
-         'Exit Date to EMS', 'Exit Index to EMS'
+         'Exit Date to EMS', 'Exit Index to EMS' "Dimensional Jacobi" "Non-Dimensional Jacobi" Alpha_I Beta_I Theta_M
         :return:
         """
         master_data = pd.read_csv(file_path, sep=" ", header=0, names=['Object id', 'H', 'D', 'Capture Date',
@@ -301,7 +301,9 @@ class MmParser:
                                                              "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
                                                              "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)",
                                                              'Entry Date to EMS', 'Entry to EMS Index',
-                                                             'Exit Date to EMS', 'Exit Index to EMS'])
+                                                             'Exit Date to EMS', 'Exit Index to EMS',
+                                                             "Dimensional Jacobi", "Non-Dimensional Jacobi", 'Alpha_I',
+                                                             'Beta_I', 'Theta_M'])
 
         return master_data
 

@@ -641,17 +641,18 @@ class MmMain():
         # pool.close()
 
         # parallel version of jacobi alpha beta
-        stc_pop = master[master['STC'] == True]
-        print(master)
-        for i, val in enumerate(stc_pop['Object id']):
-            res = mm_analyzer.alpha_beta_jacobi(stc_pop['Object id'].iloc[i])
-            # res = mm_analyzer.short_term_capture(master['Object id'].iloc[i])
-        # pool = multiprocessing.Pool()
-        # results = pool.map(mm_analyzer.alpha_beta_jacobi, master['Object id'])
-        # pool.close()
+        # stc_pop = master[master['STC'] == True]
+        # print(master)
+        # for i, val in enumerate(stc_pop['Object id']):
+        #     res = mm_analyzer.alpha_beta_jacobi(stc_pop['Object id'].iloc[i])
+        #     res = mm_analyzer.short_term_capture(master['Object id'].iloc[i])
+        pool = multiprocessing.Pool()
+        results = pool.map(mm_analyzer.alpha_beta_jacobi, master['Object id'])
+        pool.close()
 
         # repack list according to index
         repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
+
 
         # create your columns according to the data in results
         # master['Entry Date to EMS'] = repacked_results[10]  # start of ems stay
@@ -662,8 +663,14 @@ class MmMain():
         # pd.set_option('display.max_rows', None)
         # print(master['Entry Date to EMS'])
 
+        master['Dimensional Jacobi'] = repacked_results[0]
+        master['Non-Dimensional Jacobi'] = repacked_results[1]
+        master['Alpha_I'] = repacked_results[2]
+        master['Beta_I'] = repacked_results[3]
+        master['Theta_M'] = repacked_results[4]
+
         # write the master to csv - only if your sure you have the right data, otherwise in will be over written
-        # master.to_csv(dest_path, sep=' ', header=True, index=False)
+        master.to_csv(dest_path, sep=' ', header=True, index=False)
 
     @staticmethod
     def cluster_viz_main(master_file):
@@ -682,7 +689,7 @@ if __name__ == '__main__':
 
     mm_main = MmMain()
 
-    destination_path = os.path.join(os.getcwd(), 'Test_Set')
+    destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
     destination_file = destination_path + '/minimoon_master_final.csv'
     start_file = destination_path + '/minimoon_master_final (copy).csv'
 
@@ -748,7 +755,7 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    mm_main.add_new_column(start_file, destination_file)
+    # mm_main.add_new_column(start_file, destination_file)
 
     ########################################
     # clustering graphs
@@ -760,4 +767,4 @@ if __name__ == '__main__':
     # STC population visualization
     #######################################
 
-    # mm_main.stc_viz_main(destination_file)
+    mm_main.stc_viz_main(destination_file)

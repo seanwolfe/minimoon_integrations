@@ -479,12 +479,43 @@ class MmPopulation:
 
     def stc_pop_viz(self):
 
-        stc_pop = self.population[self.population['STC'] == True]
+        stc_pop_ini = self.population[self.population['STC'] == True]
+        tco_pop = self.population[self.population['Became Minimoon'] == 1]
+        tcf_pop = self.population[self.population['Became Minimoon'] == 0]
+        stc_pop = stc_pop_ini[(stc_pop_ini['Non-Dimensional Jacobi'] < 3.000835) & (stc_pop_ini['Non-Dimensional Jacobi'] > 2.999868)]
         non_stc_pop = self.population[self.population['STC'] == False]
         # Get retrograde and prograde TCOs
-        retrograde_stc = stc_pop[stc_pop['Retrograde'] == 1]
-        prograde_stc = stc_pop[stc_pop['Retrograde'] == 0]
+        # retrograde_stc = stc_pop[stc_pop['Retrograde'] == 1]
+        # prograde_stc = stc_pop[stc_pop['Retrograde'] == 0]
 
+        all_alphas = stc_pop['Alpha_I'].tolist()
+        all_betas = stc_pop['Beta_I'].tolist()
+        all_jacobis = stc_pop['Non-Dimensional Jacobi'].tolist()
+
+
+        fig = plt.figure()
+        sc = plt.scatter(all_alphas, all_betas, c=all_jacobis, cmap='gist_rainbow', s=5)
+        cbar = fig.colorbar(sc, label='Jacobi Constant')
+        plt.xlabel(r'$\alpha_I$ (degrees)')
+        plt.ylabel(r'$\beta_I$ (degrees)')
+        plt.xlim([0, 360])
+        plt.ylim([-180, 0])
+        plt.savefig("figures/stc_alpha_beta.svg", format="svg")
+        plt.savefig("figures/stc_alpha_beta.png", format="png")
+
+        fig = plt.figure()
+        plt.scatter(tco_pop['Min. Distance'], tco_pop['Non-Dimensional Jacobi'], color='blue', s=5, label='TCOs', zorder=5)
+        plt.scatter(tcf_pop['Min. Distance'], tcf_pop['Non-Dimensional Jacobi'], color='orange', s=3, label='TCFs', zorder=10)
+        plt.scatter(stc_pop_ini['Min. Distance'], stc_pop_ini['Non-Dimensional Jacobi'], color='red', s=1, label='STCs', zorder=15)
+        plt.xlabel('Min. Distance to Earth (AU)')
+        plt.ylabel('Non-Dimensional Jacobi Constant')
+        plt.xlim([0, 0.004])
+        plt.ylim([2.998, 3.0015])
+        plt.legend()
+        plt.savefig("figures/jacobi_dist.svg", format="svg")
+        plt.savefig("figures/jacobi_dist.png", format="png")
+
+        """
 
         # Set the bin size
         bin_size = 1
@@ -803,6 +834,7 @@ class MmPopulation:
 
         print(len(stc_pop[stc_pop['Became Minimoon'] == 1]))
         print(len(stc_pop[stc_pop['Became Minimoon'] == 0]))
+        """
 
         plt.show()
 

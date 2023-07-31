@@ -1378,191 +1378,187 @@ class MmAnalyzer:
         vy_E = master['Earth vy at EMS (Helio)']
         vz_E = master['Earth vz at EMS (Helio)']
         date_ems = master['Entry Date to EMS'].iloc[0]  # Julian date
-        date_mjd = Time(date_ems, format='jd').to_value('mjd')
 
-        h_r_TCO = np.array([x, y, z]).ravel()  # AU
-        h_r_M = np.array([x_M, y_M, z_M]).ravel()
-        h_r_E = np.array([x_E, y_E, z_E]).ravel()
-        h_v_TCO = np.array([vx, vy, vz]).ravel()  # AU/day
-        h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
-        h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
+        if not np.isnan(date_ems):
+            date_mjd = Time(date_ems, format='jd').to_value('mjd')
 
-        m_e = 5.97219e24  # mass of Earth kg
-        m_m = 7.34767309e22  # mass of the Moon kg
-        m_s = 1.9891e30  # mass of the Sun kg
-        ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre AU
-        vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric velocity of the ems barycentre AU/day
+            h_r_TCO = np.array([x, y, z]).ravel()  # AU
+            h_r_M = np.array([x_M, y_M, z_M]).ravel()
+            h_r_E = np.array([x_E, y_E, z_E]).ravel()
+            h_v_TCO = np.array([vx, vy, vz]).ravel()  # AU/day
+            h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
+            h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
 
-        r_C = (m_e + m_m) * ems_barycentre / (m_e + m_m + m_s)  # barycentre of sun-earth/moon AU
-        r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun AU
-        omega = np.sqrt((mu_s + mu_EMS)/np.power(r_sE, 3))  # angular velocity of sun-ems barycentre 1/s
+            m_e = 5.97219e24  # mass of Earth kg
+            m_m = 7.34767309e22  # mass of the Moon kg
+            m_s = 1.9891e30  # mass of the Sun kg
+            ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre AU
+            vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric velocity of the ems barycentre AU/day
 
-        v_C = np.linalg.norm(r_C) / r_sE * vems_barycentre  # velocity of barycentre  AU/day
+            r_C = (m_e + m_m) * ems_barycentre / (m_e + m_m + m_s)  # barycentre of sun-earth/moon AU
+            r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun AU
+            omega = np.sqrt((mu_s + mu_EMS)/np.power(r_sE, 3))  # angular velocity of sun-ems barycentre 1/s
 
-        # not sure if this part is necessary
-        # ephfile = ""
-        # if os.getenv('OORB_DATA'):
-        #     ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
-        # pyoorb.pyoorb.oorb_init(ephfile)
+            v_C = np.linalg.norm(r_C) / r_sE * vems_barycentre  # velocity of barycentre  AU/day
 
-        # sun_c = 11  # 11 for Sun, 3 for Earth
-        # print("Getting helio keplarian osculating elements...")
-        #
-        # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
-        # orbits = np.zeros([1, 12], dtype=np.double, order='F')  # the pyorb function takes slice of 3-d list
-        # orbits[0][:] = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
-        #                 vems_barycentre[2], 1, date_mjd, 1, 10., 0.15]
-        #
-        # new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-        #                                                                 in_element_type=3, in_center=sun_c)
+            # not sure if this part is necessary
+            # ephfile = ""
+            # if os.getenv('OORB_DATA'):
+            #     ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
+            # pyoorb.pyoorb.oorb_init(ephfile)
 
-        # Om = new_orbits_kep[0][4]  # in rad
-        # om = new_orbits_kep[0][5]
-        # i = new_orbits_kep[0][3]
-        # M = new_orbits_kep[0][6]
-        # e = new_orbits_kep[0][2]
+            # sun_c = 11  # 11 for Sun, 3 for Earth
+            # print("Getting helio keplarian osculating elements...")
+            #
+            # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
+            # orbits = np.zeros([1, 12], dtype=np.double, order='F')  # the pyorb function takes slice of 3-d list
+            # orbits[0][:] = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
+            #                 vems_barycentre[2], 1, date_mjd, 1, 10., 0.15]
+            #
+            # new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
+            #                                                                 in_element_type=3, in_center=sun_c)
 
-        r = [km_in_au * ems_barycentre[0], km_in_au * ems_barycentre[1], km_in_au * ems_barycentre[2]] << u.km  # km
-        v = [km_in_au / seconds_in_day * vems_barycentre[0], km_in_au / seconds_in_day * vems_barycentre[1], km_in_au / seconds_in_day * vems_barycentre[2]] << u.km / u.s  # AU/day
+            # Om = new_orbits_kep[0][4]  # in rad
+            # om = new_orbits_kep[0][5]
+            # i = new_orbits_kep[0][3]
+            # M = new_orbits_kep[0][6]
+            # e = new_orbits_kep[0][2]
 
-        orb = Orbit.from_vectors(Sun, r, v, Time(date_mjd, format='mjd', scale='utc'))
-        Om = np.deg2rad(orb.raan)  # in rad
-        om = np.deg2rad(orb.argp)
-        i = np.deg2rad(orb.inc)
-        theta = np.deg2rad(orb.nu)
+            r = [km_in_au * ems_barycentre[0], km_in_au * ems_barycentre[1], km_in_au * ems_barycentre[2]] << u.km  # km
+            v = [km_in_au / seconds_in_day * vems_barycentre[0], km_in_au / seconds_in_day * vems_barycentre[1], km_in_au / seconds_in_day * vems_barycentre[2]] << u.km / u.s  # AU/day
 
-        # convert from heliocentric to synodic with a euler rotation
-        h_R_C_peri = np.array([[-np.sin(Om) * np.cos(i) * np.sin(om) + np.cos(Om) * np.cos(om),
-                           -np.sin(Om) * np.cos(i) * np.cos(om) - np.cos(Om) * np.sin(om),
-                           np.sin(Om) * np.sin(i)],
-                           [np.cos(Om) * np.cos(i) * np.sin(om) + np.sin(Om) * np.cos(om),
-                           np.cos(Om) * np.cos(i) * np.cos(om) - np.sin(Om) * np.sin(om),
-                           -np.cos(Om) * np.sin(i)],
-                           [np.sin(i) * np.sin(om), np.sin(i) * np.cos(om), np.cos(i)]])
+            orb = Orbit.from_vectors(Sun, r, v, Time(date_mjd, format='mjd', scale='utc'))
+            Om = np.deg2rad(orb.raan)  # in rad
+            om = np.deg2rad(orb.argp)
+            i = np.deg2rad(orb.inc)
+            theta = np.deg2rad(orb.nu)
 
-
-        # rotation from perihelion to location of ems_barycentre (i.e. rotation by true anomaly)
-        C_peri_R_C = np.array([[np.cos(theta), -np.sin(theta), 0.],
-                               [np.sin(theta), np.cos(theta), 0.],
-                               [0., 0., 1.]])
-
-        C_R_h = C_peri_R_C.T @ h_R_C_peri.T
-
-        # translation
-        C_T_h = np.array([np.linalg.norm(r_C), 0., 0.]).ravel()  # AU
-
-        # in sun-earth/moon corotating
-        C_r_TCO = C_R_h @ h_r_TCO - C_T_h  # AU
-        C_ems = C_R_h @ ems_barycentre - C_T_h
-        C_moon = C_R_h @ np.array([x_M, y_M, z_M]).ravel() - C_T_h
-
-        # v_rel in Jacobi constant
-        C_v_TCO = C_R_h @ (h_v_TCO - v_C) - np.cross(np.array([0, 0, omega * seconds_in_day]), C_r_TCO)  # AU/day
-        v_rel = np.linalg.norm(C_v_TCO)  # AU/day
-
-        # sun-TCO distance
-        r_s = np.linalg.norm([x, y, z])  # AU
-
-        # ems-TCO distance
-        r_EMS = np.linalg.norm([x - ems_barycentre[0], y - ems_barycentre[1], z - ems_barycentre[2]])  # AU
-
-        mu = mu_EMS / (mu_EMS + mu_s)
-        constant = 0 # mu * (1 - mu) * (r_sE * km_in_au) ** 2 * omega ** 2
-
-        # dimensional Jacobi constant km^2/s^2
-        C_J_dimensional = (omega ** 2 * (C_r_TCO[0] ** 2 + C_r_TCO[1] ** 2) + 2 * mu_s / r_s + 2 * mu_EMS / r_EMS - (v_rel / seconds_in_day) ** 2) * np.power(km_in_au, 2) + constant  # might be missing a constant
-
-        # non dimensional Jacobi constant
-        x_prime = C_r_TCO[0] / r_sE
-        y_prime = C_r_TCO[1] / r_sE
-        z_prime = C_r_TCO[2] / r_sE
-
-        x_dot_prime = C_v_TCO[0] * (omega * r_sE * seconds_in_day)
-        y_dot_prime = C_v_TCO[1] * (omega * r_sE * seconds_in_day)
-        z_dot_prime = C_v_TCO[2] * (omega * r_sE * seconds_in_day)
-        v_prime = x_dot_prime ** 2 + y_dot_prime ** 2 + z_dot_prime ** 2
-        r_s_prime = np.sqrt((x_prime + mu) ** 2 + y_prime ** 2 + z_prime ** 2)
-        r_EMS_prime = np.sqrt((x_prime - (1 - mu)) ** 2 + y_prime ** 2 + z_prime ** 2)
-        C_J_nondimensional = x_prime ** 2 + y_prime ** 2 + 2 * (1 - mu) / r_s_prime + 2 * mu / r_EMS_prime - v_prime + mu * (1 - mu)
-
-        # angle between x-axis of C and TCO at SOI of EMS centered at EMS barycentre
-        alpha = np.rad2deg(np.arctan2((C_r_TCO[1] - C_ems[1]), (C_r_TCO[0] - C_ems[0])))
-        if alpha < 0:
-            alpha += 360
-
-        # angle between x-axis of C and Moon when TCO is at SOI of EMS
-
-        theta_M = np.rad2deg(np.arctan2((C_moon[1] - C_ems[1]), (C_moon[0] - C_ems[0])))
-        if theta_M < 0:
-            theta_M += 360
-
-        # to calculate beta, first calculate psi, the angle from the x-axis of C centered at EMS-barycentre to the
-        # vector described by the velocity of the TCO in the C frame
-        psi = np.rad2deg(np.arctan2(C_v_TCO[1], C_v_TCO[0]))
-        if psi < 0:
-            psi += 360
-        beta = (psi - 90 - alpha)  # negative to follow Qi convention
-        if beta < 0:
-            beta += 360
-        beta = -beta  # negative to follow Qi convention
-
-        results = [C_J_dimensional, C_J_nondimensional, alpha, beta, theta_M]
-        print(results)
-        print(master['Became Minimoon'])
-        print(master['STC'])
-
-        fig2 = plt.figure()
-        plt.scatter(C_ems[0], C_ems[1], color='blue')
-        c1 = plt.Circle((C_ems[0], C_ems[1]), radius=0.0038752837677, alpha=0.1)
-        plt.scatter(C_r_TCO[0], C_r_TCO[1], color='red')
-        plt.plot([C_r_TCO[0], C_r_TCO[0] + C_v_TCO[0]], [C_r_TCO[1], C_r_TCO[1] + C_v_TCO[1]], color='red')
-        plt.gca().add_artist(c1)
-        plt.xlim([0.99, 1.01])
-        plt.ylim([-0.01, 0.01])
-        # plt.gca().set_aspect('equal')
-
-        fig3 = plt.figure()
-        plt.scatter(1, 0, color='blue')
-        c1 = plt.Circle((1, 0), radius=0.0038752837677 / r_sE, alpha=0.1)
-        plt.scatter(x_prime, y_prime, color='red')
-        plt.plot([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], color='red')
-        plt.gca().add_artist(c1)
-        plt.xlim([0.99, 1.01])
-        plt.ylim([-0.01, 0.01])
-        # plt.gca().set_aspect('equal')
-
-        fig3 = plt.figure()
-        ax = fig3.add_subplot(111, projection='3d')
-        ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
-        x = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + C_ems[0] / r_sE
-        y = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v) + C_ems[1] / r_sE
-        z = 0.0038752837677 / r_sE * np.cos(v) + C_ems[2] / r_sE
-        ax.plot_wireframe(x, y, z, color="b", alpha=0.1)
-        ax.scatter(C_ems[0] / r_sE, C_ems[1] / r_sE, C_ems[2] / r_sE, color='blue', s=10)
-        ax.scatter(x_prime, y_prime, z_prime, color='red', s=10)
-        ax.plot3D([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], [z_prime, z_prime + z_dot_prime], color='red')
-        #
-        # fig = plt.figure()
-        # plt.scatter(ems_barycentre[0], ems_barycentre[1], color='red')
-        # plt.scatter(h_r_TCO[0], h_r_TCO[1], color='blue')
-        # plt.plot([ems_barycentre[0], h_r_M[0]], [ems_barycentre[1], h_r_M[1]], color='orange')
-        # plt.plot([ems_barycentre[0], h_r_TCO[0]], [ems_barycentre[1], h_r_TCO[1]], color='red')
-        # plt.plot([h_r_TCO[0], h_r_TCO[0] + C_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + C_v_TCO[1]], color='green')
-        # plt.plot([h_r_TCO[0], h_r_TCO[0] + h_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + h_v_TCO[1]], color='grey')
-        # plt.plot([r_C[0], r_C[0] + C_R_h[0, 0]], [r_C[1], r_C[1] + C_R_h[0, 1]], color='red')
-        # plt.plot([r_C[0], r_C[0] + C_R_h[1, 0]], [r_C[1], r_C[1] + C_R_h[1, 1]], color='green')
-        # plt.xlim([-1.5, 1.5])
-        # plt.ylim([-1.5, 1.5])
-        # plt.gca().set_aspect('equal')
-        # plt.plot([r_C[0], ems_barycentre[0]], [r_C[1], ems_barycentre[1]])
-        plt.show()
+            # convert from heliocentric to synodic with a euler rotation
+            h_R_C_peri = np.array([[-np.sin(Om) * np.cos(i) * np.sin(om) + np.cos(Om) * np.cos(om),
+                               -np.sin(Om) * np.cos(i) * np.cos(om) - np.cos(Om) * np.sin(om),
+                               np.sin(Om) * np.sin(i)],
+                               [np.cos(Om) * np.cos(i) * np.sin(om) + np.sin(Om) * np.cos(om),
+                               np.cos(Om) * np.cos(i) * np.cos(om) - np.sin(Om) * np.sin(om),
+                               -np.cos(Om) * np.sin(i)],
+                               [np.sin(i) * np.sin(om), np.sin(i) * np.cos(om), np.cos(i)]])
 
 
+            # rotation from perihelion to location of ems_barycentre (i.e. rotation by true anomaly)
+            C_peri_R_C = np.array([[np.cos(theta), -np.sin(theta), 0.],
+                                   [np.sin(theta), np.cos(theta), 0.],
+                                   [0., 0., 1.]])
+
+            C_R_h = C_peri_R_C.T @ h_R_C_peri.T
+
+            # translation
+            C_T_h = np.array([np.linalg.norm(r_C), 0., 0.]).ravel()  # AU
+
+            # in sun-earth/moon corotating
+            C_r_TCO = C_R_h @ h_r_TCO - C_T_h  # AU
+            C_ems = C_R_h @ ems_barycentre - C_T_h
+            C_moon = C_R_h @ np.array([x_M, y_M, z_M]).ravel() - C_T_h
+
+            # v_rel in Jacobi constant
+            C_v_TCO = C_R_h @ (h_v_TCO - v_C) - np.cross(np.array([0, 0, omega * seconds_in_day]), C_r_TCO)  # AU/day
+            v_rel = np.linalg.norm(C_v_TCO)  # AU/day
+
+            # sun-TCO distance
+            r_s = np.linalg.norm([x, y, z])  # AU
+
+            # ems-TCO distance
+            r_EMS = np.linalg.norm([x - ems_barycentre[0], y - ems_barycentre[1], z - ems_barycentre[2]])  # AU
+
+            mu = mu_EMS / (mu_EMS + mu_s)
+            constant = 0  # mu * (1 - mu) * (r_sE * km_in_au) ** 2 * omega ** 2
+
+            # dimensional Jacobi constant km^2/s^2
+            C_J_dimensional = (omega ** 2 * (C_r_TCO[0] ** 2 + C_r_TCO[1] ** 2) + 2 * mu_s / r_s + 2 * mu_EMS / r_EMS - (v_rel / seconds_in_day) ** 2) * np.power(km_in_au, 2) + constant  # might be missing a constant
+
+            # non dimensional Jacobi constant
+            x_prime = C_r_TCO[0] / r_sE
+            y_prime = C_r_TCO[1] / r_sE
+            z_prime = C_r_TCO[2] / r_sE
+
+            x_dot_prime = C_v_TCO[0] / (omega * r_sE * seconds_in_day)
+            y_dot_prime = C_v_TCO[1] / (omega * r_sE * seconds_in_day)
+            z_dot_prime = C_v_TCO[2] / (omega * r_sE * seconds_in_day)
+            v_prime = x_dot_prime ** 2 + y_dot_prime ** 2 + z_dot_prime ** 2
+            r_s_prime = np.sqrt((x_prime + mu) ** 2 + y_prime ** 2 + z_prime ** 2)
+            r_EMS_prime = np.sqrt((x_prime - (1 - mu)) ** 2 + y_prime ** 2 + z_prime ** 2)
+            C_J_nondimensional = x_prime ** 2 + y_prime ** 2 + 2 * (1 - mu) / r_s_prime + 2 * mu / r_EMS_prime - v_prime + mu * (1 - mu)
+
+            # angle between x-axis of C and TCO at SOI of EMS centered at EMS barycentre
+            alpha = np.rad2deg(np.arctan2((C_r_TCO[1] - C_ems[1]), (C_r_TCO[0] - C_ems[0])))
+            if alpha < 0:
+                alpha += 360
+
+            # angle between x-axis of C and Moon when TCO is at SOI of EMS
+
+            theta_M = np.rad2deg(np.arctan2((C_moon[1] - C_ems[1]), (C_moon[0] - C_ems[0])))
+            if theta_M < 0:
+                theta_M += 360
+
+            # to calculate beta, first calculate psi, the angle from the x-axis of C centered at EMS-barycentre to the
+            # vector described by the velocity of the TCO in the C frame
+            psi = np.rad2deg(np.arctan2(C_v_TCO[1], C_v_TCO[0]))
+            if psi < 0:
+                psi += 360
+            beta = (psi - 90 - alpha)  # negative to follow Qi convention
+            if beta < 0:
+                beta += 360
+            beta = -beta  # negative to follow Qi convention
+
+            results = [C_J_dimensional, C_J_nondimensional, alpha, beta, theta_M]
+            print(results)
+            print(master['Became Minimoon'])
+            print(master['STC'])
+
+            # fig2 = plt.figure()
+            # plt.scatter(C_ems[0], C_ems[1], color='blue')
+            # c1 = plt.Circle((C_ems[0], C_ems[1]), radius=0.0038752837677, alpha=0.1)
+            # plt.scatter(C_r_TCO[0], C_r_TCO[1], color='red')
+            # plt.plot([C_r_TCO[0], C_r_TCO[0] + C_v_TCO[0]], [C_r_TCO[1], C_r_TCO[1] + C_v_TCO[1]], color='red')
+            # plt.gca().add_artist(c1)
+            # plt.xlim([0.99, 1.01])
+            # plt.ylim([-0.01, 0.01])
+            # plt.gca().set_aspect('equal')
+
+            # fig3 = plt.figure()
+            # plt.scatter(1, 0, color='blue')
+            # c1 = plt.Circle((1, 0), radius=0.0038752837677 / r_sE, alpha=0.1)
+            # plt.scatter(x_prime, y_prime, color='red')
+            # plt.plot([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], color='red')
+            # plt.gca().add_artist(c1)
+            # plt.xlim([0.99, 1.01])
+            # plt.ylim([-0.01, 0.01])
+            # plt.gca().set_aspect('equal')
+
+            # fig3 = plt.figure()
+            # ax = fig3.add_subplot(111, projection='3d')
+            # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            # x = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + C_ems[0] / r_sE
+            # y = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v) + C_ems[1] / r_sE
+            # z = 0.0038752837677 / r_sE * np.cos(v) + C_ems[2] / r_sE
+            # ax.plot_wireframe(x, y, z, color="b", alpha=0.1)
+            # ax.scatter(C_ems[0] / r_sE, C_ems[1] / r_sE, C_ems[2] / r_sE, color='blue', s=10)
+            # ax.scatter(x_prime, y_prime, z_prime, color='red', s=10)
+            # ax.plot3D([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], [z_prime, z_prime + z_dot_prime], color='red')
+            #
+            # fig = plt.figure()
+            # plt.scatter(ems_barycentre[0], ems_barycentre[1], color='red')
+            # plt.scatter(h_r_TCO[0], h_r_TCO[1], color='blue')
+            # plt.plot([ems_barycentre[0], h_r_M[0]], [ems_barycentre[1], h_r_M[1]], color='orange')
+            # plt.plot([ems_barycentre[0], h_r_TCO[0]], [ems_barycentre[1], h_r_TCO[1]], color='red')
+            # plt.plot([h_r_TCO[0], h_r_TCO[0] + C_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + C_v_TCO[1]], color='green')
+            # plt.plot([h_r_TCO[0], h_r_TCO[0] + h_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + h_v_TCO[1]], color='grey')
+            # plt.plot([r_C[0], r_C[0] + C_R_h[0, 0]], [r_C[1], r_C[1] + C_R_h[0, 1]], color='red')
+            # plt.plot([r_C[0], r_C[0] + C_R_h[1, 0]], [r_C[1], r_C[1] + C_R_h[1, 1]], color='green')
+            # plt.xlim([-1.5, 1.5])
+            # plt.ylim([-1.5, 1.5])
+            # plt.gca().set_aspect('equal')
+            # plt.plot([r_C[0], ems_barycentre[0]], [r_C[1], ems_barycentre[1]])
+            # plt.show()
+        else:
+            results = [np.nan, np.nan, np.nan, np.nan, np.nan]
 
         return results
-
-
-if __name__ == '__main__':
-
-    # Constants
-    mu_e = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
