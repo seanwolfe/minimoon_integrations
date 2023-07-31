@@ -8,7 +8,7 @@ from space_fncs import get_M
 from space_fncs import get_theta_from_M
 from space_fncs import getH2D
 from space_fncs import get_emb_synodic
-import pyoorb
+# import pyoorb
 import numpy as np
 import os
 from astropy.time import Time
@@ -20,6 +20,8 @@ from astropy import constants as const
 from MM_Parser import MmParser
 from scipy.signal import argrelextrema
 from space_fncs import get_geo_v
+from poliastro.twobody import Orbit
+from poliastro.bodies import Sun, Earth, Moon
 
 cds.enable()
 numpy.set_printoptions(threshold=sys.maxsize)
@@ -356,543 +358,543 @@ class MmAnalyzer:
 
         return designation
 
-    def get_data_mm_oorb_w_horizons(self, mm_parser, data, int_step, perturbers, start_time, end_time, grav_param, minimoon):
-        """
-        Retrieve data, organize as pandas dataframe, store to file, starting with fedorets data
-
-        :param minimoon:
-        :param data:
-        :param int_step:
-        :param perturbers:
-        :param start_time:
-        :param end_time:
-        :return:
-        """
-        ######################
-        # open orb
-        #######################
-
-        # Integration step (in days)
-        if int_step == 1:
-            int_step_unit = 'd'
-            int_step_jpl = 1
-        elif int_step == 1 / 24:
-            int_step_unit = 'h'
-            int_step_jpl = 1
-        elif int_step == 1/24/60:
-            int_step_unit = 'm'
-            int_step_jpl = 1
-        else:
-            int_step_unit = 'd'
-            int_step_jpl = int_step
-
-        int_step_jpl_unit = int_step_unit
-
-        # Observation locations
-        earth_obs = '500'  # Geocentric earth (works for both openorb and jpl)
-        sun_obs = '500@10'
-
-        # Number of orbits
-        n = 1
-
-        print("Generating data using Oorb for minimoon:" + minimoon + "...")
-        ephfile = ""
-        if os.getenv('OORB_DATA'):
-            ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
-        pyoorb.pyoorb.oorb_init(ephfile)
-        # orb is id, 6 elements, epoch_mjd, H, G, element type index
-        # keplerian appears to be element type index 3
-        # orbits = np.array([0.,1.,2.,3.,4.,5.,6.,5373.,1.,1.,3.])
-        # using the first item in PS-SSM, 1/100th density, s1.01 file.
-        orbit = np.zeros([n, 12], dtype=np.double, order='F')
-
-        # Initialize
-        if minimoon == '2006 RH120':
-            # RH120 orbit - id = 1
-            # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements
-            # from the JPL horizons file !!According to starting date!!
-            orbit[0][0] = 1.0
-            orbit[0][1] = 0.9977199096279007  # semimajor axis
-            orbit[0][2] = 0.03744067182298642  # eccentricity
-            orbit[0][3] = np.deg2rad(0.3093522132878884)  # Inclination (rad)
-            orbit[0][4] = np.deg2rad(323.0881705631016)  # Longitude of Ascending node (rad)
-            orbit[0][5] = np.deg2rad(206.3169504727512)  # Argument of Periapsis (rad)
-            orbit[0][6] = np.deg2rad(294.6211657400694)  # Mean anomaly (rad)
-            orbit[0][7] = 3.0  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
-            orbit[0][8] = Time(2454101.5, format='jd').to_value('mjd', 'long')  # Epoch of perihelion (MJD)
-            orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
-            orbit[0][10] = 29.5  # absolute magnitude of object (H)
-            orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
-        elif minimoon == '2020 CD3':
-            # CD3 orbit - id = 1
-            # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from
-            # the JPL horizons file
-            orbit[0][0] = 1.0
-            orbit[0][1] = 1.022115305313184  # semimajor axis
-            orbit[0][2] = 0.03494529757096312  # eccentricity
-            orbit[0][3] = np.deg2rad(0.7388576324362984)  # Inclination (rad)
-            orbit[0][4] = np.deg2rad(134.7432090092998)  # Longitude of Ascending node (rad)
-            orbit[0][5] = np.deg2rad(342.2597100247675)  # Argument of Periapsis (rad)
-            orbit[0][6] = np.deg2rad(45.87779192987005)  # Mean anomaly (rad)
-            orbit[0][7] = 3.0  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
-            orbit[0][8] = Time(2458914.5, format='jd').to_value('mjd', 'long')  # Epoch of perihelion (MJD)
-            orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
-            orbit[0][10] = 31.74  # absolute magnitude of object (H)
-            orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
-        else:
-            # A synthetic minimoon orbit
-            # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from
-            # the JPL horizons file
-            orbit[0][0] = 1.0
-            orbit[0][1] = data["Helio x"].iloc[0]  # x
-            orbit[0][2] = data["Helio y"].iloc[0]  # y
-            orbit[0][3] = data["Helio z"].iloc[0]  # z
-            orbit[0][4] = data["Helio vx"].iloc[0]  # vx
-            orbit[0][5] = data["Helio vy"].iloc[0]  # vy
-            orbit[0][6] = data["Helio vz"].iloc[0]  # vz
-            orbit[0][7] = 1.  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
-            orbit[0][8] = Time(data["Julian Date"].iloc[0], format='jd').to_value('mjd', 'long')  # Epoch of osculating
-            orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
-            orbit[0][10] = mm_parser.mm_data["x7"].iloc[2]  # absolute magnitude of object (H)
-            orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
-
-        #############################################
-        # Integrations
-        ############################################
-
-        # Open orb generates eph
-        # Time and observer information
-        obscode = earth_obs  # Where are you observing from: https://minorplanetcenter.net/iau/lists/ObsCodesF.html
-        mjds = np.arange(Time(start_time, format='isot', scale='utc').to_value('mjd', 'long'),
-                         Time(end_time, format='isot', scale='utc').to_value('mjd', 'long'), int_step)
-        epochs = np.array(list(zip(mjds, [1] * len(mjds))), dtype=np.double, order='F')
-
-        # Check output format from: https://github.com/oorb/oorb/tree/master/python
-        print("calling oorb_ephemeris_full (n-body)")
-        eph, err = pyoorb.pyoorb.oorb_ephemeris_full(in_orbits=orbit[0][:].reshape(1, 12),
-                                                     in_obscode=obscode,
-                                                     in_date_ephems=epochs,
-                                                     in_dynmodel='N',
-                                                     in_perturbers=perturbers)
-        if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
-        print("...done")
-
-        ########
-        # JPL horizons
-        #######
-        # by default horizons eph have one more value than oorb eph
-        print("Generating ephimerides data using Horizons JPL...")
-
-
-
-        ################################################
-        # Earth wrt to Sun
-        ###############################################
-        print("Earth with respect to Sun...")
-        obj_sun = Horizons(id='399', location=sun_obs,
-                           epochs={'start': start_time, 'stop': end_time,
-                                   'step': str(int_step_jpl) + int_step_jpl_unit})
-
-        # Get the vectors table from JPL horizons
-        print(obj_sun)
-        eph_sun = obj_sun.vectors()
-        print("...done")
-
-        ################################################
-        # Moon wrt to Sun
-        ###############################################
-        print("Moon with respect to Sun...")
-        obj_moon = Horizons(id='301', location=sun_obs,
-                           epochs={'start': start_time, 'stop': end_time,
-                                   'step': str(int_step_jpl) + int_step_jpl_unit})
-
-        # Get the vectors table from JPL horizons
-        eph_moon = obj_moon.vectors()
-        print("...done")
-
-        #############################################
-        # Generate 39 element data frame containing results of the integrations: elements from 0-38
-        #############################################
-        """
-        Units are au, au/day, degrees
-        "Object id", "Julian Date", "Distance", "Helio q", "Helio e", "Helio i", "Helio Omega ", "Helio omega",
-        "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx", "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z",
-        "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i", "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)",
-        "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)", "Earth vy (Helio)", "Earth vz (Helio)",
-        "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)", "Moon vy (Helio)",
-        "Moon vz (Helio)", "Synodic x", "Synodic y", "Synodic z", "Eclip Long"
-        """
-
-        nsteps = 0
-        if len(eph[0]) == len(eph_sun) - 1:
-            nsteps = len(eph[0])
-        elif len(eph[0]) == len(eph_sun) + 1:
-            nsteps = len(eph_sun)
-        elif len(eph[0]) == len(eph_sun):
-            nsteps = len(eph[0])
-        else:
-            print("Horizons and OOrb integration step error")
-
-        data_temp = {}
-        new_data = pd.DataFrame(data_temp)
-
-        # element 0 - object id
-        new_data["Object id"] = [minimoon] * nsteps
-
-        # element 1 - julian date
-        new_data["Julian Date"] = [Time(eph[0, i, 0], format='mjd').to_value('jd', 'long') for i in range(nsteps)]
-
-        # element 2 - distance
-        new_data["Distance"] = [np.sqrt((eph[0, i, 24] - eph_sun[i]['x']) ** 2 + (eph[0, i, 25] - eph_sun[i]['y']) ** 2
-                                        + (eph[0, i, 26] - eph_sun[i]['z'])**2) for i in range(nsteps)]
-
-        # for elements 3 to 8, state vector should be converted to cometary and keplarian orbital elements
-        orbits = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
-        sun_c = 11  # 11 for Sun, 3 for Earth
-        print("Getting helio keplarian osculating elements...")
-        for i in range(nsteps):
-            # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
-            orbits[i, :] = [i, eph[0, i, 24], eph[0, i, 25], eph[0, i, 26], eph[0, i, 27], eph[0, i, 28],
-                           eph[0, i, 29], 1., eph[0, i, 0], 1., self.H, 0.15]
-
-        # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
-        new_orbits_com, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                                                                                  in_element_type=2, in_center=sun_c)
-
-        # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
-        new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                                                                                  in_element_type=3, in_center=sun_c)
-        print("...done")
-
-        # element 3 - Helio q
-        new_data["Helio q"] = new_orbits_com[:, 1]
-
-        # element 4 - Helio e
-        new_data["Helio e"] = new_orbits_com[:, 2]
-
-        # element 5 - Helio i
-        new_data["Helio i"] = np.rad2deg(new_orbits_com[:, 3])
-
-        # element 6 - Helio Omega
-        new_data["Helio Omega"] = np.rad2deg(new_orbits_com[:, 4])
-
-        # element 7 - Helio omega
-        new_data["Helio omega"] = np.rad2deg(new_orbits_com[:, 5])
-
-        # element 8 - Helio M
-        new_data["Helio M"] = np.rad2deg(new_orbits_kep[:, 6])
-
-        # element 9-14 - State vector
-        new_data["Helio x"] = eph[0, :nsteps, 24]
-        new_data["Helio y"] = eph[0, :nsteps, 25]
-        new_data["Helio z"] = eph[0, :nsteps, 26]
-        new_data["Helio vx"] = eph[0, :nsteps, 27]
-        new_data["Helio vy"] = eph[0, :nsteps, 28]
-        new_data["Helio vz"] = eph[0, :nsteps, 29]
-
-        # element 15-20 - Geocentric State vector
-        new_data["Geo x"] = eph[0, :nsteps, 24] - eph_sun[:nsteps]['x']  # sun-mm pos vec - sun-earth pos vec
-        new_data["Geo y"] = eph[0, :nsteps, 25] - eph_sun[:nsteps]['y']
-        new_data["Geo z"] = eph[0, :nsteps, 26] - eph_sun[:nsteps]['z']
-        new_data["Geo vx"] = eph[0, :nsteps, 27] - eph_sun[:nsteps]['vx']  # geo is non-rotating frame vrel = vmm - ve
-        new_data["Geo vy"] = eph[0, :nsteps, 28] - eph_sun[:nsteps]['vy']
-        new_data["Geo vz"] = eph[0, :nsteps, 29] - eph_sun[:nsteps]['vz']
-
-        # for elements 21 to 26, geo state vector should be converted to cometary and keplarian orbital elements
-        orbits_geo = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
-        earth_c = 3
-        print("Getting geocentric osculating keplarian elements...")
-        for i in range(nsteps):
-            # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
-            orbits_geo[i, :, :] = [i, new_data["Geo x"].iloc[i], new_data["Geo y"].iloc[i], new_data["Geo z"].iloc[i],
-                                new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
-                                1., eph[0, i, 0], 1, self.H, 0.15]
-
-        # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
-        new_orbits_com_geo, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits_geo,
-                                                                                  in_element_type=2, in_center=earth_c)
-        print("...Done")
-
-        # element 21 - Geo q
-        new_data["Geo q"] = new_orbits_com_geo[:, 1]
-
-        # element 22 - Geo e
-        new_data["Geo e"] = new_orbits_com_geo[:, 2]
-
-        # element 23 - Geo i
-        new_data["Geo i"] = np.rad2deg(new_orbits_com_geo[:, 3])
-
-        # element 24 - Geo Omega
-        new_data["Geo Omega"] = np.rad2deg(new_orbits_com_geo[:, 4])
-
-        # element 25 - Geo omega
-        new_data["Geo omega"] = np.rad2deg(new_orbits_com_geo[:, 5])
-
-        # element 26 - Geo M
-        print("Calculating mean anomaly...")
-        temp = np.rad2deg(get_M(new_data, new_orbits_com_geo[:, 6], grav_param))
-        new_data["Geo M"] = temp[0, :]
-        print("...done")
-
-        # element 27-32 - Heliocentric state vector of Earth
-        new_data["Earth x (Helio)"] = eph_sun[:nsteps]['x']
-        new_data["Earth y (Helio)"] = eph_sun[:nsteps]['y']
-        new_data["Earth z (Helio)"] = eph_sun[:nsteps]['z']
-        new_data["Earth vx (Helio)"] = eph_sun[:nsteps]['vx']
-        new_data["Earth vy (Helio)"] = eph_sun[:nsteps]['vy']
-        new_data["Earth vz (Helio)"] = eph_sun[:nsteps]['vz']
-
-        # element 33-38 - Heliocentric state vector of moon
-        new_data["Moon x (Helio)"] = eph_moon[:nsteps]['x']
-        new_data["Moon y (Helio)"] = eph_moon[:nsteps]['y']
-        new_data["Moon z (Helio)"] = eph_moon[:nsteps]['z']
-        new_data["Moon vx (Helio)"] = eph_moon[:nsteps]['vx']
-        new_data["Moon vy (Helio)"] = eph_moon[:nsteps]['vy']
-        new_data["Moon vz (Helio)"] = eph_moon[:nsteps]['vz']
-
-        print("Getting synodic x,y,z, ecliptic longitude...")
-        earth_xyz = np.array([new_data["Earth x (Helio)"], new_data["Earth y (Helio)"], new_data["Earth z (Helio)"]])
-        mm_xyz = np.array([new_data["Geo x"], new_data["Geo y"], new_data["Geo z"]])
-        trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_xyz)  # minus is to have sun relative to earth
-
-        new_data["Synodic x"] = trans_xyz[0, :]
-        new_data["Synodic y"] = trans_xyz[1, :]
-        new_data["Synodic z"] = trans_xyz[2, :]
-
-        eclip_long = get_eclip_long(trans_xyz)
-        new_data["Eclip Long"] = eclip_long[0, :]
-
-        print("...done")
-
-        # Encapsulate comparison graphs into function to compare with fedorets data
-        #if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
-        #    self.compare(eph, data, new_data)
-
-        return new_data
-
-    def get_data_mm_oorb(self, master_i, old_data, int_step, perturbers, start_time, end_time, grav_param):
-        """
-        Retrieve data, organize as pandas dataframe, store to file, starting with one the newly integreated files
-
-        :param minimoon:
-        :param data:
-        :param int_step:
-        :param perturbers:
-        :param start_time:
-        :param end_time:
-        :return:
-        """
-        ######################
-        # open orb
-        #######################
-
-        # Observation locations
-        earth_obs = '500'  # Geocentric earth (works for both openorb and jpl)
-        sun_obs = '500@10'
-
-        # Number of orbits
-        n = 1
-
-        print("Generating data using Oorb for minimoon:" + str(master_i['Object id'].iloc[0]) + "...")
-        ephfile = ""
-        if os.getenv('OORB_DATA'):
-            ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
-        pyoorb.pyoorb.oorb_init(ephfile)
-        # orb is id, 6 elements, epoch_mjd, H, G, element type index
-        # keplerian appears to be element type index 3
-        # orbits = np.array([0.,1.,2.,3.,4.,5.,6.,5373.,1.,1.,3.])
-        # using the first item in PS-SSM, 1/100th density, s1.01 file.
-        orbit = np.zeros([n, 12], dtype=np.double, order='F')
-
-        # Initialize
-        # A synthetic minimoon orbit
-        # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from
-        # the JPL horizons file
-        orbit[0][0] = 1.0
-        orbit[0][1] = master_i["Helio x at Capture"].iloc[0]  # x
-        orbit[0][2] = master_i["Helio y at Capture"].iloc[0]  # y
-        orbit[0][3] = master_i["Helio z at Capture"].iloc[0]  # z
-        orbit[0][4] = master_i["Helio vx at Capture"].iloc[0]  # vx
-        orbit[0][5] = master_i["Helio vy at Capture"].iloc[0]  # vy
-        orbit[0][6] = master_i["Helio vz at Capture"].iloc[0]  # vz
-        orbit[0][7] = 1.  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
-        orbit[0][8] = Time(master_i['Capture Date'].iloc[0], format='jd', scale='utc').to_value('mjd', 'long')  # Epoch of osculating
-        orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
-        orbit[0][10] = master_i['H'].iloc[0]  # absolute magnitude of object (H)
-        orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
-
-        #############################################
-        # Integrations
-        ############################################
-
-        # Open orb generates eph
-        # Time and observer information
-        obscode = earth_obs  # Where are you observing from: https://minorplanetcenter.net/iau/lists/ObsCodesF.html
-        mjds = np.arange(start_time.to_value('mjd', 'long'),  end_time.to_value('mjd', 'long'), int_step)
-        epochs = np.array(list(zip(mjds, [1] * len(mjds))), dtype=np.double, order='F')
-
-        # Check output format from: https://github.com/oorb/oorb/tree/master/python
-        print("calling oorb_ephemeris_full (n-body)")
-        eph, err = pyoorb.pyoorb.oorb_ephemeris_full(in_orbits=orbit[0][:].reshape(1, 12),
-                                                     in_obscode=obscode,
-                                                     in_date_ephems=epochs,
-                                                     in_dynmodel='N',
-                                                     in_perturbers=perturbers)
-        if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
-        print("...done")
-
-
-        #############################################
-        # Generate 39 element data frame containing results of the integrations: elements from 0-38
-        #############################################
-        """
-        Units are au, au/day, degrees
-        "Object id", "Julian Date", "Distance", "Helio q", "Helio e", "Helio i", "Helio Omega ", "Helio omega",
-        "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx", "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z",
-        "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i", "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)",
-        "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)", "Earth vy (Helio)", "Earth vz (Helio)",
-        "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)", "Moon vy (Helio)",
-        "Moon vz (Helio)", "Synodic x", "Synodic y", "Synodic z", "Eclip Long"
-        """
-
-
-        data_temp = {}
-        new_data = pd.DataFrame(data_temp)
-
-        nsteps = len(eph[0])
-
-        # element 0 - object id
-        new_data["Object id"] = [master_i['Object id'].iloc[0]] * nsteps
-
-        # element 1 - julian date
-        new_data["Julian Date"] = [Time(eph[0, i, 0], format='mjd').to_value('jd', 'long') for i in range(nsteps)]
-
-        # element 2 - distance
-        new_data["Distance"] = eph[0, :, 8]
-
-        # for elements 3 to 8, state vector should be converted to cometary and keplarian orbital elements
-        orbits = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
-        sun_c = 11  # 11 for Sun, 3 for Earth
-        print("Getting helio keplarian osculating elements...")
-        for i in range(nsteps):
-            # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
-            orbits[i, :] = [i, eph[0, i, 24], eph[0, i, 25], eph[0, i, 26], eph[0, i, 27], eph[0, i, 28],
-                           eph[0, i, 29], 1., eph[0, i, 0], 1., master_i['H'].iloc[0], 0.15]
-
-        # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
-        new_orbits_com, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                                                                                  in_element_type=2, in_center=sun_c)
-
-        # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
-        new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                                                                                  in_element_type=3, in_center=sun_c)
-        print("...done")
-
-        # element 3 - Helio q
-        new_data["Helio q"] = new_orbits_com[:, 1]
-
-        # element 4 - Helio e
-        new_data["Helio e"] = new_orbits_com[:, 2]
-
-        # element 5 - Helio i
-        new_data["Helio i"] = np.rad2deg(new_orbits_com[:, 3])
-
-        # element 6 - Helio Omega
-        new_data["Helio Omega"] = np.rad2deg(new_orbits_com[:, 4])
-
-        # element 7 - Helio omega
-        new_data["Helio omega"] = np.rad2deg(new_orbits_com[:, 5])
-
-        # element 8 - Helio M
-        new_data["Helio M"] = np.rad2deg(new_orbits_kep[:, 6])
-
-        # element 9-14 - State vector
-        new_data["Helio x"] = eph[0, :, 24]
-        new_data["Helio y"] = eph[0, :, 25]
-        new_data["Helio z"] = eph[0, :, 26]
-        new_data["Helio vx"] = eph[0, :, 27]
-        new_data["Helio vy"] = eph[0, :, 28]
-        new_data["Helio vz"] = eph[0, :, 29]
-
-        # element 15-20 - Geocentric State vector
-        new_data["Geo x"] = eph[0, :, 24] - eph[0, :, 30]  # sun-mm pos vec - sun-earth pos vec
-        new_data["Geo y"] = eph[0, :, 25] - eph[0, :, 31]
-        new_data["Geo z"] = eph[0, :, 26] - eph[0, :, 32]
-        new_data["Geo vx"] = eph[0, :, 27] - eph[0, :, 33]
-        new_data["Geo vy"] = eph[0, :, 28] - eph[0, :, 34]
-        new_data["Geo vz"] = eph[0, :, 29] - eph[0, :, 35]
-
-        # for elements 21 to 26, geo state vector should be converted to cometary and keplarian orbital elements
-        orbits_geo = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
-        earth_c = 3
-        print("Getting geocentric osculating keplarian elements...")
-        for i in range(nsteps):
-            # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
-            orbits_geo[i, :, :] = [i, new_data["Geo x"].iloc[i], new_data["Geo y"].iloc[i], new_data["Geo z"].iloc[i],
-                                new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
-                                1., eph[0, i, 0], 1, master_i['H'].iloc[0], 0.15]
-
-        # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
-        new_orbits_com_geo, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits_geo,
-                                                                                  in_element_type=2, in_center=earth_c)
-        print("...Done")
-
-        # element 21 - Geo q
-        new_data["Geo q"] = new_orbits_com_geo[:, 1]
-
-        # element 22 - Geo e
-        new_data["Geo e"] = new_orbits_com_geo[:, 2]
-
-        # element 23 - Geo i
-        new_data["Geo i"] = np.rad2deg(new_orbits_com_geo[:, 3])
-
-        # element 24 - Geo Omega
-        new_data["Geo Omega"] = np.rad2deg(new_orbits_com_geo[:, 4])
-
-        # element 25 - Geo omega
-        new_data["Geo omega"] = np.rad2deg(new_orbits_com_geo[:, 5])
-
-        # element 26 - Geo M
-        print("Calculating mean anomaly...")
-        temp = np.rad2deg(get_M(new_data, new_orbits_com_geo[:, 6], grav_param))
-        new_data["Geo M"] = temp[0, :]
-        print("...done")
-
-        # element 27-32 - Heliocentric state vector of Earth
-        new_data["Earth x (Helio)"] = eph[0, :, 30]
-        new_data["Earth y (Helio)"] = eph[0, :, 31]
-        new_data["Earth z (Helio)"] = eph[0, :, 32]
-        new_data["Earth vx (Helio)"] = eph[0, :, 33]
-        new_data["Earth vy (Helio)"] = eph[0, :, 34]
-        new_data["Earth vz (Helio)"] = eph[0, :, 35]
-
-        # element 33-38 - Heliocentric state vector of moon
-        new_data["Moon x (Helio)"] = old_data["Moon x (Helio)"]
-        new_data["Moon y (Helio)"] = old_data["Moon y (Helio)"]
-        new_data["Moon z (Helio)"] = old_data["Moon z (Helio)"]
-        new_data["Moon vx (Helio)"] = old_data["Moon vx (Helio)"]
-        new_data["Moon vy (Helio)"] = old_data["Moon vy (Helio)"]
-        new_data["Moon vz (Helio)"] = old_data["Moon vz (Helio)"]
-
-        print("Getting synodic x,y,z, ecliptic longitude...")
-        earth_xyz = np.array([new_data["Earth x (Helio)"], new_data["Earth y (Helio)"], new_data["Earth z (Helio)"]])
-        mm_xyz = np.array([new_data["Geo x"], new_data["Geo y"], new_data["Geo z"]])
-        trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_xyz)  # minus is to have sun relative to earth
-
-        new_data["Synodic x"] = trans_xyz[0, :]
-        new_data["Synodic y"] = trans_xyz[1, :]
-        new_data["Synodic z"] = trans_xyz[2, :]
-
-        eclip_long = get_eclip_long(trans_xyz)
-        new_data["Eclip Long"] = eclip_long[0, :]
-
-        print("...done")
-
-        # Encapsulate comparison graphs into function to compare with fedorets data
-        #if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
-        # self.compare(eph, old_data, new_data)
-
-        return new_data
+    # def get_data_mm_oorb_w_horizons(self, mm_parser, data, int_step, perturbers, start_time, end_time, grav_param, minimoon):
+    #     """
+    #     Retrieve data, organize as pandas dataframe, store to file, starting with fedorets data
+    #
+    #     :param minimoon:
+    #     :param data:
+    #     :param int_step:
+    #     :param perturbers:
+    #     :param start_time:
+    #     :param end_time:
+    #     :return:
+    #     """
+    #     ######################
+    #     # open orb
+    #     #######################
+    #
+    #     # Integration step (in days)
+    #     if int_step == 1:
+    #         int_step_unit = 'd'
+    #         int_step_jpl = 1
+    #     elif int_step == 1 / 24:
+    #         int_step_unit = 'h'
+    #         int_step_jpl = 1
+    #     elif int_step == 1/24/60:
+    #         int_step_unit = 'm'
+    #         int_step_jpl = 1
+    #     else:
+    #         int_step_unit = 'd'
+    #         int_step_jpl = int_step
+    #
+    #     int_step_jpl_unit = int_step_unit
+    #
+    #     # Observation locations
+    #     earth_obs = '500'  # Geocentric earth (works for both openorb and jpl)
+    #     sun_obs = '500@10'
+    #
+    #     # Number of orbits
+    #     n = 1
+    #
+    #     print("Generating data using Oorb for minimoon:" + minimoon + "...")
+    #     ephfile = ""
+    #     if os.getenv('OORB_DATA'):
+    #         ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
+    #     pyoorb.pyoorb.oorb_init(ephfile)
+    #     # orb is id, 6 elements, epoch_mjd, H, G, element type index
+    #     # keplerian appears to be element type index 3
+    #     # orbits = np.array([0.,1.,2.,3.,4.,5.,6.,5373.,1.,1.,3.])
+    #     # using the first item in PS-SSM, 1/100th density, s1.01 file.
+    #     orbit = np.zeros([n, 12], dtype=np.double, order='F')
+    #
+    #     # Initialize
+    #     if minimoon == '2006 RH120':
+    #         # RH120 orbit - id = 1
+    #         # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements
+    #         # from the JPL horizons file !!According to starting date!!
+    #         orbit[0][0] = 1.0
+    #         orbit[0][1] = 0.9977199096279007  # semimajor axis
+    #         orbit[0][2] = 0.03744067182298642  # eccentricity
+    #         orbit[0][3] = np.deg2rad(0.3093522132878884)  # Inclination (rad)
+    #         orbit[0][4] = np.deg2rad(323.0881705631016)  # Longitude of Ascending node (rad)
+    #         orbit[0][5] = np.deg2rad(206.3169504727512)  # Argument of Periapsis (rad)
+    #         orbit[0][6] = np.deg2rad(294.6211657400694)  # Mean anomaly (rad)
+    #         orbit[0][7] = 3.0  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
+    #         orbit[0][8] = Time(2454101.5, format='jd').to_value('mjd', 'long')  # Epoch of perihelion (MJD)
+    #         orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
+    #         orbit[0][10] = 29.5  # absolute magnitude of object (H)
+    #         orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
+    #     elif minimoon == '2020 CD3':
+    #         # CD3 orbit - id = 1
+    #         # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from
+    #         # the JPL horizons file
+    #         orbit[0][0] = 1.0
+    #         orbit[0][1] = 1.022115305313184  # semimajor axis
+    #         orbit[0][2] = 0.03494529757096312  # eccentricity
+    #         orbit[0][3] = np.deg2rad(0.7388576324362984)  # Inclination (rad)
+    #         orbit[0][4] = np.deg2rad(134.7432090092998)  # Longitude of Ascending node (rad)
+    #         orbit[0][5] = np.deg2rad(342.2597100247675)  # Argument of Periapsis (rad)
+    #         orbit[0][6] = np.deg2rad(45.87779192987005)  # Mean anomaly (rad)
+    #         orbit[0][7] = 3.0  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
+    #         orbit[0][8] = Time(2458914.5, format='jd').to_value('mjd', 'long')  # Epoch of perihelion (MJD)
+    #         orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
+    #         orbit[0][10] = 31.74  # absolute magnitude of object (H)
+    #         orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
+    #     else:
+    #         # A synthetic minimoon orbit
+    #         # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from
+    #         # the JPL horizons file
+    #         orbit[0][0] = 1.0
+    #         orbit[0][1] = data["Helio x"].iloc[0]  # x
+    #         orbit[0][2] = data["Helio y"].iloc[0]  # y
+    #         orbit[0][3] = data["Helio z"].iloc[0]  # z
+    #         orbit[0][4] = data["Helio vx"].iloc[0]  # vx
+    #         orbit[0][5] = data["Helio vy"].iloc[0]  # vy
+    #         orbit[0][6] = data["Helio vz"].iloc[0]  # vz
+    #         orbit[0][7] = 1.  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
+    #         orbit[0][8] = Time(data["Julian Date"].iloc[0], format='jd').to_value('mjd', 'long')  # Epoch of osculating
+    #         orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
+    #         orbit[0][10] = mm_parser.mm_data["x7"].iloc[2]  # absolute magnitude of object (H)
+    #         orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
+    #
+    #     #############################################
+    #     # Integrations
+    #     ############################################
+    #
+    #     # Open orb generates eph
+    #     # Time and observer information
+    #     obscode = earth_obs  # Where are you observing from: https://minorplanetcenter.net/iau/lists/ObsCodesF.html
+    #     mjds = np.arange(Time(start_time, format='isot', scale='utc').to_value('mjd', 'long'),
+    #                      Time(end_time, format='isot', scale='utc').to_value('mjd', 'long'), int_step)
+    #     epochs = np.array(list(zip(mjds, [1] * len(mjds))), dtype=np.double, order='F')
+    #
+    #     # Check output format from: https://github.com/oorb/oorb/tree/master/python
+    #     print("calling oorb_ephemeris_full (n-body)")
+    #     eph, err = pyoorb.pyoorb.oorb_ephemeris_full(in_orbits=orbit[0][:].reshape(1, 12),
+    #                                                  in_obscode=obscode,
+    #                                                  in_date_ephems=epochs,
+    #                                                  in_dynmodel='N',
+    #                                                  in_perturbers=perturbers)
+    #     if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
+    #     print("...done")
+    #
+    #     ########
+    #     # JPL horizons
+    #     #######
+    #     # by default horizons eph have one more value than oorb eph
+    #     print("Generating ephimerides data using Horizons JPL...")
+    #
+    #
+    #
+    #     ################################################
+    #     # Earth wrt to Sun
+    #     ###############################################
+    #     print("Earth with respect to Sun...")
+    #     obj_sun = Horizons(id='399', location=sun_obs,
+    #                        epochs={'start': start_time, 'stop': end_time,
+    #                                'step': str(int_step_jpl) + int_step_jpl_unit})
+    #
+    #     # Get the vectors table from JPL horizons
+    #     print(obj_sun)
+    #     eph_sun = obj_sun.vectors()
+    #     print("...done")
+    #
+    #     ################################################
+    #     # Moon wrt to Sun
+    #     ###############################################
+    #     print("Moon with respect to Sun...")
+    #     obj_moon = Horizons(id='301', location=sun_obs,
+    #                        epochs={'start': start_time, 'stop': end_time,
+    #                                'step': str(int_step_jpl) + int_step_jpl_unit})
+    #
+    #     # Get the vectors table from JPL horizons
+    #     eph_moon = obj_moon.vectors()
+    #     print("...done")
+    #
+    #     #############################################
+    #     # Generate 39 element data frame containing results of the integrations: elements from 0-38
+    #     #############################################
+    #     """
+    #     Units are au, au/day, degrees
+    #     "Object id", "Julian Date", "Distance", "Helio q", "Helio e", "Helio i", "Helio Omega ", "Helio omega",
+    #     "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx", "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z",
+    #     "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i", "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)",
+    #     "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)", "Earth vy (Helio)", "Earth vz (Helio)",
+    #     "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)", "Moon vy (Helio)",
+    #     "Moon vz (Helio)", "Synodic x", "Synodic y", "Synodic z", "Eclip Long"
+    #     """
+    #
+    #     nsteps = 0
+    #     if len(eph[0]) == len(eph_sun) - 1:
+    #         nsteps = len(eph[0])
+    #     elif len(eph[0]) == len(eph_sun) + 1:
+    #         nsteps = len(eph_sun)
+    #     elif len(eph[0]) == len(eph_sun):
+    #         nsteps = len(eph[0])
+    #     else:
+    #         print("Horizons and OOrb integration step error")
+    #
+    #     data_temp = {}
+    #     new_data = pd.DataFrame(data_temp)
+    #
+    #     # element 0 - object id
+    #     new_data["Object id"] = [minimoon] * nsteps
+    #
+    #     # element 1 - julian date
+    #     new_data["Julian Date"] = [Time(eph[0, i, 0], format='mjd').to_value('jd', 'long') for i in range(nsteps)]
+    #
+    #     # element 2 - distance
+    #     new_data["Distance"] = [np.sqrt((eph[0, i, 24] - eph_sun[i]['x']) ** 2 + (eph[0, i, 25] - eph_sun[i]['y']) ** 2
+    #                                     + (eph[0, i, 26] - eph_sun[i]['z'])**2) for i in range(nsteps)]
+    #
+    #     # for elements 3 to 8, state vector should be converted to cometary and keplarian orbital elements
+    #     orbits = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
+    #     sun_c = 11  # 11 for Sun, 3 for Earth
+    #     print("Getting helio keplarian osculating elements...")
+    #     for i in range(nsteps):
+    #         # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
+    #         orbits[i, :] = [i, eph[0, i, 24], eph[0, i, 25], eph[0, i, 26], eph[0, i, 27], eph[0, i, 28],
+    #                        eph[0, i, 29], 1., eph[0, i, 0], 1., self.H, 0.15]
+    #
+    #     # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
+    #     new_orbits_com, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
+    #                                                                               in_element_type=2, in_center=sun_c)
+    #
+    #     # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
+    #     new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
+    #                                                                               in_element_type=3, in_center=sun_c)
+    #     print("...done")
+    #
+    #     # element 3 - Helio q
+    #     new_data["Helio q"] = new_orbits_com[:, 1]
+    #
+    #     # element 4 - Helio e
+    #     new_data["Helio e"] = new_orbits_com[:, 2]
+    #
+    #     # element 5 - Helio i
+    #     new_data["Helio i"] = np.rad2deg(new_orbits_com[:, 3])
+    #
+    #     # element 6 - Helio Omega
+    #     new_data["Helio Omega"] = np.rad2deg(new_orbits_com[:, 4])
+    #
+    #     # element 7 - Helio omega
+    #     new_data["Helio omega"] = np.rad2deg(new_orbits_com[:, 5])
+    #
+    #     # element 8 - Helio M
+    #     new_data["Helio M"] = np.rad2deg(new_orbits_kep[:, 6])
+    #
+    #     # element 9-14 - State vector
+    #     new_data["Helio x"] = eph[0, :nsteps, 24]
+    #     new_data["Helio y"] = eph[0, :nsteps, 25]
+    #     new_data["Helio z"] = eph[0, :nsteps, 26]
+    #     new_data["Helio vx"] = eph[0, :nsteps, 27]
+    #     new_data["Helio vy"] = eph[0, :nsteps, 28]
+    #     new_data["Helio vz"] = eph[0, :nsteps, 29]
+    #
+    #     # element 15-20 - Geocentric State vector
+    #     new_data["Geo x"] = eph[0, :nsteps, 24] - eph_sun[:nsteps]['x']  # sun-mm pos vec - sun-earth pos vec
+    #     new_data["Geo y"] = eph[0, :nsteps, 25] - eph_sun[:nsteps]['y']
+    #     new_data["Geo z"] = eph[0, :nsteps, 26] - eph_sun[:nsteps]['z']
+    #     new_data["Geo vx"] = eph[0, :nsteps, 27] - eph_sun[:nsteps]['vx']  # geo is non-rotating frame vrel = vmm - ve
+    #     new_data["Geo vy"] = eph[0, :nsteps, 28] - eph_sun[:nsteps]['vy']
+    #     new_data["Geo vz"] = eph[0, :nsteps, 29] - eph_sun[:nsteps]['vz']
+    #
+    #     # for elements 21 to 26, geo state vector should be converted to cometary and keplarian orbital elements
+    #     orbits_geo = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
+    #     earth_c = 3
+    #     print("Getting geocentric osculating keplarian elements...")
+    #     for i in range(nsteps):
+    #         # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
+    #         orbits_geo[i, :, :] = [i, new_data["Geo x"].iloc[i], new_data["Geo y"].iloc[i], new_data["Geo z"].iloc[i],
+    #                             new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
+    #                             1., eph[0, i, 0], 1, self.H, 0.15]
+    #
+    #     # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
+    #     new_orbits_com_geo, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits_geo,
+    #                                                                               in_element_type=2, in_center=earth_c)
+    #     print("...Done")
+    #
+    #     # element 21 - Geo q
+    #     new_data["Geo q"] = new_orbits_com_geo[:, 1]
+    #
+    #     # element 22 - Geo e
+    #     new_data["Geo e"] = new_orbits_com_geo[:, 2]
+    #
+    #     # element 23 - Geo i
+    #     new_data["Geo i"] = np.rad2deg(new_orbits_com_geo[:, 3])
+    #
+    #     # element 24 - Geo Omega
+    #     new_data["Geo Omega"] = np.rad2deg(new_orbits_com_geo[:, 4])
+    #
+    #     # element 25 - Geo omega
+    #     new_data["Geo omega"] = np.rad2deg(new_orbits_com_geo[:, 5])
+    #
+    #     # element 26 - Geo M
+    #     print("Calculating mean anomaly...")
+    #     temp = np.rad2deg(get_M(new_data, new_orbits_com_geo[:, 6], grav_param))
+    #     new_data["Geo M"] = temp[0, :]
+    #     print("...done")
+    #
+    #     # element 27-32 - Heliocentric state vector of Earth
+    #     new_data["Earth x (Helio)"] = eph_sun[:nsteps]['x']
+    #     new_data["Earth y (Helio)"] = eph_sun[:nsteps]['y']
+    #     new_data["Earth z (Helio)"] = eph_sun[:nsteps]['z']
+    #     new_data["Earth vx (Helio)"] = eph_sun[:nsteps]['vx']
+    #     new_data["Earth vy (Helio)"] = eph_sun[:nsteps]['vy']
+    #     new_data["Earth vz (Helio)"] = eph_sun[:nsteps]['vz']
+    #
+    #     # element 33-38 - Heliocentric state vector of moon
+    #     new_data["Moon x (Helio)"] = eph_moon[:nsteps]['x']
+    #     new_data["Moon y (Helio)"] = eph_moon[:nsteps]['y']
+    #     new_data["Moon z (Helio)"] = eph_moon[:nsteps]['z']
+    #     new_data["Moon vx (Helio)"] = eph_moon[:nsteps]['vx']
+    #     new_data["Moon vy (Helio)"] = eph_moon[:nsteps]['vy']
+    #     new_data["Moon vz (Helio)"] = eph_moon[:nsteps]['vz']
+    #
+    #     print("Getting synodic x,y,z, ecliptic longitude...")
+    #     earth_xyz = np.array([new_data["Earth x (Helio)"], new_data["Earth y (Helio)"], new_data["Earth z (Helio)"]])
+    #     mm_xyz = np.array([new_data["Geo x"], new_data["Geo y"], new_data["Geo z"]])
+    #     trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_xyz)  # minus is to have sun relative to earth
+    #
+    #     new_data["Synodic x"] = trans_xyz[0, :]
+    #     new_data["Synodic y"] = trans_xyz[1, :]
+    #     new_data["Synodic z"] = trans_xyz[2, :]
+    #
+    #     eclip_long = get_eclip_long(trans_xyz)
+    #     new_data["Eclip Long"] = eclip_long[0, :]
+    #
+    #     print("...done")
+    #
+    #     # Encapsulate comparison graphs into function to compare with fedorets data
+    #     #if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
+    #     #    self.compare(eph, data, new_data)
+    #
+    #     return new_data
+
+    # def get_data_mm_oorb(self, master_i, old_data, int_step, perturbers, start_time, end_time, grav_param):
+    #     """
+    #     Retrieve data, organize as pandas dataframe, store to file, starting with one the newly integreated files
+    #
+    #     :param minimoon:
+    #     :param data:
+    #     :param int_step:
+    #     :param perturbers:
+    #     :param start_time:
+    #     :param end_time:
+    #     :return:
+    #     """
+    #     ######################
+    #     # open orb
+    #     #######################
+    #
+    #     # Observation locations
+    #     earth_obs = '500'  # Geocentric earth (works for both openorb and jpl)
+    #     sun_obs = '500@10'
+    #
+    #     # Number of orbits
+    #     n = 1
+    #
+    #     print("Generating data using Oorb for minimoon:" + str(master_i['Object id'].iloc[0]) + "...")
+    #     ephfile = ""
+    #     if os.getenv('OORB_DATA'):
+    #         ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
+    #     pyoorb.pyoorb.oorb_init(ephfile)
+    #     # orb is id, 6 elements, epoch_mjd, H, G, element type index
+    #     # keplerian appears to be element type index 3
+    #     # orbits = np.array([0.,1.,2.,3.,4.,5.,6.,5373.,1.,1.,3.])
+    #     # using the first item in PS-SSM, 1/100th density, s1.01 file.
+    #     orbit = np.zeros([n, 12], dtype=np.double, order='F')
+    #
+    #     # Initialize
+    #     # A synthetic minimoon orbit
+    #     # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from
+    #     # the JPL horizons file
+    #     orbit[0][0] = 1.0
+    #     orbit[0][1] = master_i["Helio x at Capture"].iloc[0]  # x
+    #     orbit[0][2] = master_i["Helio y at Capture"].iloc[0]  # y
+    #     orbit[0][3] = master_i["Helio z at Capture"].iloc[0]  # z
+    #     orbit[0][4] = master_i["Helio vx at Capture"].iloc[0]  # vx
+    #     orbit[0][5] = master_i["Helio vy at Capture"].iloc[0]  # vy
+    #     orbit[0][6] = master_i["Helio vz at Capture"].iloc[0]  # vz
+    #     orbit[0][7] = 1.  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
+    #     orbit[0][8] = Time(master_i['Capture Date'].iloc[0], format='jd', scale='utc').to_value('mjd', 'long')  # Epoch of osculating
+    #     orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
+    #     orbit[0][10] = master_i['H'].iloc[0]  # absolute magnitude of object (H)
+    #     orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
+    #
+    #     #############################################
+    #     # Integrations
+    #     ############################################
+    #
+    #     # Open orb generates eph
+    #     # Time and observer information
+    #     obscode = earth_obs  # Where are you observing from: https://minorplanetcenter.net/iau/lists/ObsCodesF.html
+    #     mjds = np.arange(start_time.to_value('mjd', 'long'),  end_time.to_value('mjd', 'long'), int_step)
+    #     epochs = np.array(list(zip(mjds, [1] * len(mjds))), dtype=np.double, order='F')
+    #
+    #     # Check output format from: https://github.com/oorb/oorb/tree/master/python
+    #     print("calling oorb_ephemeris_full (n-body)")
+    #     eph, err = pyoorb.pyoorb.oorb_ephemeris_full(in_orbits=orbit[0][:].reshape(1, 12),
+    #                                                  in_obscode=obscode,
+    #                                                  in_date_ephems=epochs,
+    #                                                  in_dynmodel='N',
+    #                                                  in_perturbers=perturbers)
+    #     if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
+    #     print("...done")
+    #
+    #
+    #     #############################################
+    #     # Generate 39 element data frame containing results of the integrations: elements from 0-38
+    #     #############################################
+    #     """
+    #     Units are au, au/day, degrees
+    #     "Object id", "Julian Date", "Distance", "Helio q", "Helio e", "Helio i", "Helio Omega ", "Helio omega",
+    #     "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx", "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z",
+    #     "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i", "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)",
+    #     "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)", "Earth vy (Helio)", "Earth vz (Helio)",
+    #     "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)", "Moon vy (Helio)",
+    #     "Moon vz (Helio)", "Synodic x", "Synodic y", "Synodic z", "Eclip Long"
+    #     """
+    #
+    #
+    #     data_temp = {}
+    #     new_data = pd.DataFrame(data_temp)
+    #
+    #     nsteps = len(eph[0])
+    #
+    #     # element 0 - object id
+    #     new_data["Object id"] = [master_i['Object id'].iloc[0]] * nsteps
+    #
+    #     # element 1 - julian date
+    #     new_data["Julian Date"] = [Time(eph[0, i, 0], format='mjd').to_value('jd', 'long') for i in range(nsteps)]
+    #
+    #     # element 2 - distance
+    #     new_data["Distance"] = eph[0, :, 8]
+    #
+    #     # for elements 3 to 8, state vector should be converted to cometary and keplarian orbital elements
+    #     orbits = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
+    #     sun_c = 11  # 11 for Sun, 3 for Earth
+    #     print("Getting helio keplarian osculating elements...")
+    #     for i in range(nsteps):
+    #         # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
+    #         orbits[i, :] = [i, eph[0, i, 24], eph[0, i, 25], eph[0, i, 26], eph[0, i, 27], eph[0, i, 28],
+    #                        eph[0, i, 29], 1., eph[0, i, 0], 1., master_i['H'].iloc[0], 0.15]
+    #
+    #     # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
+    #     new_orbits_com, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
+    #                                                                               in_element_type=2, in_center=sun_c)
+    #
+    #     # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
+    #     new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
+    #                                                                               in_element_type=3, in_center=sun_c)
+    #     print("...done")
+    #
+    #     # element 3 - Helio q
+    #     new_data["Helio q"] = new_orbits_com[:, 1]
+    #
+    #     # element 4 - Helio e
+    #     new_data["Helio e"] = new_orbits_com[:, 2]
+    #
+    #     # element 5 - Helio i
+    #     new_data["Helio i"] = np.rad2deg(new_orbits_com[:, 3])
+    #
+    #     # element 6 - Helio Omega
+    #     new_data["Helio Omega"] = np.rad2deg(new_orbits_com[:, 4])
+    #
+    #     # element 7 - Helio omega
+    #     new_data["Helio omega"] = np.rad2deg(new_orbits_com[:, 5])
+    #
+    #     # element 8 - Helio M
+    #     new_data["Helio M"] = np.rad2deg(new_orbits_kep[:, 6])
+    #
+    #     # element 9-14 - State vector
+    #     new_data["Helio x"] = eph[0, :, 24]
+    #     new_data["Helio y"] = eph[0, :, 25]
+    #     new_data["Helio z"] = eph[0, :, 26]
+    #     new_data["Helio vx"] = eph[0, :, 27]
+    #     new_data["Helio vy"] = eph[0, :, 28]
+    #     new_data["Helio vz"] = eph[0, :, 29]
+    #
+    #     # element 15-20 - Geocentric State vector
+    #     new_data["Geo x"] = eph[0, :, 24] - eph[0, :, 30]  # sun-mm pos vec - sun-earth pos vec
+    #     new_data["Geo y"] = eph[0, :, 25] - eph[0, :, 31]
+    #     new_data["Geo z"] = eph[0, :, 26] - eph[0, :, 32]
+    #     new_data["Geo vx"] = eph[0, :, 27] - eph[0, :, 33]
+    #     new_data["Geo vy"] = eph[0, :, 28] - eph[0, :, 34]
+    #     new_data["Geo vz"] = eph[0, :, 29] - eph[0, :, 35]
+    #
+    #     # for elements 21 to 26, geo state vector should be converted to cometary and keplarian orbital elements
+    #     orbits_geo = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
+    #     earth_c = 3
+    #     print("Getting geocentric osculating keplarian elements...")
+    #     for i in range(nsteps):
+    #         # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
+    #         orbits_geo[i, :, :] = [i, new_data["Geo x"].iloc[i], new_data["Geo y"].iloc[i], new_data["Geo z"].iloc[i],
+    #                             new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
+    #                             1., eph[0, i, 0], 1, master_i['H'].iloc[0], 0.15]
+    #
+    #     # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
+    #     new_orbits_com_geo, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits_geo,
+    #                                                                               in_element_type=2, in_center=earth_c)
+    #     print("...Done")
+    #
+    #     # element 21 - Geo q
+    #     new_data["Geo q"] = new_orbits_com_geo[:, 1]
+    #
+    #     # element 22 - Geo e
+    #     new_data["Geo e"] = new_orbits_com_geo[:, 2]
+    #
+    #     # element 23 - Geo i
+    #     new_data["Geo i"] = np.rad2deg(new_orbits_com_geo[:, 3])
+    #
+    #     # element 24 - Geo Omega
+    #     new_data["Geo Omega"] = np.rad2deg(new_orbits_com_geo[:, 4])
+    #
+    #     # element 25 - Geo omega
+    #     new_data["Geo omega"] = np.rad2deg(new_orbits_com_geo[:, 5])
+    #
+    #     # element 26 - Geo M
+    #     print("Calculating mean anomaly...")
+    #     temp = np.rad2deg(get_M(new_data, new_orbits_com_geo[:, 6], grav_param))
+    #     new_data["Geo M"] = temp[0, :]
+    #     print("...done")
+    #
+    #     # element 27-32 - Heliocentric state vector of Earth
+    #     new_data["Earth x (Helio)"] = eph[0, :, 30]
+    #     new_data["Earth y (Helio)"] = eph[0, :, 31]
+    #     new_data["Earth z (Helio)"] = eph[0, :, 32]
+    #     new_data["Earth vx (Helio)"] = eph[0, :, 33]
+    #     new_data["Earth vy (Helio)"] = eph[0, :, 34]
+    #     new_data["Earth vz (Helio)"] = eph[0, :, 35]
+    #
+    #     # element 33-38 - Heliocentric state vector of moon
+    #     new_data["Moon x (Helio)"] = old_data["Moon x (Helio)"]
+    #     new_data["Moon y (Helio)"] = old_data["Moon y (Helio)"]
+    #     new_data["Moon z (Helio)"] = old_data["Moon z (Helio)"]
+    #     new_data["Moon vx (Helio)"] = old_data["Moon vx (Helio)"]
+    #     new_data["Moon vy (Helio)"] = old_data["Moon vy (Helio)"]
+    #     new_data["Moon vz (Helio)"] = old_data["Moon vz (Helio)"]
+    #
+    #     print("Getting synodic x,y,z, ecliptic longitude...")
+    #     earth_xyz = np.array([new_data["Earth x (Helio)"], new_data["Earth y (Helio)"], new_data["Earth z (Helio)"]])
+    #     mm_xyz = np.array([new_data["Geo x"], new_data["Geo y"], new_data["Geo z"]])
+    #     trans_xyz = eci_ecliptic_to_sunearth_synodic(-earth_xyz, mm_xyz)  # minus is to have sun relative to earth
+    #
+    #     new_data["Synodic x"] = trans_xyz[0, :]
+    #     new_data["Synodic y"] = trans_xyz[1, :]
+    #     new_data["Synodic z"] = trans_xyz[2, :]
+    #
+    #     eclip_long = get_eclip_long(trans_xyz)
+    #     new_data["Eclip Long"] = eclip_long[0, :]
+    #
+    #     print("...done")
+    #
+    #     # Encapsulate comparison graphs into function to compare with fedorets data
+    #     #if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
+    #     # self.compare(eph, old_data, new_data)
+    #
+    #     return new_data
 
     @staticmethod
     def compare(eph, data, new_data):
@@ -1077,8 +1079,8 @@ class MmAnalyzer:
 
         # go through all the files of test particles
         # population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
-        population_dir = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
-        # population_dir = os.path.join(os.getcwd(), 'Test_Set')
+        # population_dir = os.path.join('/media', 'aeromec', 'data', 'Test_Set')
+        population_dir = os.path.join(os.getcwd(), 'Test_Set')
 
         mm_parser = MmParser("", population_dir, "")
 
@@ -1206,6 +1208,7 @@ class MmAnalyzer:
 
                 # State of TCO at entrance to SOI EMS
                 if in_ems_idxs:
+
                     Earth_state = data[['Earth x (Helio)', 'Earth y (Helio)', 'Earth z (Helio)', 'Earth vx (Helio)',
                                   'Earth vy (Helio)', 'Earth vz (Helio)']].iloc[in_ems_idxs[0]]
                     # Helio TCO at entrance to SOI EMS
@@ -1214,34 +1217,47 @@ class MmAnalyzer:
                     moon_state = data[['Moon x (Helio)', 'Moon y (Helio)', 'Moon z (Helio)', 'Moon vx (Helio)',
                                     'Moon vy (Helio)', 'Moon vz (Helio)']].iloc[in_ems_idxs[0]]
 
-                    Earth_statem1 = data[['Earth x (Helio)', 'Earth y (Helio)', 'Earth z (Helio)', 'Earth vx (Helio)',
-                                        'Earth vy (Helio)', 'Earth vz (Helio)']].iloc[in_ems_idxs[0] - 1]
-                    # Helio TCO at entrance to SOI EMS
-                    TCO_statem1 = data[['Helio x', 'Helio y', 'Helio z', 'Helio vx', 'Helio vy', 'Helio vz']].iloc[
-                        in_ems_idxs[0] - 1]
-                    fig = plt.figure()
-                    fac = 0.01
-                    plt.scatter(Earth_state[0], Earth_state[1], color='blue')
-                    plt.scatter(TCO_state[0], TCO_state[1], color='red')
-                    plt.plot([TCO_state[0], TCO_state[0] + fac * TCO_state[3]], [TCO_state[1], TCO_state[1] + fac * TCO_state[4]], color='blue')
-                    c1 = plt.Circle((Earth_state[0], Earth_state[1]), radius=0.0038752837677, alpha=0.1)
-                    plt.plot(data['Helio x'], data['Helio y'], color='grey')
-                    plt.gca().add_artist(c1)
+                    # fig3 = plt.figure()
+                    # ax = fig3.add_subplot(111, projection='3d')
+                    # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+                    # xw = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + 1
+                    # yw = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v)
+                    # zw = 0.0038752837677 / r_sE * np.cos(v)
+                    # ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
+                    # ax.scatter(1, 0, 0, color='blue', s=10)
+                    # ax.plot3D(xs, ys, zs, color='grey', zorder=10)
+                    # ax.scatter(xs[in_ems_idxs[0]], ys[in_ems_idxs[0]], zs[in_ems_idxs[0]], color='red', s=10)
+                    # ax.scatter(xs[in_ems_idxs[0] + 10], ys[in_ems_idxs[0] + 10], zs[in_ems_idxs[0] + 10], color='orange', s=10)
+                    # ax.plot3D([xs[in_ems_idxs[0]], xs[in_ems_idxs[0]] + vxs[in_ems_idxs[0]]], [ys[in_ems_idxs[0]], ys[in_ems_idxs[0]] + vys[in_ems_idxs[0]]],
+                    #           [zs[in_ems_idxs[0]], zs[in_ems_idxs[0]] + vzs[in_ems_idxs[0]]], color='red', zorder=15)
+                    #
+                    # ax.set_xlim([0.99, 1.01])
+                    # ax.set_ylim([-0.01, 0.01])
+                    # ax.set_zlim([-0.01, 0.01])
+                    # plt.show()
+                    # fig = plt.figure()
+                    # fac = 0.01
+                    # plt.scatter(Earth_state[0], Earth_state[1], color='blue')
+                    # plt.scatter(TCO_state[0], TCO_state[1], color='red')
+                    # plt.plot([TCO_state[0], TCO_state[0] + fac * TCO_state[3]], [TCO_state[1], TCO_state[1] + fac * TCO_state[4]], color='blue')
+                    # c1 = plt.Circle((Earth_state[0], Earth_state[1]), radius=0.0038752837677, alpha=0.1)
+                    # plt.plot(data['Helio x'], data['Helio y'], color='grey')
+                    # plt.gca().add_artist(c1)
                     # plt.xlim([-0.01 + Earth_state[0], 0.01 + Earth_state[0]])
                     # plt.gca().set_aspect('equal')
-                    plt.scatter(Earth_statem1[0], Earth_statem1[1], color='blue')
-                    plt.scatter(TCO_statem1[0], TCO_statem1[1], color='red')
-                    plt.plot([TCO_statem1[0], TCO_statem1[0] + fac * TCO_statem1[3]], [TCO_statem1[1], TCO_statem1[1] + fac * TCO_statem1[4]],
-                             color='red')
-
-                    fig2 = plt.figure()
-                    ax = fig2.add_subplot(111, projection='3d')
-                    ax.scatter(Earth_state[0], Earth_state[1], Earth_state[2], color='blue')
-                    ax.scatter(TCO_state[0], TCO_state[1], TCO_state[2], color='red')
-                    ax.plot3D([TCO_state[0], TCO_state[0] + fac * TCO_state[3]],
-                             [TCO_state[1], TCO_state[1] + fac * TCO_state[4]], [TCO_state[2], TCO_state[2] + fac * TCO_state[5]], color='blue')
-
-                    plt.show()
+                    # plt.scatter(Earth_statem1[0], Earth_statem1[1], color='blue')
+                    # plt.scatter(TCO_statem1[0], TCO_statem1[1], color='red')
+                    # plt.plot([TCO_statem1[0], TCO_statem1[0] + fac * TCO_statem1[3]], [TCO_statem1[1], TCO_statem1[1] + fac * TCO_statem1[4]],
+                    #          color='red')
+                    #
+                    # fig2 = plt.figure()
+                    # ax = fig2.add_subplot(111, projection='3d')
+                    # ax.scatter(Earth_state[0], Earth_state[1], Earth_state[2], color='blue')
+                    # ax.scatter(TCO_state[0], TCO_state[1], TCO_state[2], color='red')
+                    # ax.plot3D([TCO_state[0], TCO_state[0] + fac * TCO_state[3]],
+                    #          [TCO_state[1], TCO_state[1] + fac * TCO_state[4]], [TCO_state[2], TCO_state[2] + fac * TCO_state[5]], color='blue')
+                    #
+                    # plt.show()
                     # EMS start
                     ems_start = data['Julian Date'].iloc[in_ems_idxs[0]]
                     ems_start_idx = in_ems_idxs[0]
@@ -1336,83 +1352,96 @@ class MmAnalyzer:
         print(master)
 
         # get the jacobi constant using ephimeris data
+        seconds_in_day = 86400
+        km_in_au = 149597870700 / 1000
 
-        mu_s = 1.3271244e11 / np.power(1.496e+8, 3)  # km^3/s^2 to AU^3/s^2
-        mu_EMS = 403505.3113 / np.power(1.496e+8, 3)  # km^3/s^2 = m_E + mu_M to AU^3/s^2
-        x = master['Helio x at EMS']
+        mu_s = 1.3271244e11 / np.power(km_in_au, 3)  # km^3/s^2 to AU^3/s^2
+        mu_e = 3.986e5  # km^3/s^2
+        mu_M = 4.9028e3  # km^3/s^2
+        mu_EMS = (mu_M + mu_e) / np.power(km_in_au, 3)  # km^3/s^2 = m_E + mu_M to AU^3/s^2
+        x = master['Helio x at EMS']  # AU
         y = master['Helio y at EMS']
         z = master['Helio z at EMS']
-        vx = master['Helio vx at EMS']
+        vx = master['Helio vx at EMS']  # AU/day
         vy = master['Helio vy at EMS']
         vz = master['Helio vz at EMS']
-        vx_M = master['Moon vx at EMS (Helio)']
+        vx_M = master['Moon vx at EMS (Helio)']  # AU/day
         vy_M = master['Moon vy at EMS (Helio)']
         vz_M = master['Moon vz at EMS (Helio)']
-        x_M = master['Moon x at EMS (Helio)']
+        x_M = master['Moon x at EMS (Helio)']  # AU
         y_M = master['Moon y at EMS (Helio)']
         z_M = master['Moon z at EMS (Helio)']
         x_E = master['Earth x at EMS (Helio)']
         y_E = master['Earth y at EMS (Helio)']
         z_E = master['Earth z at EMS (Helio)']
-        vx_E = master['Earth vx at EMS (Helio)']
+        vx_E = master['Earth vx at EMS (Helio)']  # AU/day
         vy_E = master['Earth vy at EMS (Helio)']
         vz_E = master['Earth vz at EMS (Helio)']
-        date_ems = master['Entry Date to EMS'].iloc[0]
+        date_ems = master['Entry Date to EMS'].iloc[0]  # Julian date
         date_mjd = Time(date_ems, format='jd').to_value('mjd')
 
-        h_r_TCO = np.array([x, y, z]).ravel()
+        h_r_TCO = np.array([x, y, z]).ravel()  # AU
         h_r_M = np.array([x_M, y_M, z_M]).ravel()
         h_r_E = np.array([x_E, y_E, z_E]).ravel()
-        h_v_TCO = np.array([vx, vy, vz]).ravel()
+        h_v_TCO = np.array([vx, vy, vz]).ravel()  # AU/day
         h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
         h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
 
-        m_e = 5.97219e24  # mass of Earth
-        m_m = 7.34767309e22  # mass of the Moon
-        m_s = 1.9891e30  # mass of the Sun
-        ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre
-        vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric velocity of the ems barycentre
+        m_e = 5.97219e24  # mass of Earth kg
+        m_m = 7.34767309e22  # mass of the Moon kg
+        m_s = 1.9891e30  # mass of the Sun kg
+        ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre AU
+        vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric velocity of the ems barycentre AU/day
 
-        r_C = (m_e + m_m) * ems_barycentre / (m_e + m_m + m_s)  # barycentre of sun-earth/moon
-        r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun
-        omega = np.sqrt((mu_s + mu_EMS)/np.power(r_sE, 3))  # angular velocity of sun-ems barycentre
+        r_C = (m_e + m_m) * ems_barycentre / (m_e + m_m + m_s)  # barycentre of sun-earth/moon AU
+        r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun AU
+        omega = np.sqrt((mu_s + mu_EMS)/np.power(r_sE, 3))  # angular velocity of sun-ems barycentre 1/s
 
-        v_C = r_C / r_sE * vems_barycentre  # velocity of barycentre
+        v_C = np.linalg.norm(r_C) / r_sE * vems_barycentre  # velocity of barycentre  AU/day
 
         # not sure if this part is necessary
-        ephfile = ""
-        if os.getenv('OORB_DATA'):
-            ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
-        pyoorb.pyoorb.oorb_init(ephfile)
+        # ephfile = ""
+        # if os.getenv('OORB_DATA'):
+        #     ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
+        # pyoorb.pyoorb.oorb_init(ephfile)
 
-        sun_c = 11  # 11 for Sun, 3 for Earth
-        print("Getting helio keplarian osculating elements...")
-
+        # sun_c = 11  # 11 for Sun, 3 for Earth
+        # print("Getting helio keplarian osculating elements...")
+        #
         # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
-        orbits = np.zeros([1, 12], dtype=np.double, order='F')  # the pyorb function takes slice of 3-d list
-        orbits[0][:] = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
-                        vems_barycentre[2], 1, date_mjd, 1, 10., 0.15]
+        # orbits = np.zeros([1, 12], dtype=np.double, order='F')  # the pyorb function takes slice of 3-d list
+        # orbits[0][:] = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
+        #                 vems_barycentre[2], 1, date_mjd, 1, 10., 0.15]
+        #
+        # new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
+        #                                                                 in_element_type=3, in_center=sun_c)
 
-        new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                                                                        in_element_type=3, in_center=sun_c)
+        # Om = new_orbits_kep[0][4]  # in rad
+        # om = new_orbits_kep[0][5]
+        # i = new_orbits_kep[0][3]
+        # M = new_orbits_kep[0][6]
+        # e = new_orbits_kep[0][2]
 
-        Om = new_orbits_kep[0][4]  # in rad
-        om = new_orbits_kep[0][5]
-        i = new_orbits_kep[0][3]
-        M = new_orbits_kep[0][6]
-        e = new_orbits_kep[0][2]
+        r = [km_in_au * ems_barycentre[0], km_in_au * ems_barycentre[1], km_in_au * ems_barycentre[2]] << u.km  # km
+        v = [km_in_au / seconds_in_day * vems_barycentre[0], km_in_au / seconds_in_day * vems_barycentre[1], km_in_au / seconds_in_day * vems_barycentre[2]] << u.km / u.s  # AU/day
+
+        orb = Orbit.from_vectors(Sun, r, v, Time(date_mjd, format='mjd', scale='utc'))
+        Om = np.deg2rad(orb.raan)  # in rad
+        om = np.deg2rad(orb.argp)
+        i = np.deg2rad(orb.inc)
+        theta = np.deg2rad(orb.nu)
 
         # convert from heliocentric to synodic with a euler rotation
         h_R_C_peri = np.array([[-np.sin(Om) * np.cos(i) * np.sin(om) + np.cos(Om) * np.cos(om),
                            -np.sin(Om) * np.cos(i) * np.cos(om) - np.cos(Om) * np.sin(om),
-                           np.sin(Om) * np.cos(i)],
+                           np.sin(Om) * np.sin(i)],
                            [np.cos(Om) * np.cos(i) * np.sin(om) + np.sin(Om) * np.cos(om),
                            np.cos(Om) * np.cos(i) * np.cos(om) - np.sin(Om) * np.sin(om),
                            -np.cos(Om) * np.sin(i)],
-                           [np.sin(i) * np.sin(om), np.sin(i) * np.cos(om), np.cos(om)]])
+                           [np.sin(i) * np.sin(om), np.sin(i) * np.cos(om), np.cos(i)]])
+
 
         # rotation from perihelion to location of ems_barycentre (i.e. rotation by true anomaly)
-        theta = get_theta_from_M(M, e)
         C_peri_R_C = np.array([[np.cos(theta), -np.sin(theta), 0.],
                                [np.sin(theta), np.cos(theta), 0.],
                                [0., 0., 1.]])
@@ -1420,43 +1449,49 @@ class MmAnalyzer:
         C_R_h = C_peri_R_C.T @ h_R_C_peri.T
 
         # translation
-        C_T_h = np.array([np.linalg.norm(r_C), 0., 0.]).ravel()
+        C_T_h = np.array([np.linalg.norm(r_C), 0., 0.]).ravel()  # AU
 
         # in sun-earth/moon corotating
-        C_r_TCO = C_R_h @ h_r_TCO + C_T_h
+        C_r_TCO = C_R_h @ h_r_TCO - C_T_h  # AU
+        C_ems = C_R_h @ ems_barycentre - C_T_h
+        C_moon = C_R_h @ np.array([x_M, y_M, z_M]).ravel() - C_T_h
 
         # v_rel in Jacobi constant
-        C_v_TCO = C_R_h @ (h_v_TCO - v_C - np.cross(np.array([0, 0, omega]), C_r_TCO))
-        v_rel = np.linalg.norm(C_v_TCO)
+        C_v_TCO = C_R_h @ (h_v_TCO - v_C) - np.cross(np.array([0, 0, omega * seconds_in_day]), C_r_TCO)  # AU/day
+        v_rel = np.linalg.norm(C_v_TCO)  # AU/day
 
         # sun-TCO distance
-        r_s = np.linalg.norm([x, y, z])
+        r_s = np.linalg.norm([x, y, z])  # AU
 
         # ems-TCO distance
-        r_EMS = np.linalg.norm([x - ems_barycentre[0], y - ems_barycentre[1], z - ems_barycentre[2]])
+        r_EMS = np.linalg.norm([x - ems_barycentre[0], y - ems_barycentre[1], z - ems_barycentre[2]])  # AU
 
-        # dimensional Jacobi constant
-        C_J_dimensional = omega ** 2 * (C_r_TCO[0] ** 2 + C_r_TCO[1] ** 2) + 2 * mu_s / r_s + 2 * mu_EMS / r_EMS - v_rel**2  # might be missing a constant
+        mu = mu_EMS / (mu_EMS + mu_s)
+        constant = 0 # mu * (1 - mu) * (r_sE * km_in_au) ** 2 * omega ** 2
+
+        # dimensional Jacobi constant km^2/s^2
+        C_J_dimensional = (omega ** 2 * (C_r_TCO[0] ** 2 + C_r_TCO[1] ** 2) + 2 * mu_s / r_s + 2 * mu_EMS / r_EMS - (v_rel / seconds_in_day) ** 2) * np.power(km_in_au, 2) + constant  # might be missing a constant
 
         # non dimensional Jacobi constant
         x_prime = C_r_TCO[0] / r_sE
         y_prime = C_r_TCO[1] / r_sE
         z_prime = C_r_TCO[2] / r_sE
-        mu = mu_EMS / (mu_EMS + mu_s)
-        v_prime = v_rel / (1 / omega ** 2 * r_sE ** 2)
+
+        x_dot_prime = C_v_TCO[0] * (omega * r_sE * seconds_in_day)
+        y_dot_prime = C_v_TCO[1] * (omega * r_sE * seconds_in_day)
+        z_dot_prime = C_v_TCO[2] * (omega * r_sE * seconds_in_day)
+        v_prime = x_dot_prime ** 2 + y_dot_prime ** 2 + z_dot_prime ** 2
         r_s_prime = np.sqrt((x_prime + mu) ** 2 + y_prime ** 2 + z_prime ** 2)
         r_EMS_prime = np.sqrt((x_prime - (1 - mu)) ** 2 + y_prime ** 2 + z_prime ** 2)
-        C_J_nondimensional = x_prime ** 2 + y_prime ** 2 + 2 * (1 - mu) / r_s_prime + 2 * mu / r_EMS_prime - v_prime ** 2 + mu * (1 - mu)
-
+        C_J_nondimensional = x_prime ** 2 + y_prime ** 2 + 2 * (1 - mu) / r_s_prime + 2 * mu / r_EMS_prime - v_prime + mu * (1 - mu)
 
         # angle between x-axis of C and TCO at SOI of EMS centered at EMS barycentre
-        C_ems = C_R_h @ ems_barycentre + C_T_h
         alpha = np.rad2deg(np.arctan2((C_r_TCO[1] - C_ems[1]), (C_r_TCO[0] - C_ems[0])))
         if alpha < 0:
             alpha += 360
 
         # angle between x-axis of C and Moon when TCO is at SOI of EMS
-        C_moon = C_R_h @ np.array([x_M, y_M, z_M]).ravel() + C_T_h
+
         theta_M = np.rad2deg(np.arctan2((C_moon[1] - C_ems[1]), (C_moon[0] - C_ems[0])))
         if theta_M < 0:
             theta_M += 360
@@ -1473,19 +1508,52 @@ class MmAnalyzer:
 
         results = [C_J_dimensional, C_J_nondimensional, alpha, beta, theta_M]
         print(results)
+        print(master['Became Minimoon'])
+        print(master['STC'])
 
-        fig = plt.figure()
-        plt.scatter(ems_barycentre[0], ems_barycentre[1], color='red')
-        plt.scatter(h_r_TCO[0], h_r_TCO[1], color='blue')
-        plt.plot([ems_barycentre[0], h_r_M[0]], [ems_barycentre[1], h_r_M[1]], color='orange')
-        plt.plot([ems_barycentre[0], h_r_TCO[0]], [ems_barycentre[1], h_r_TCO[1]], color='red')
-        plt.plot([h_r_TCO[0], h_r_TCO[0] + C_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + C_v_TCO[1]], color='green')
-        plt.plot([h_r_TCO[0], h_r_TCO[0] + h_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + h_v_TCO[1]], color='grey')
+        fig2 = plt.figure()
+        plt.scatter(C_ems[0], C_ems[1], color='blue')
+        c1 = plt.Circle((C_ems[0], C_ems[1]), radius=0.0038752837677, alpha=0.1)
+        plt.scatter(C_r_TCO[0], C_r_TCO[1], color='red')
+        plt.plot([C_r_TCO[0], C_r_TCO[0] + C_v_TCO[0]], [C_r_TCO[1], C_r_TCO[1] + C_v_TCO[1]], color='red')
+        plt.gca().add_artist(c1)
+        plt.xlim([0.99, 1.01])
+        plt.ylim([-0.01, 0.01])
+        # plt.gca().set_aspect('equal')
+
+        fig3 = plt.figure()
+        plt.scatter(1, 0, color='blue')
+        c1 = plt.Circle((1, 0), radius=0.0038752837677 / r_sE, alpha=0.1)
+        plt.scatter(x_prime, y_prime, color='red')
+        plt.plot([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], color='red')
+        plt.gca().add_artist(c1)
+        plt.xlim([0.99, 1.01])
+        plt.ylim([-0.01, 0.01])
+        # plt.gca().set_aspect('equal')
+
+        fig3 = plt.figure()
+        ax = fig3.add_subplot(111, projection='3d')
+        ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+        x = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + C_ems[0] / r_sE
+        y = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v) + C_ems[1] / r_sE
+        z = 0.0038752837677 / r_sE * np.cos(v) + C_ems[2] / r_sE
+        ax.plot_wireframe(x, y, z, color="b", alpha=0.1)
+        ax.scatter(C_ems[0] / r_sE, C_ems[1] / r_sE, C_ems[2] / r_sE, color='blue', s=10)
+        ax.scatter(x_prime, y_prime, z_prime, color='red', s=10)
+        ax.plot3D([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], [z_prime, z_prime + z_dot_prime], color='red')
+        #
+        # fig = plt.figure()
+        # plt.scatter(ems_barycentre[0], ems_barycentre[1], color='red')
+        # plt.scatter(h_r_TCO[0], h_r_TCO[1], color='blue')
+        # plt.plot([ems_barycentre[0], h_r_M[0]], [ems_barycentre[1], h_r_M[1]], color='orange')
+        # plt.plot([ems_barycentre[0], h_r_TCO[0]], [ems_barycentre[1], h_r_TCO[1]], color='red')
+        # plt.plot([h_r_TCO[0], h_r_TCO[0] + C_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + C_v_TCO[1]], color='green')
+        # plt.plot([h_r_TCO[0], h_r_TCO[0] + h_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + h_v_TCO[1]], color='grey')
         # plt.plot([r_C[0], r_C[0] + C_R_h[0, 0]], [r_C[1], r_C[1] + C_R_h[0, 1]], color='red')
         # plt.plot([r_C[0], r_C[0] + C_R_h[1, 0]], [r_C[1], r_C[1] + C_R_h[1, 1]], color='green')
         # plt.xlim([-1.5, 1.5])
         # plt.ylim([-1.5, 1.5])
-        plt.gca().set_aspect('equal')
+        # plt.gca().set_aspect('equal')
         # plt.plot([r_C[0], ems_barycentre[0]], [r_C[1], ems_barycentre[1]])
         plt.show()
 
