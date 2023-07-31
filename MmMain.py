@@ -642,7 +642,8 @@ class MmMain():
 
         # parallel version of jacobi alpha beta
         stc_pop = master[master['STC'] == True]
-        for i in range(len(master['Object id'])):
+        print(master)
+        for i, val in enumerate(stc_pop['Object id']):
             res = mm_analyzer.alpha_beta_jacobi(stc_pop['Object id'].iloc[i])
             # res = mm_analyzer.short_term_capture(master['Object id'].iloc[i])
         # pool = multiprocessing.Pool()
@@ -681,7 +682,7 @@ if __name__ == '__main__':
 
     mm_main = MmMain()
 
-    destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+    destination_path = os.path.join(os.getcwd(), 'Test_Set')
     destination_file = destination_path + '/minimoon_master_final.csv'
     start_file = destination_path + '/minimoon_master_final (copy).csv'
 
