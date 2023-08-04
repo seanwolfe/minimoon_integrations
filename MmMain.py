@@ -13,6 +13,14 @@ from MmPopulation import MmPopulation
 import matplotlib.pyplot as plt
 from space_fncs import eci_ecliptic_to_sunearth_synodic
 from astropy import constants as const
+import astropy.units as u
+from poliastro.twobody import Orbit
+from poliastro.bodies import Sun, Earth, Moon
+from space_fncs import get_theta_from_M
+import pyoorb
+import matplotlib.ticker as ticker
+from space_fncs import get_emb_synodic
+from scipy.signal import argrelextrema
 
 cds.enable()
 numpy.set_printoptions(threshold=sys.maxsize)
@@ -129,7 +137,7 @@ class MmMain():
 
         start_date = old_data['Julian Date'].iloc[0]
         end_date = old_data['Julian Date'].iloc[-1]
-        int_step_rev = int(1/(old_data['Julian Date'].iloc[1] - old_data['Julian Date'].iloc[0]))
+        int_step_rev = round(1/(old_data['Julian Date'].iloc[1] - old_data['Julian Date'].iloc[0]))
         int_step = 1/int_step_rev
         start_time = Time(start_date, format="jd", scale='utc')
         end_time = Time(end_date, format="jd", scale='utc')
@@ -670,7 +678,7 @@ class MmMain():
         master['Theta_M'] = repacked_results[4]
 
         # write the master to csv - only if your sure you have the right data, otherwise in will be over written
-        master.to_csv(dest_path, sep=' ', header=True, index=False)
+        # master.to_csv(dest_path, sep=' ', header=True, index=False)
 
     @staticmethod
     def cluster_viz_main(master_file):
@@ -678,12 +686,552 @@ class MmMain():
         mm_pop = MmPopulation(master_file)
         mm_pop.cluster_viz()
 
-
     @staticmethod
     def stc_viz_main(master_file):
 
         mm_pop = MmPopulation(master_file)
         mm_pop.stc_pop_viz()
+
+    @staticmethod
+    def alphabetastc(master_file):
+
+        mm_parser = MmParser("", "", "")
+        master = mm_parser.parse_master(master_file)
+
+        bad_stc = master[(master['STC'] == True) & (master['Beta_I'] < -180)]
+        population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+
+        for index2, row2 in bad_stc.iterrows():
+
+            object_id = row2['Object id']
+            print(row2)
+
+            for root, dirs, files in os.walk(population_dir):
+                # find files that are minimoons
+                name = str(object_id) + ".csv"
+
+                if name in files:
+                    file_path = os.path.join(root, name)
+
+                    # read the file
+                    data = mm_parser.mm_file_parse_new(file_path)
+
+                    # get the jacobi constant using ephimeris data
+                    seconds_in_day = 86400
+                    km_in_au = 149597870700 / 1000
+
+                    mu_s = 1.3271244e11 / np.power(km_in_au, 3)  # km^3/s^2 to AU^3/s^2
+                    mu_e = 3.986e5  # km^3/s^2
+                    mu_M = 4.9028e3  # km^3/s^2
+                    mu_EMS = (mu_M + mu_e) / np.power(km_in_au, 3)  # km^3/s^2 = m_E + mu_M to AU^3/s^2
+                    m_e = 5.97219e24  # mass of Earth kg
+                    m_m = 7.34767309e22  # mass of the Moon kg
+                    m_s = 1.9891e30  # mass of the Sun kg
+                    r_ems = 0.0038752837677
+                    xs = []
+                    ys = []
+                    zs = []
+                    vxs = []
+                    vys = []
+                    vzs = []
+                    xsdim = []
+                    ysdim = []
+                    zsdim = []
+                    vxsdim = []
+                    vysdim = []
+                    vzsdim = []
+                    ems = []
+                    distances = []
+
+                    for index, row in data.iterrows():
+                        # print(row)
+                        x = row['Helio x']  # AU
+                        y = row['Helio y']
+                        z = row['Helio z']
+                        vx = row['Helio vx']  # AU/day
+                        vy = row['Helio vy']
+                        vz = row['Helio vz']
+                        vx_M = row["Moon vx (Helio)"]  # AU/day
+                        vy_M = row["Moon vy (Helio)"]
+                        vz_M = row["Moon vz (Helio)"]
+                        x_M = row["Moon x (Helio)"]   # AU
+                        y_M = row["Moon y (Helio)"]
+                        z_M = row["Moon z (Helio)"]
+                        x_E = row["Earth x (Helio)"]
+                        y_E = row["Earth y (Helio)"]
+                        z_E = row["Earth z (Helio)"]
+                        vx_E = row["Earth vx (Helio)"]   # AU/day
+                        vy_E = row["Earth vy (Helio)"]
+                        vz_E = row["Earth vz (Helio)"]
+                        date_ems = row['Julian Date'] # Julian date
+
+                        if not np.isnan(date_ems):
+                            date_mjd = Time(date_ems, format='jd').to_value('mjd')
+
+                            h_r_TCO = np.array([x, y, z]).ravel()  # AU
+                            h_r_M = np.array([x_M, y_M, z_M]).ravel()
+                            h_r_E = np.array([x_E, y_E, z_E]).ravel()
+                            h_v_TCO = np.array([vx, vy, vz]).ravel()  # AU/day
+                            h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
+                            h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
+
+
+                            ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (
+                                        m_m + m_e)  # heliocentric position of the ems barycentre AU
+                            vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (
+                                        m_m + m_e)  # heliocentric velocity of the ems barycentre AU/day
+
+                            r_C = (m_e + m_m) * ems_barycentre / (m_e + m_m + m_s)  # barycentre of sun-earth/moon AU
+                            r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun AU
+                            omega = np.sqrt(
+                                (mu_s + mu_EMS) / np.power(r_sE, 3))  # angular velocity of sun-ems barycentre 1/s
+
+                            v_C = np.linalg.norm(r_C) / r_sE * vems_barycentre  # velocity of barycentre  AU/day
+
+
+                            r = [km_in_au * ems_barycentre[0], km_in_au * ems_barycentre[1],
+                                 km_in_au * ems_barycentre[2]] << u.km  # km
+                            v = [km_in_au / seconds_in_day * vems_barycentre[0],
+                                 km_in_au / seconds_in_day * vems_barycentre[1],
+                                 km_in_au / seconds_in_day * vems_barycentre[2]] << u.km / u.s  # AU/day
+
+                            # not sure if this part is necessary
+                            # ephfile = ""
+                            # if os.getenv('OORB_DATA'):
+                            #     ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
+                            # pyoorb.pyoorb.oorb_init(ephfile)
+
+                            # sun_c = 11  # 11 for Sun, 3 for Earth
+                            # print("Getting helio keplarian osculating elements...")
+                            #
+                            # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
+                            # orbits = np.zeros([1, 12], dtype=np.double, order='F')  # the pyorb function takes slice of 3-d list
+                            # orbits[0][:] = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
+                            #                 vems_barycentre[2], 1, date_mjd, 1, 10., 0.15]
+                            #
+                            # new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
+                            #                                                                 in_element_type=3, in_center=sun_c)
+
+
+                            # Om = new_orbits_kep[0][4]  # in rad
+                            # om = new_orbits_kep[0][5]
+                            # i = new_orbits_kep[0][3]
+                            # M = new_orbits_kep[0][6]
+                            # e = new_orbits_kep[0][2]
+                            # theta = get_theta_from_M(M, e)
+
+                            orb = Orbit.from_vectors(Sun, r, v, Time(date_mjd, format='mjd', scale='utc'))
+                            Om = np.deg2rad(orb.raan)  # in rad
+                            om = np.deg2rad(orb.argp)
+                            i = np.deg2rad(orb.inc)
+                            theta = np.deg2rad(orb.nu)
+
+                            # convert from heliocentric to synodic with a euler rotation
+                            h_R_C_peri = np.array([[-np.sin(Om) * np.cos(i) * np.sin(om) + np.cos(Om) * np.cos(om),
+                                                    -np.sin(Om) * np.cos(i) * np.cos(om) - np.cos(Om) * np.sin(om),
+                                                    np.sin(Om) * np.sin(i)],
+                                                   [np.cos(Om) * np.cos(i) * np.sin(om) + np.sin(Om) * np.cos(om),
+                                                    np.cos(Om) * np.cos(i) * np.cos(om) - np.sin(Om) * np.sin(om),
+                                                    -np.cos(Om) * np.sin(i)],
+                                                   [np.sin(i) * np.sin(om), np.sin(i) * np.cos(om), np.cos(i)]])
+
+                            # rotation from perihelion to location of ems_barycentre (i.e. rotation by true anomaly)
+                            C_peri_R_C = np.array([[np.cos(theta), -np.sin(theta), 0.],
+                                                   [np.sin(theta), np.cos(theta), 0.],
+                                                   [0., 0., 1.]])
+
+                            C_R_h = C_peri_R_C.T @ h_R_C_peri.T
+
+                            # translation
+                            C_T_h = np.array([np.linalg.norm(r_C), 0., 0.]).ravel()  # AU
+
+                            # in sun-earth/moon corotating
+                            C_r_TCO = C_R_h @ h_r_TCO - C_T_h  # AU
+
+                            # v_rel in Jacobi constant
+                            C_v_TCO = C_R_h @ (h_v_TCO - v_C) - np.cross(np.array([0, 0, omega * seconds_in_day]), C_r_TCO)  # AU/day
+
+                            # non dimensional Jacobi constant
+                            x_prime = C_r_TCO[0] / r_sE
+                            y_prime = C_r_TCO[1] / r_sE
+                            z_prime = C_r_TCO[2] / r_sE
+
+                            x_dot_prime = C_v_TCO[0] / (omega * r_sE * seconds_in_day)
+                            y_dot_prime = C_v_TCO[1] / (omega * r_sE * seconds_in_day)
+                            z_dot_prime = C_v_TCO[2] / (omega * r_sE * seconds_in_day)
+
+                            xs.append(x_prime)
+                            ys.append(y_prime)
+                            zs.append(z_prime)
+                            vxs.append(x_dot_prime)
+                            vys.append(y_dot_prime)
+                            vzs.append(z_dot_prime)
+                            xsdim.append(C_r_TCO[0])
+                            ysdim.append(C_r_TCO[1])
+                            zsdim.append(C_r_TCO[2])
+                            vxsdim.append(C_v_TCO[0])
+                            vysdim.append(C_v_TCO[1])
+                            vzsdim.append(C_v_TCO[2])
+                            ems.append(C_R_h @ ems_barycentre - C_T_h)
+                            distances.append(np.linalg.norm(h_r_TCO - ems_barycentre))
+
+            in_ems_idxs = int(row2['Entry to EMS Index'])
+
+            print(xs[in_ems_idxs])
+            print(ys[in_ems_idxs])
+            print(zs[in_ems_idxs])
+            print(vxs[in_ems_idxs])
+            print(vys[in_ems_idxs])
+            print(vzs[in_ems_idxs])
+            fig3 = plt.figure()
+            ax = fig3.add_subplot(111, projection='3d')
+            vel_scale = 1
+            ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            xw = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + 1
+            yw = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v)
+            zw = 0.0038752837677 / r_sE * np.cos(v)
+            ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
+            ax.scatter(1, 0, 0, color='blue', s=10)
+            ax.plot3D(xs, ys, zs, color='grey', zorder=10)
+            ax.scatter(xs[in_ems_idxs], ys[in_ems_idxs], zs[in_ems_idxs], color='red', s=10)
+            ax.scatter(xs[in_ems_idxs + 100], ys[in_ems_idxs + 100], zs[in_ems_idxs + 100], color='orange', s=10)
+            ax.plot3D([xs[in_ems_idxs], xs[in_ems_idxs] + vel_scale * vxs[in_ems_idxs]], [ys[in_ems_idxs], ys[in_ems_idxs] + vel_scale * vys[in_ems_idxs]],
+                      [zs[in_ems_idxs], zs[in_ems_idxs] + vel_scale * vzs[in_ems_idxs]], color='red', zorder=15)
+            ax.plot3D([xs[in_ems_idxs + 100], xs[in_ems_idxs + 100] + vel_scale * vxs[in_ems_idxs + 100]],
+                      [ys[in_ems_idxs + 100], ys[in_ems_idxs + 100] + vel_scale * vys[in_ems_idxs + 100]],
+                      [zs[in_ems_idxs + 100], zs[in_ems_idxs + 100] + vel_scale * vzs[in_ems_idxs + 100]], color='orange',
+                      zorder=15)
+
+            ax.set_xlim([0.99, 1.01])
+            ax.set_ylim([-0.01, 0.01])
+            ax.set_zlim([-0.01, 0.01])
+
+            fig3 = plt.figure()
+            ax = fig3.add_subplot(111, projection='3d')
+            vel_scale = 1
+            ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            xw = 0.0038752837677 * np.cos(ut) * np.sin(v) + ems[in_ems_idxs][0]
+            yw = 0.0038752837677 * np.sin(ut) * np.sin(v) + ems[in_ems_idxs][1]
+            zw = 0.0038752837677 * np.cos(v) + + ems[in_ems_idxs][2]
+            ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
+            ax.scatter(+ ems[in_ems_idxs][0], + ems[in_ems_idxs][1], + ems[in_ems_idxs][2], color='blue', s=10)
+            ax.plot3D(xsdim, ysdim, zsdim, color='grey', zorder=10)
+            ax.scatter(xsdim[in_ems_idxs], ysdim[in_ems_idxs], zsdim[in_ems_idxs], color='red', s=10)
+            ax.scatter(xsdim[in_ems_idxs + 10], ysdim[in_ems_idxs + 10], zsdim[in_ems_idxs + 10], color='orange', s=10)
+            ax.plot3D([xsdim[in_ems_idxs], xsdim[in_ems_idxs] + vel_scale * vxsdim[in_ems_idxs]],
+                      [ysdim[in_ems_idxs], ysdim[in_ems_idxs] + vel_scale * vysdim[in_ems_idxs]],
+                      [zsdim[in_ems_idxs], zsdim[in_ems_idxs] + vel_scale * vzsdim[in_ems_idxs]], color='red', zorder=15)
+            ax.plot3D([xsdim[in_ems_idxs + 10], xsdim[in_ems_idxs + 10] + vel_scale * vxsdim[in_ems_idxs + 10]],
+                      [ysdim[in_ems_idxs + 10], ysdim[in_ems_idxs + 10] + vel_scale * vysdim[in_ems_idxs + 10]],
+                      [zsdim[in_ems_idxs + 10], zsdim[in_ems_idxs + 10] + vel_scale * vzsdim[in_ems_idxs + 10]], color='orange',
+                      zorder=15)
+
+            ax.set_xlim([ems[in_ems_idxs][0] - 0.01, ems[in_ems_idxs][0] + 0.01])
+            ax.set_ylim([ems[in_ems_idxs][1] - 0.01, ems[in_ems_idxs][1] + 0.01])
+            ax.set_zlim([ems[in_ems_idxs][2] - 0.01, ems[in_ems_idxs][2] + 0.01])
+
+            # fig3 = plt.figure()
+            # ax = fig3.add_subplot(111, projection='3d')
+            # vel_scale = 1
+            # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            # xw = 0.0038752837677  * np.cos(ut) * np.sin(v) + data['Earth x (Helio)'].iloc[in_ems_idxs]
+            # yw = 0.0038752837677  * np.sin(ut) * np.sin(v) + data['Earth y (Helio)'].iloc[in_ems_idxs]
+            # zw = 0.0038752837677  * np.cos(v) + data['Earth z (Helio)'].iloc[in_ems_idxs]
+            # ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
+            # ax.scatter(data['Earth x (Helio)'].iloc[in_ems_idxs], data['Earth y (Helio)'].iloc[in_ems_idxs], data['Earth z (Helio)'].iloc[in_ems_idxs], color='blue', s=10)
+            # ax.plot3D(data['Earth x (Helio)'], data['Earth y (Helio)'], data['Earth z (Helio)'], color='grey', zorder=10)
+            # ax.scatter(data['Helio x'].iloc[in_ems_idxs], data['Helio y'].iloc[in_ems_idxs], data['Helio z'].iloc[in_ems_idxs], color='red', s=10)
+            # ax.scatter(xs[in_ems_idxs + 10], ys[in_ems_idxs + 10], zs[in_ems_idxs + 10], color='orange', s=10)
+            # ax.plot3D([data['Earth x (Helio)'].iloc[in_ems_idxs], data['Earth x (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Earth vx (Helio)'].iloc[in_ems_idxs]],
+            #           [data['Earth y (Helio)'].iloc[in_ems_idxs], data['Earth y (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Earth vy (Helio)'].iloc[in_ems_idxs]],
+            #           [data['Earth z (Helio)'].iloc[in_ems_idxs], data['Earth z (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Earth vz (Helio)'].iloc[in_ems_idxs]], color='red', zorder=15)
+            # ax.scatter(data['Earth x (Helio)'].iloc[in_ems_idxs], data['Earth y (Helio)'].iloc[in_ems_idxs],
+            #            data['Earth z (Helio)'].iloc[in_ems_idxs], color='blue', s=10)
+            # ax.plot3D(data['Moon x (Helio)'], data['Moon y (Helio)'], data['Moon z (Helio)'], color='red',
+            #           zorder=10)
+            # ax.scatter(data['Moon x (Helio)'].iloc[in_ems_idxs], data['Moon y (Helio)'].iloc[in_ems_idxs],
+            #            data['Moon z (Helio)'].iloc[in_ems_idxs], color='orange', s=10)
+            # ax.scatter(xs[in_ems_idxs + 10], ys[in_ems_idxs + 10], zs[in_ems_idxs + 10], color='orange', s=10)
+            # ax.plot3D([data['Moon x (Helio)'].iloc[in_ems_idxs],
+            #            data['Moon x (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Moon vx (Helio)'].iloc[
+            #                in_ems_idxs]],
+            #           [data['Moon y (Helio)'].iloc[in_ems_idxs],
+            #            data['Moon y (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Moon vy (Helio)'].iloc[
+            #                in_ems_idxs]],
+            #           [data['Moon z (Helio)'].iloc[in_ems_idxs],
+            #            data['Moon z (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Moon vz (Helio)'].iloc[
+            #                in_ems_idxs]], color='orange', zorder=15)
+            #
+            # ax.set_xlim([0.1, 0.4])
+            # ax.set_ylim([-0.9, 1.1])
+            # ax.set_zlim([-0.01, 0.01])
+            plt.show()
+
+    @staticmethod
+    def no_moon_pop(master_file_nomoon, master_file):
+
+        mm_pop = MmPopulation(master_file)
+        mm_parser = MmParser("", "", "")
+        path_nomoon = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
+        path_moon = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        mm_pop_nomoon = mm_parser.parse_master_previous(master_file_nomoon)
+        pd.set_option('display.max_rows', None)
+        # print(mm_pop_nomoon.iloc[0])
+
+        tco_pop = mm_pop.population[mm_pop.population['Became Minimoon'] == 1]
+        stc_pop = mm_pop.population[mm_pop.population['STC'] == True]
+        tco_pop_nomoon = mm_pop_nomoon[mm_pop_nomoon['Became Minimoon'] == 1]
+        stc_pop_nomoon = mm_pop_nomoon[mm_pop_nomoon['STC'] == True]
+        tcf_pop = mm_pop.population[mm_pop.population['Became Minimoon'] == 0]
+        tcf_pop_nomoon = mm_pop_nomoon[mm_pop_nomoon['Became Minimoon'] == 0]
+        stc_tcos_moon = stc_pop[stc_pop['Became Minimoon'] == 1]
+        stc_tcfs_moon = stc_pop[stc_pop['Became Minimoon'] == 0]
+        stc_tcos_nomoon = stc_pop_nomoon[stc_pop_nomoon['Became Minimoon'] == 1]
+        stc_tcfs_nomoon = stc_pop_nomoon[stc_pop_nomoon['Became Minimoon'] == 0]
+
+        print("Original TCOs: " + str(len(tco_pop['Object id'])))
+        print("TCOs without Moon: " + str(len(tco_pop_nomoon['Object id'])))
+
+        print("Original TCFs: " + str(len(tcf_pop['Object id'])))
+        print("TCFs without Moon: " + str(len(tcf_pop_nomoon['Object id'])))
+
+        print("Original STCs: " + str(len(stc_pop['Object id'])))
+        print("STCs without moon: " + str(len(stc_pop_nomoon['Object id'])))
+
+        print("STCs that are TCOs: " + str(len(stc_tcos_moon['Object id'])))
+        print("STCs that are TCOs without moon: " + str(len(stc_tcos_nomoon['Object id'])))
+
+        print("STCs that are TCFs: " + str(len(stc_tcfs_moon['Object id'])))
+        print("STCs that are TCFs without moon: " + str(len(stc_tcfs_nomoon['Object id'])))
+
+        tcf_became_tco = 0
+        tco_became_tcf = 0
+        stayed_tco = 0
+        stayed_tcf = 0
+
+        # for idx3, row3 in mm_pop.population.iterrows():
+        #
+        #     object_id = row3['Object id']
+        #     index = mm_pop_nomoon.index[mm_pop_nomoon['Object id'] == object_id].tolist()
+        #     tco_occ_nomoon = mm_pop_nomoon.loc[index[0], 'Became Minimoon']
+        #     tco_occ_moon = row3['Became Minimoon']
+        #
+        #     if tco_occ_moon == 1 and tco_occ_nomoon == 1:
+        #         stayed_tco += 1
+        #     elif tco_occ_moon == 1 and tco_occ_nomoon == 0:
+        #         tco_became_tcf += 1
+        #     elif tco_occ_moon == 0 and tco_occ_nomoon == 0:
+        #         stayed_tcf += 1
+        #     else:
+        #         tcf_became_tco += 1
+
+        print("TCOs that remained TCOs: " + str(stayed_tco))
+        print("TCFs that remained TCFs: " + str(stayed_tcf))
+        print("TCOs that became TCFs: " + str(tco_became_tcf))
+        print("TCFs that became TCOs: " + str(tcf_became_tco))
+
+        for idx, row in stc_pop.iterrows():
+            # print(row)
+
+            stc_name = str(row['Object id']) + '.csv'
+            index = mm_pop_nomoon.index[mm_pop_nomoon['Object id'] == row['Object id']].tolist()
+            stc_name_no_moon = mm_pop_nomoon.loc[index[0], 'Object id']
+            stc_occ = mm_pop_nomoon.loc[index[0], 'STC']
+
+            print("Examining Previously STC: " + stc_name)
+            print("Still STC?: " + str(stc_occ)+ " for STC: " + str(stc_name_no_moon))
+            data_nomoon = mm_parser.mm_file_parse_new(path_nomoon + '/' + stc_name)
+            data_moon = mm_parser.mm_file_parse_new(path_moon + '/' + stc_name)
+
+            # fig3 = plt.figure()
+            # ax = fig3.add_subplot(111, projection='3d')
+            # vel_scale = 1
+            # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            # xw = 0.0038752837677 * np.cos(ut) * np.sin(v)
+            # yw = 0.0038752837677 * np.sin(ut) * np.sin(v)
+            # zw = 0.0038752837677 * np.cos(v)
+            # ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
+            # ax.scatter(0, 0, 0, color='blue', s=10)
+            # ax.plot3D(data_moon['Synodic x'], data_moon['Synodic y'], data_moon['Synodic z'], color='grey', zorder=15, linewidth=1, label='With Moon')
+            # ax.plot3D(data_nomoon['Synodic x'], data_nomoon['Synodic y'], data_nomoon['Synodic z'], color='orange', zorder=10, linewidth=3, label='Without Moon')
+            # ax.set_xlabel('Synodic x (AU)')
+            # ax.set_ylabel('Synodic y (AU)')
+            # ax.set_zlabel('Synodic z (AU)')
+            # ax.set_xlim([-0.01, 0.01])
+            # ax.set_ylim([-0.01, 0.01])
+            # ax.set_zlim([-0.01, 0.01])
+            # ax.set_title('STC ' + str(stc_name_no_moon))
+            # num_ticks = 3
+            # ax.xaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+            # ax.yaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+            # ax.zaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+            # ax.legend()
+            # plt.savefig('figures/' + stc_name_no_moon + '_nomoon.svg', format='svg')
+            # plt.savefig('figures/' + stc_name_no_moon + '_nomoon.png', format='png')
+            # plt.show()
+
+            # constants
+            three_eh = 0.03
+            r_ems = 0.0038752837677  # sphere of influence of earth-moon system
+            two_hill = 0.02
+            one_hill = 0.01
+
+            print("Analyzing the Short-Term Capture Statistics of minimoon with moon: " + str(stc_name))
+
+            # get data with respect to the earth-moon barycentre in a co-rotating frame
+            emb_xyz_synodic = get_emb_synodic(data_moon)
+
+            stc_moon_dist_moon = [np.linalg.norm(np.array([rows['Helio x'] - rows['Moon x (Helio)'],
+                                                          rows['Helio y'] - rows['Moon y (Helio)'],
+                                                          rows['Helio z'] - rows['Moon z (Helio)']])) for i, rows in data_moon.iterrows()]
+
+            # the sampling interval of the moon was 1/23, not 1/24
+            stc_moon_dist_nomoon = [np.linalg.norm(np.array([rows2['Helio x'] - rows2['Moon x (Helio)'],
+                                                          rows2['Helio y'] - rows2['Moon y (Helio)'],
+                                                          rows2['Helio z'] - rows2['Moon z (Helio)']])) for i, rows2 in data_nomoon.iterrows()]
+
+            distance_emb_synodic = np.sqrt(
+                emb_xyz_synodic[:, 0] ** 2 + emb_xyz_synodic[:, 1] ** 2 + emb_xyz_synodic[:, 2] ** 2)
+
+            # identify when inside the 3 earth hill sphere
+            three_hill_under = np.NAN * np.zeros((len(distance_emb_synodic),))
+            three_hill_idxs = [index for index, value in enumerate(distance_emb_synodic) if value <= three_eh]
+            for index in three_hill_idxs:
+                three_hill_under[index] = 1
+
+
+            captured_distance = distance_emb_synodic * three_hill_under
+
+            # identify periapses that exist in the 3 earth hill sphere
+            local_minima_indices = argrelextrema(captured_distance, np.less)[0]
+            local_dist = captured_distance[local_minima_indices]
+            time = data_moon["Julian Date"] - data_moon["Julian Date"].iloc[0]
+            local_time = time.iloc[local_minima_indices]
+
+            # identify when inside the sphere of influence of the EMS
+            in_ems = np.NAN * np.zeros((len(distance_emb_synodic),))
+            in_ems_idxs = [index for index, value in enumerate(distance_emb_synodic) if value <= r_ems]
+            for index in in_ems_idxs:
+                in_ems[index] = 1
+
+            captured_distance_ems = distance_emb_synodic * in_ems
+
+            # identify periapses that exist in the EMS SOI
+            local_minima_indices_ems = argrelextrema(captured_distance_ems, np.less)[0]
+            local_dist_ems = captured_distance_ems[local_minima_indices_ems]
+            local_time_ems = time.iloc[local_minima_indices_ems]
+
+
+            ems_line = r_ems * np.ones(len(time), )
+            three_eh_line = three_eh * np.ones(len(time), )
+
+
+            stc = False
+            # decide if short-term capture or not
+            if len(three_hill_idxs) >= 2:
+                if len(local_minima_indices_ems) >= 2:
+                    stc = True
+
+            print(str(stc_name) + ": " + str(stc))
+
+            # Data of interest (for the master):
+            # Whether a STC took place or not
+            # Time spent in SOI EMS
+            time_ste = data_moon["Julian Date"].iloc[1] - data_moon["Julian Date"].iloc[0]
+
+            print("Analyzing the Short-Term Capture Statistics of minimoon without moon: " + str(stc_name_no_moon))
+
+            # get data with respect to the earth-moon barycentre in a co-rotating frame
+            emb_xyz_synodicnm = get_emb_synodic(data_nomoon)
+
+            distance_emb_synodicnm = np.sqrt(
+                emb_xyz_synodicnm[:, 0] ** 2 + emb_xyz_synodicnm[:, 1] ** 2 + emb_xyz_synodicnm[:, 2] ** 2)
+
+            # identify when inside the 3 earth hill sphere
+            three_hill_undernm = np.NAN * np.zeros((len(distance_emb_synodicnm),))
+            three_hill_idxsnm = [index for index, value in enumerate(distance_emb_synodicnm) if value <= three_eh]
+            for index in three_hill_idxsnm:
+                three_hill_undernm[index] = 1
+            captured_distancenm = distance_emb_synodicnm * three_hill_undernm
+
+            # identify periapses that exist in the 3 earth hill sphere
+            local_minima_indicesnm = argrelextrema(captured_distancenm, np.less)[0]
+            local_distnm = captured_distancenm[local_minima_indicesnm]
+            timenm = data_nomoon["Julian Date"] - data_nomoon["Julian Date"].iloc[0]
+            local_timenm = timenm.iloc[local_minima_indicesnm]
+
+            # identify when inside the sphere of influence of the EMS
+            in_emsnm = np.NAN * np.zeros((len(distance_emb_synodicnm),))
+            in_ems_idxsnm = [index for index, value in enumerate(distance_emb_synodicnm) if value <= r_ems]
+            for index in in_ems_idxsnm:
+                in_emsnm[index] = 1
+            captured_distance_emsnm = distance_emb_synodicnm * in_emsnm
+
+            # identify periapses that exist in the EMS SOI
+            local_minima_indices_emsnm = argrelextrema(captured_distance_emsnm, np.less)[0]
+            local_dist_emsnm = captured_distance_emsnm[local_minima_indices_emsnm]
+            local_time_emsnm = timenm.iloc[local_minima_indices_emsnm]
+
+            stcnm = False
+            # decide if short-term capture or not
+            if len(three_hill_idxsnm) >= 2:
+                if len(local_minima_indices_emsnm) >= 2:
+                    stcnm = True
+
+            print(str(stc_name_no_moon) + ": " + str(stcnm))
+
+            # Data of interest (for the master):
+            # Whether a STC took place or not
+            # Time spent in SOI EMS
+            time_stepnm = data_nomoon["Julian Date"].iloc[1] - data_nomoon["Julian Date"].iloc[0]
+            time_SOI_EMSnm = time_stepnm * len(in_ems_idxsnm)
+
+            print(1/time_stepnm)
+            print(1/time_ste)
+            print(data_nomoon["Julian Date"].iloc[0])
+            print(data_moon["Julian Date"].iloc[0])
+
+            fig2 = plt.figure()
+            plt.plot(time, data_moon['Moon x (Helio)'], linestyle='-', color='blue')
+            plt.plot(time, data_moon['Moon y (Helio)'], linestyle='-', color='green')
+            plt.plot(time, data_moon['Moon z (Helio)'], linestyle='-', color='red')
+            plt.plot(timenm, data_nomoon['Moon x (Helio)'], linestyle='--', color='blue')
+            plt.plot(timenm, data_nomoon['Moon y (Helio)'], linestyle='--', color='green')
+            plt.plot(timenm, data_nomoon['Moon z (Helio)'], linestyle='--', color='red')
+
+            fig = plt.figure()
+            plt.plot(time, captured_distance, color='#5599ff', linewidth=3, zorder=5,
+                     label='Inside 3 Earth Hill')
+            plt.plot(time, captured_distance_ems, color='red', linewidth=5, zorder=6, label='Inside SOI of EMS')
+            plt.plot(time, distance_emb_synodic, color='grey',
+                     linewidth=1, zorder=7, label='STC with Moon')
+            plt.scatter(local_time, local_dist, color='#ff80ff', zorder=8,
+                        label='Periapsides Inside 3 Earth Hill')
+            plt.scatter(local_time_ems, local_dist_ems, color='blue', zorder=9,
+                        label='Periapsides Inside SOI of EMS')
+            # if in_ems_idxs:
+            #     plt.scatter(time.iloc[in_ems_idxs[0]], distance_emb_synodic[in_ems_idxs[0]], zorder=15)
+            plt.plot(timenm, captured_distancenm, color='#5599ff', linewidth=3, zorder=5)
+            plt.plot(timenm, captured_distance_emsnm, color='red', linewidth=5, zorder=6)
+            plt.plot(timenm, distance_emb_synodicnm, color='orange',
+                     linewidth=1, zorder=7, label='STC without Moon')
+            plt.scatter(local_timenm, local_distnm, color='#ff80ff', zorder=8)
+            plt.scatter(local_time_emsnm, local_dist_emsnm, color='blue', zorder=9)
+            # if in_ems_idxsnm:
+            #     plt.scatter(timenm.iloc[in_ems_idxsnm[0]], distance_emb_synodicnm[in_ems_idxsnm[0]], zorder=15)
+            plt.plot(time, three_eh_line, linestyle='--', color='red', zorder=4, label='3 Earth Hill')
+            plt.plot(time, ems_line, linestyle='--', color='green', zorder=3, label='SOI of EMS')
+            plt.plot(time, stc_moon_dist_moon, linestyle='--', color='red', label='STC Moon Distance')
+            # plt.plot(timenm, stc_moon_dist_nomoon, linestyle='--', color='blue', label='STC Moon Distance without Moon')
+            plt.legend()
+            plt.xlabel('Time (days)')
+            plt.ylabel('Distance from Earth/Moon Barycentre (AU)')
+            plt.title(str(stc_name_no_moon))
+            # plt.ylim([0, 0.06])
+            # plt.xlim([0, time.iloc[-1]])
+            # plt.savefig("figures/" + str(stc_name_no_moon) + "_distance_nomoon.svg", format="svg")
+            # plt.savefig("figures/" + str(stc_name_no_moon) + "_distance_nomoon.png", format="png")
+            plt.show()
 
 if __name__ == '__main__':
 
@@ -767,4 +1315,26 @@ if __name__ == '__main__':
     # STC population visualization
     #######################################
 
-    mm_main.stc_viz_main(destination_file)
+    # mm_main.stc_viz_main(destination_file)
+
+    ######################################
+    # Investigate the distribution of alpha beta jacobi
+    ##############################################
+
+    mm_main.alphabetastc(destination_file)
+
+    #####################################
+    # Investigate the population when there is no moon present
+    ########################################
+
+    # no moon data
+    # master_path_nomoon = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
+    # master_file_name_nomoon = 'minimoon_master_final.csv'
+    # master_file_nomoon =  master_path_nomoon + '/' + master_file_name_nomoon
+
+    # with moon data
+    # master_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+    # master_file = destination_path + '/minimoon_master_final.csv'
+    #
+    # mm_main.no_moon_pop(master_file_nomoon, master_file)
+

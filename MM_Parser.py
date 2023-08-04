@@ -209,8 +209,7 @@ class MmParser:
                                                              "Moon x at EMS (Helio)", "Moon y at EMS (Helio)",
                                                              "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
                                                              "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)",
-                                                             'Entry Date to EMS', 'Entry to EMS Index',
-                                                             'Exit Date to EMS', 'Exit Index to EMS'])
+                                                             "EMS Start", "EMS Start Index", "EMS End", "EMS End Index"])
 
 
         return master_data
