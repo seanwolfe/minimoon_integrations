@@ -8,7 +8,7 @@ from space_fncs import get_M
 from space_fncs import get_theta_from_M
 from space_fncs import getH2D
 from space_fncs import get_emb_synodic
-import pyoorb
+# import pyoorb
 import numpy as np
 import os
 from astropy.time import Time
@@ -1392,6 +1392,11 @@ class MmAnalyzer:
             m_e = 5.97219e24  # mass of Earth kg
             m_m = 7.34767309e22  # mass of the Moon kg
             m_s = 1.9891e30  # mass of the Sun kg
+
+            ############################################
+            # Proposed method
+            ###########################################
+
             ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre AU
             vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric velocity of the ems barycentre AU/day
 
@@ -1509,9 +1514,52 @@ class MmAnalyzer:
             beta = -beta  # negative to follow Qi convention
 
             results = [C_J_dimensional, C_J_nondimensional, alpha, beta, theta_M]
+
             print(results)
             print(master['Became Minimoon'])
             print(master['STC'])
+
+            ################################
+            # Anderson and Lo
+            ###############################
+
+            # 1 - get state vectors (we have from proposed method)
+
+            # 2 - Length unit
+            LU = r_sE
+
+            # 3 - Compute omega
+            omega_a = np.cross(ems_barycentre, vems_barycentre)
+            omega_a_n = omega_a / LU ** 2
+
+            # 4 - Time and velocity unites
+            TU = 1 / np.linalg.norm(omega_a_n)
+            VU = LU / TU
+
+            # 5 - First axis of rotated frame
+            e_1 = ems_barycentre / np.linalg.norm(ems_barycentre)
+
+            # 6- third axis
+            e_3 = omega_a_n / np.linalg.norm(omega_a_n)
+
+            # 7 - second axis
+            e_2 = np.cross(e_3, e_1)
+
+            # 8 - rotation matrix
+            Q = np.array([e_1, e_2, e_3])
+
+            # 9 - rotate postion vector
+            C_r_TCO_a = Q @ h_r_TCO
+
+            # 10 - get velocity
+            C_v_TCO_a = Q @ h_v_TCO - np.cross(omega_a_n, h_r_TCO)
+
+            # 11 - convert to nondimensional
+            C_r_TCO_a_n = C_r_TCO_a / LU
+            C_v_TCO_a_n = C_v_TCO_a / TU
+
+            C_r_TCO_a_n = C_r_TCO_a_n + np.array([mu, 0., 0.])
+            print(C_r_TCO_a_n)
 
             # fig2 = plt.figure()
             # plt.scatter(C_ems[0], C_ems[1], color='blue')
@@ -1533,17 +1581,18 @@ class MmAnalyzer:
             # plt.ylim([-0.01, 0.01])
             # plt.gca().set_aspect('equal')
 
-            # fig3 = plt.figure()
-            # ax = fig3.add_subplot(111, projection='3d')
-            # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
-            # x = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + C_ems[0] / r_sE
-            # y = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v) + C_ems[1] / r_sE
-            # z = 0.0038752837677 / r_sE * np.cos(v) + C_ems[2] / r_sE
-            # ax.plot_wireframe(x, y, z, color="b", alpha=0.1)
-            # ax.scatter(C_ems[0] / r_sE, C_ems[1] / r_sE, C_ems[2] / r_sE, color='blue', s=10)
-            # ax.scatter(x_prime, y_prime, z_prime, color='red', s=10)
-            # ax.plot3D([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], [z_prime, z_prime + z_dot_prime], color='red')
-            #
+            fig3 = plt.figure()
+            ax = fig3.add_subplot(111, projection='3d')
+            ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            x = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + C_ems[0] / r_sE
+            y = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v) + C_ems[1] / r_sE
+            z = 0.0038752837677 / r_sE * np.cos(v) + C_ems[2] / r_sE
+            ax.plot_wireframe(x, y, z, color="b", alpha=0.1)
+            ax.scatter(C_ems[0] / r_sE, C_ems[1] / r_sE, C_ems[2] / r_sE, color='blue', s=10)
+            ax.scatter(x_prime, y_prime, z_prime, color='red', s=10)
+            ax.plot3D([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], [z_prime, z_prime + z_dot_prime], color='red')
+            # ax.plot3D([C_])
+
             # fig = plt.figure()
             # plt.scatter(ems_barycentre[0], ems_barycentre[1], color='red')
             # plt.scatter(h_r_TCO[0], h_r_TCO[1], color='blue')

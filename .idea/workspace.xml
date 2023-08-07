@@ -4,14 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="90f9300d-b63d-455a-9782-621e100e5c13" name="Changes" comment="jacobi comp">
+    <list default="true" id="1fc426de-2665-4cf3-b3fd-69a2e9afd0a5" name="Changes" comment="jacobi comp">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/minimoon_integrations.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/minimoon_integrations.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MM_Parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/MM_Parser.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_2023-06-13__1_40_p_m___Changes_.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_2023-06-13__1_40_p_m___Changes_.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MmAnalyzer.py" beforeDir="false" afterPath="$PROJECT_DIR$/MmAnalyzer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MmMain.py" beforeDir="false" afterPath="$PROJECT_DIR$/MmMain.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test_Set/minimoon_master_final (copy).csv" beforeDir="false" afterPath="$PROJECT_DIR$/Test_Set/minimoon_master_final (copy).csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test_Set/minimoon_master_final.csv" beforeDir="false" afterPath="$PROJECT_DIR$/Test_Set/minimoon_master_final.csv" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,36 +43,30 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_ADD_EXTERNAL_FILES": "true",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "TODO_SCOPE": "All Places",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "/home/aeromec/Documents/sean/oorb/python",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;TODO_SCOPE&quot;: &quot;All Places&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/aeromec/Documents/sean/oorb/python&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   },
-  "keyToStringList": {
-    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
-      "Python",
-      "CSV"
+  &quot;keyToStringList&quot;: {
+    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File&quot;: [
+      &quot;Python&quot;,
+      &quot;CSV&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
       <console-settings module-name="minimoon_integrations" sdk-home="/usr/bin/python">
         <envs>
           <env key="PYTHONPATH" value="$PROJECT_DIR$/../oorb/python " />
         </envs>
-        <option name="sdk">
-          <Sdk />
-        </option>
         <option name="mySdkHome" value="/usr/bin/python" />
-        <option name="mySdk">
-          <Sdk />
-        </option>
         <option name="myModuleName" value="minimoon_integrations" />
         <option name="myEnvs">
           <map>
@@ -222,6 +216,7 @@
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
+    <option name="SHOW_OTHER_BRANCHES" value="true" />
     <option name="COLUMN_ID_ORDER">
       <list>
         <option value="Default.Root" />
@@ -231,7 +226,6 @@
         <option value="Space.CommitStatus" />
       </list>
     </option>
-    <option name="SHOW_OTHER_BRANCHES" value="true" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">
@@ -275,8 +269,13 @@
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/MmAnalyzer.py</url>
-          <line>1562</line>
+          <line>1611</line>
           <option name="timeStamp" value="6" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/MmAnalyzer.py</url>
+          <line>1561</line>
+          <option name="timeStamp" value="9" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

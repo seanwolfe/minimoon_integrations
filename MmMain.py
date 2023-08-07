@@ -17,7 +17,7 @@ import astropy.units as u
 from poliastro.twobody import Orbit
 from poliastro.bodies import Sun, Earth, Moon
 from space_fncs import get_theta_from_M
-import pyoorb
+# import pyoorb
 import matplotlib.ticker as ticker
 from space_fncs import get_emb_synodic
 from scipy.signal import argrelextrema
@@ -641,7 +641,7 @@ class MmMain():
         mm_analyzer = MmAnalyzer()
 
         # get the master file - you need a list of initial orbits to integrate with openorb (pyorb)
-        master = mm_parser.parse_master_previous(master_path)
+        master = mm_parser.parse_master(master_path)
 
         # parrelelized version of short term capture
         # pool = multiprocessing.Pool()
@@ -649,17 +649,17 @@ class MmMain():
         # pool.close()
 
         # parallel version of jacobi alpha beta
-        # stc_pop = master[master['STC'] == True]
+        stc_pop = master[master['STC'] == True]
         # print(master)
-        # for i, val in enumerate(stc_pop['Object id']):
-        #     res = mm_analyzer.alpha_beta_jacobi(stc_pop['Object id'].iloc[i])
+        for idx, row in stc_pop.iterrows():
+            res = mm_analyzer.alpha_beta_jacobi(row['Object id'])
         #     res = mm_analyzer.short_term_capture(master['Object id'].iloc[i])
-        pool = multiprocessing.Pool()
-        results = pool.map(mm_analyzer.alpha_beta_jacobi, master['Object id'])
-        pool.close()
+        # pool = multiprocessing.Pool()
+        # results = pool.map(mm_analyzer.alpha_beta_jacobi, master['Object id'])
+        # pool.close()
 
         # repack list according to index
-        repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
+        # repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
 
 
         # create your columns according to the data in results
@@ -671,11 +671,11 @@ class MmMain():
         # pd.set_option('display.max_rows', None)
         # print(master['Entry Date to EMS'])
 
-        master['Dimensional Jacobi'] = repacked_results[0]
-        master['Non-Dimensional Jacobi'] = repacked_results[1]
-        master['Alpha_I'] = repacked_results[2]
-        master['Beta_I'] = repacked_results[3]
-        master['Theta_M'] = repacked_results[4]
+        # master['Dimensional Jacobi'] = repacked_results[0]
+        # master['Non-Dimensional Jacobi'] = repacked_results[1]
+        # master['Alpha_I'] = repacked_results[2]
+        # master['Beta_I'] = repacked_results[3]
+        # master['Theta_M'] = repacked_results[4]
 
         # write the master to csv - only if your sure you have the right data, otherwise in will be over written
         # master.to_csv(dest_path, sep=' ', header=True, index=False)
@@ -698,13 +698,44 @@ class MmMain():
         mm_parser = MmParser("", "", "")
         master = mm_parser.parse_master(master_file)
 
-        bad_stc = master[(master['STC'] == True) & (master['Beta_I'] < -180)]
-        population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        # bad_stc = master[(master['STC'] == True) & (master['Beta_I'] < -180)]
+        population_dir = os.path.join(os.getcwd(), 'Test_Set')
 
-        for index2, row2 in bad_stc.iterrows():
+        for index2, row2 in master.iterrows():
 
             object_id = row2['Object id']
-            print(row2)
+
+            xs = []
+            ys = []
+            zs = []
+            vxs = []
+            vys = []
+            vzs = []
+            xsdim = []
+            ysdim = []
+            zsdim = []
+            vxsdim = []
+            vysdim = []
+            vzsdim = []
+            xsdima = []
+            ysdima = []
+            zsdima = []
+            vxsdima = []
+            vysdima = []
+            vzsdima = []
+            ems = []
+            distances = []
+            coherence = []
+            coherencea = []
+            coherencedim = []
+            hrx = []
+            hry = []
+            hrz = []
+            hvx = []
+            hvy = []
+            hvz = []
+            coherenceh = []
+
 
             for root, dirs, files in os.walk(population_dir):
                 # find files that are minimoons
@@ -724,24 +755,12 @@ class MmMain():
                     mu_e = 3.986e5  # km^3/s^2
                     mu_M = 4.9028e3  # km^3/s^2
                     mu_EMS = (mu_M + mu_e) / np.power(km_in_au, 3)  # km^3/s^2 = m_E + mu_M to AU^3/s^2
+                    mu = mu_EMS / (mu_EMS + mu_s)
                     m_e = 5.97219e24  # mass of Earth kg
                     m_m = 7.34767309e22  # mass of the Moon kg
                     m_s = 1.9891e30  # mass of the Sun kg
                     r_ems = 0.0038752837677
-                    xs = []
-                    ys = []
-                    zs = []
-                    vxs = []
-                    vys = []
-                    vzs = []
-                    xsdim = []
-                    ysdim = []
-                    zsdim = []
-                    vxsdim = []
-                    vysdim = []
-                    vzsdim = []
-                    ems = []
-                    distances = []
+
 
                     for index, row in data.iterrows():
                         # print(row)
@@ -763,10 +782,10 @@ class MmMain():
                         vx_E = row["Earth vx (Helio)"]   # AU/day
                         vy_E = row["Earth vy (Helio)"]
                         vz_E = row["Earth vz (Helio)"]
-                        date_ems = row['Julian Date'] # Julian date
+                        date = row['Julian Date'] # Julian date
 
-                        if not np.isnan(date_ems):
-                            date_mjd = Time(date_ems, format='jd').to_value('mjd')
+                        if not np.isnan(row2['Entry to EMS Index']):
+                            date_mjd = Time(date, format='jd').to_value('mjd')
 
                             h_r_TCO = np.array([x, y, z]).ravel()  # AU
                             h_r_M = np.array([x_M, y_M, z_M]).ravel()
@@ -785,6 +804,8 @@ class MmMain():
                             r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun AU
                             omega = np.sqrt(
                                 (mu_s + mu_EMS) / np.power(r_sE, 3))  # angular velocity of sun-ems barycentre 1/s
+                            omega_a = np.cross(ems_barycentre, vems_barycentre)
+                            omega_2 = omega_a / r_sE ** 2
 
                             v_C = np.linalg.norm(r_C) / r_sE * vems_barycentre  # velocity of barycentre  AU/day
 
@@ -850,15 +871,61 @@ class MmMain():
 
                             # v_rel in Jacobi constant
                             C_v_TCO = C_R_h @ (h_v_TCO - v_C) - np.cross(np.array([0, 0, omega * seconds_in_day]), C_r_TCO)  # AU/day
+                            C_v_TCO_2 = C_R_h @ (h_v_TCO - v_C) - np.cross(omega_2, C_r_TCO)  # AU/day
 
                             # non dimensional Jacobi constant
                             x_prime = C_r_TCO[0] / r_sE
                             y_prime = C_r_TCO[1] / r_sE
                             z_prime = C_r_TCO[2] / r_sE
 
-                            x_dot_prime = C_v_TCO[0] / (omega * r_sE * seconds_in_day)
-                            y_dot_prime = C_v_TCO[1] / (omega * r_sE * seconds_in_day)
-                            z_dot_prime = C_v_TCO[2] / (omega * r_sE * seconds_in_day)
+                            x_dot_prime = C_v_TCO[0] / (omega * seconds_in_day * r_sE)
+                            y_dot_prime = C_v_TCO[1] / (omega * seconds_in_day * r_sE)
+                            z_dot_prime = C_v_TCO[2] / (omega * seconds_in_day * r_sE)
+
+                            x_dot_prime_2 = C_v_TCO_2[0] / (np.linalg.norm(omega_2) * r_sE)
+                            y_dot_prime_2 = C_v_TCO_2[1] / (np.linalg.norm(omega_2) * r_sE)
+                            z_dot_prime_2 = C_v_TCO_2[2] / (np.linalg.norm(omega_2) * r_sE)
+
+                            ################################
+                            # Anderson and Lo
+                            ###############################
+
+                            # 1 - get state vectors (we have from proposed method)
+
+                            # 2 - Length unit
+                            # LU = r_sE
+
+                            # 3 - Compute omega
+                            # omega_a = np.cross(ems_barycentre, vems_barycentre)
+                            # omega_a_n = omega_a / LU ** 2
+
+                            # 4 - Time and velocity unites
+                            # TU = 1 / np.linalg.norm(omega_a_n)
+                            # VU = LU / TU
+
+                            # 5 - First axis of rotated frame
+                            # e_1 = ems_barycentre / np.linalg.norm(ems_barycentre)
+
+                            # 6- third axis
+                            # e_3 = omega_a_n / np.linalg.norm(omega_a_n)
+
+                            # 7 - second axis
+                            # e_2 = np.cross(e_3, e_1)
+
+                            # 8 - rotation matrix
+                            # Q = np.array([e_1, e_2, e_3])
+
+                            # 9 - rotate postion vector
+                            # C_r_TCO_a = Q @ h_r_TCO
+
+                            # 10 - get velocity
+                            # C_v_TCO_a = Q @ (h_v_TCO - v_C) - Q @ np.cross(omega_a_n, h_r_TCO)
+
+                            # 11 - convert to nondimensional
+                            # C_r_TCO_a_n = C_r_TCO_a / LU
+                            # C_v_TCO_a_n = C_v_TCO_a / VU
+
+                            # C_r_TCO_a_n = C_r_TCO_a_n + np.array([mu, 0., 0.])
 
                             xs.append(x_prime)
                             ys.append(y_prime)
@@ -872,100 +939,200 @@ class MmMain():
                             vxsdim.append(C_v_TCO[0])
                             vysdim.append(C_v_TCO[1])
                             vzsdim.append(C_v_TCO[2])
+                            xsdima.append(x_prime)
+                            ysdima.append(y_prime)
+                            zsdima.append(z_prime)
+                            vxsdima.append(x_dot_prime_2)
+                            vysdima.append(y_dot_prime_2)
+                            vzsdima.append(z_dot_prime_2)
+                            hrx.append(x)
+                            hry.append(y)
+                            hrz.append(z)
+                            hvx.append(vx)
+                            hvy.append(vy)
+                            hvz.append(vz)
                             ems.append(C_R_h @ ems_barycentre - C_T_h)
                             distances.append(np.linalg.norm(h_r_TCO - ems_barycentre))
 
-            in_ems_idxs = int(row2['Entry to EMS Index'])
+                            ridim = np.array([xsdim[index - 1], ysdim[index - 1], zsdim[index - 1]])
+                            rip1dim = np.array([xsdim[index], ysdim[index], zsdim[index]])
+                            vidim = np.array([vxsdim[index - 1], vysdim[index - 1], vzsdim[index - 1]])
+                            vip1dim = np.array([vxsdim[index], vysdim[index], vzsdim[index]])
+                            vimdim = (vidim + vip1dim) / np.linalg.norm(vidim + vip1dim)
+                            didim = (rip1dim - ridim) / np.linalg.norm(rip1dim - ridim)
 
-            print(xs[in_ems_idxs])
-            print(ys[in_ems_idxs])
-            print(zs[in_ems_idxs])
-            print(vxs[in_ems_idxs])
-            print(vys[in_ems_idxs])
-            print(vzs[in_ems_idxs])
-            fig3 = plt.figure()
-            ax = fig3.add_subplot(111, projection='3d')
-            vel_scale = 1
-            ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
-            xw = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + 1
-            yw = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v)
-            zw = 0.0038752837677 / r_sE * np.cos(v)
-            ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
-            ax.scatter(1, 0, 0, color='blue', s=10)
-            ax.plot3D(xs, ys, zs, color='grey', zorder=10)
-            ax.scatter(xs[in_ems_idxs], ys[in_ems_idxs], zs[in_ems_idxs], color='red', s=10)
-            ax.scatter(xs[in_ems_idxs + 100], ys[in_ems_idxs + 100], zs[in_ems_idxs + 100], color='orange', s=10)
-            ax.plot3D([xs[in_ems_idxs], xs[in_ems_idxs] + vel_scale * vxs[in_ems_idxs]], [ys[in_ems_idxs], ys[in_ems_idxs] + vel_scale * vys[in_ems_idxs]],
-                      [zs[in_ems_idxs], zs[in_ems_idxs] + vel_scale * vzs[in_ems_idxs]], color='red', zorder=15)
-            ax.plot3D([xs[in_ems_idxs + 100], xs[in_ems_idxs + 100] + vel_scale * vxs[in_ems_idxs + 100]],
-                      [ys[in_ems_idxs + 100], ys[in_ems_idxs + 100] + vel_scale * vys[in_ems_idxs + 100]],
-                      [zs[in_ems_idxs + 100], zs[in_ems_idxs + 100] + vel_scale * vzs[in_ems_idxs + 100]], color='orange',
-                      zorder=15)
+                            ri = np.array([xs[index - 1], ys[index - 1], zs[index - 1]])
+                            rip1 = np.array([xs[index], ys[index], zs[index]])
+                            vi = np.array([vxs[index - 1], vys[index - 1], vzs[index - 1]])
+                            vip1 = np.array([vxs[index], vys[index], vzs[index]])
+                            vim = (vi + vip1) / np.linalg.norm(vi + vip1)
+                            di = (rip1 - ri) / np.linalg.norm(rip1 - ri)
 
-            ax.set_xlim([0.99, 1.01])
-            ax.set_ylim([-0.01, 0.01])
-            ax.set_zlim([-0.01, 0.01])
+                            ria = np.array([xsdima[index - 1], ysdima[index - 1], zsdima[index - 1]])
+                            rip1a = np.array([xsdima[index], ysdima[index], zsdima[index]])
+                            via = np.array([vxsdima[index - 1], vysdima[index - 1], vzsdima[index - 1]])
+                            vip1a = np.array([vxsdima[index], vysdima[index], vzsdima[index]])
+                            vima = (via + vip1a) / np.linalg.norm(via + vip1a)
+                            dia = (rip1a - ria) / np.linalg.norm(rip1a - ria)
 
-            fig3 = plt.figure()
-            ax = fig3.add_subplot(111, projection='3d')
-            vel_scale = 1
-            ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
-            xw = 0.0038752837677 * np.cos(ut) * np.sin(v) + ems[in_ems_idxs][0]
-            yw = 0.0038752837677 * np.sin(ut) * np.sin(v) + ems[in_ems_idxs][1]
-            zw = 0.0038752837677 * np.cos(v) + + ems[in_ems_idxs][2]
-            ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
-            ax.scatter(+ ems[in_ems_idxs][0], + ems[in_ems_idxs][1], + ems[in_ems_idxs][2], color='blue', s=10)
-            ax.plot3D(xsdim, ysdim, zsdim, color='grey', zorder=10)
-            ax.scatter(xsdim[in_ems_idxs], ysdim[in_ems_idxs], zsdim[in_ems_idxs], color='red', s=10)
-            ax.scatter(xsdim[in_ems_idxs + 10], ysdim[in_ems_idxs + 10], zsdim[in_ems_idxs + 10], color='orange', s=10)
-            ax.plot3D([xsdim[in_ems_idxs], xsdim[in_ems_idxs] + vel_scale * vxsdim[in_ems_idxs]],
-                      [ysdim[in_ems_idxs], ysdim[in_ems_idxs] + vel_scale * vysdim[in_ems_idxs]],
-                      [zsdim[in_ems_idxs], zsdim[in_ems_idxs] + vel_scale * vzsdim[in_ems_idxs]], color='red', zorder=15)
-            ax.plot3D([xsdim[in_ems_idxs + 10], xsdim[in_ems_idxs + 10] + vel_scale * vxsdim[in_ems_idxs + 10]],
-                      [ysdim[in_ems_idxs + 10], ysdim[in_ems_idxs + 10] + vel_scale * vysdim[in_ems_idxs + 10]],
-                      [zsdim[in_ems_idxs + 10], zsdim[in_ems_idxs + 10] + vel_scale * vzsdim[in_ems_idxs + 10]], color='orange',
-                      zorder=15)
+                            riah = np.array([hrx[index - 1], hry[index - 1], hrz[index - 1]])
+                            rip1ah = np.array([hrx[index], hry[index], hrz[index]])
+                            viah = np.array([hvx[index - 1], hvy[index - 1], hvz[index - 1]])
+                            vip1ah = np.array([hvx[index], hvy[index], hvz[index]])
+                            vimah = (viah + vip1ah) / np.linalg.norm(viah + vip1ah)
+                            diah = (rip1ah - riah) / np.linalg.norm(rip1ah - riah)
 
-            ax.set_xlim([ems[in_ems_idxs][0] - 0.01, ems[in_ems_idxs][0] + 0.01])
-            ax.set_ylim([ems[in_ems_idxs][1] - 0.01, ems[in_ems_idxs][1] + 0.01])
-            ax.set_zlim([ems[in_ems_idxs][2] - 0.01, ems[in_ems_idxs][2] + 0.01])
+                            coherence.append(di @ vim)  # omega
+                            coherencea.append(dia @ vima)  # omega 2
+                            coherencedim.append(didim @ vimdim)  # omega non-dimmed omega
+                            coherenceh.append(diah @ vimah)  # heliocentric
 
-            # fig3 = plt.figure()
-            # ax = fig3.add_subplot(111, projection='3d')
-            # vel_scale = 1
-            # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
-            # xw = 0.0038752837677  * np.cos(ut) * np.sin(v) + data['Earth x (Helio)'].iloc[in_ems_idxs]
-            # yw = 0.0038752837677  * np.sin(ut) * np.sin(v) + data['Earth y (Helio)'].iloc[in_ems_idxs]
-            # zw = 0.0038752837677  * np.cos(v) + data['Earth z (Helio)'].iloc[in_ems_idxs]
-            # ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
-            # ax.scatter(data['Earth x (Helio)'].iloc[in_ems_idxs], data['Earth y (Helio)'].iloc[in_ems_idxs], data['Earth z (Helio)'].iloc[in_ems_idxs], color='blue', s=10)
-            # ax.plot3D(data['Earth x (Helio)'], data['Earth y (Helio)'], data['Earth z (Helio)'], color='grey', zorder=10)
-            # ax.scatter(data['Helio x'].iloc[in_ems_idxs], data['Helio y'].iloc[in_ems_idxs], data['Helio z'].iloc[in_ems_idxs], color='red', s=10)
-            # ax.scatter(xs[in_ems_idxs + 10], ys[in_ems_idxs + 10], zs[in_ems_idxs + 10], color='orange', s=10)
-            # ax.plot3D([data['Earth x (Helio)'].iloc[in_ems_idxs], data['Earth x (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Earth vx (Helio)'].iloc[in_ems_idxs]],
-            #           [data['Earth y (Helio)'].iloc[in_ems_idxs], data['Earth y (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Earth vy (Helio)'].iloc[in_ems_idxs]],
-            #           [data['Earth z (Helio)'].iloc[in_ems_idxs], data['Earth z (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Earth vz (Helio)'].iloc[in_ems_idxs]], color='red', zorder=15)
-            # ax.scatter(data['Earth x (Helio)'].iloc[in_ems_idxs], data['Earth y (Helio)'].iloc[in_ems_idxs],
-            #            data['Earth z (Helio)'].iloc[in_ems_idxs], color='blue', s=10)
-            # ax.plot3D(data['Moon x (Helio)'], data['Moon y (Helio)'], data['Moon z (Helio)'], color='red',
-            #           zorder=10)
-            # ax.scatter(data['Moon x (Helio)'].iloc[in_ems_idxs], data['Moon y (Helio)'].iloc[in_ems_idxs],
-            #            data['Moon z (Helio)'].iloc[in_ems_idxs], color='orange', s=10)
-            # ax.scatter(xs[in_ems_idxs + 10], ys[in_ems_idxs + 10], zs[in_ems_idxs + 10], color='orange', s=10)
-            # ax.plot3D([data['Moon x (Helio)'].iloc[in_ems_idxs],
-            #            data['Moon x (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Moon vx (Helio)'].iloc[
-            #                in_ems_idxs]],
-            #           [data['Moon y (Helio)'].iloc[in_ems_idxs],
-            #            data['Moon y (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Moon vy (Helio)'].iloc[
-            #                in_ems_idxs]],
-            #           [data['Moon z (Helio)'].iloc[in_ems_idxs],
-            #            data['Moon z (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Moon vz (Helio)'].iloc[
-            #                in_ems_idxs]], color='orange', zorder=15)
-            #
-            # ax.set_xlim([0.1, 0.4])
-            # ax.set_ylim([-0.9, 1.1])
-            # ax.set_zlim([-0.01, 0.01])
-            plt.show()
+            if xs:
+                in_ems_idxs = int(row2['Entry to EMS Index'])
+                fig3 = plt.figure()
+                ax = fig3.add_subplot(111, projection='3d')
+                vel_scale = 1
+                ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+                xw = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + 1
+                yw = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v)
+                zw = 0.0038752837677 / r_sE * np.cos(v)
+                ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1, label='SOI of EMS')
+                ax.scatter(1, 0, 0, color='blue', s=50, label='Earth-Moon barycentre')
+                ax.plot3D(xs, ys, zs, color='grey', zorder=10)
+                ax.scatter(xs[in_ems_idxs], ys[in_ems_idxs], zs[in_ems_idxs], color='red', s=10, label='$\omega_{SE}$ at SOI of EMS')
+                # ax.scatter(xs[in_ems_idxs + 100], ys[in_ems_idxs + 100], zs[in_ems_idxs + 100], color='orange', s=10)
+                ax.plot3D([xs[in_ems_idxs], xs[in_ems_idxs] + vel_scale * vxs[in_ems_idxs]], [ys[in_ems_idxs], ys[in_ems_idxs] + vel_scale * vys[in_ems_idxs]],
+                          [zs[in_ems_idxs], zs[in_ems_idxs] + vel_scale * vzs[in_ems_idxs]], color='red', zorder=15)
+                # ax.plot3D([xs[in_ems_idxs + 100], xs[in_ems_idxs + 100] + vel_scale * vxs[in_ems_idxs + 100]],
+                #           [ys[in_ems_idxs + 100], ys[in_ems_idxs + 100] + vel_scale * vys[in_ems_idxs + 100]],
+                #           [zs[in_ems_idxs + 100], zs[in_ems_idxs + 100] + vel_scale * vzs[in_ems_idxs + 100]], color='orange',
+                #           zorder=15)
+                # ax.plot3D(xsdima, ysdima, zsdima)
+                ax.scatter(xsdima[in_ems_idxs], ysdima[in_ems_idxs], zsdima[in_ems_idxs], color='blue', s=10, label='$\omega^{\prime}_{SE}$ at SOI of EMS')
+                ax.plot3D([xsdima[in_ems_idxs], xsdima[in_ems_idxs] + vel_scale * vxsdima[in_ems_idxs]], [ysdima[in_ems_idxs], ysdima[in_ems_idxs] + vel_scale * vysdima[in_ems_idxs]],
+                          [zsdima[in_ems_idxs], zsdima[in_ems_idxs] + vel_scale * vzsdima[in_ems_idxs]], color='blue', zorder=25)
+
+                ax.set_xlim([0.99, 1.01])
+                ax.set_ylim([-0.01, 0.01])
+                ax.set_zlim([-0.01, 0.01])
+                num_ticks = 3
+                ax.xaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+                ax.yaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+                ax.zaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+                ax.set_xlabel('Synodic x ($\emptyset$)')
+                ax.set_ylabel('Synodic y ($\emptyset$)')
+                ax.set_zlabel('Synodic z ($\emptyset$)')
+                ax.legend()
+
+                fig = plt.figure()
+                plt.scatter(1, 0, color='blue', s=80, label='Earth-Moon barycentre')
+                plt.scatter(xs[in_ems_idxs], ys[in_ems_idxs],  color='red', zorder=10, s=10, label='$\omega_{SE}$ at SOI of EMS')
+                plt.scatter(xsdima[in_ems_idxs], ysdima[in_ems_idxs], color='blue', s=30, zorder=5,  label='$\omega^{\prime}_{SE}$ at SOI of EMS')
+                plt.plot([xs[in_ems_idxs], xs[in_ems_idxs] + vxs[in_ems_idxs]],
+                          [ys[in_ems_idxs], ys[in_ems_idxs] + vys[in_ems_idxs]], color='red', zorder=15)
+                plt.plot([xsdima[in_ems_idxs], xsdima[in_ems_idxs] + vxsdima[in_ems_idxs]],
+                          [ysdima[in_ems_idxs], ysdima[in_ems_idxs] + vysdima[in_ems_idxs]], color='blue', zorder=5)
+                plt.plot(xs, ys, color='grey', label='STC Trajectory')
+                c1 = plt.Circle((1, 0), radius=0.0038752837677 / r_sE, alpha=0.1)
+                plt.gca().add_artist(c1)
+                plt.xlabel('Synodic x ($\emptyset$)')
+                plt.ylabel('Synodix y ($\emptyset$)')
+                plt.xlim([0.985, 1.015])
+                plt.ylim([-0.015, 0.015])
+                plt.legend()
+
+
+                # plt.plot([ems_barycentre[0], h_r_M[0]], [ems_barycentre[1], h_r_M[1]], color='orange')
+                # plt.plot([ems_barycentre[0], h_r_TCO[0]], [ems_barycentre[1], h_r_TCO[1]], color='red')
+                # plt.plot([h_r_TCO[0], h_r_TCO[0] + C_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + C_v_TCO[1]], color='green')
+                # plt.plot([h_r_TCO[0], h_r_TCO[0] + h_v_TCO[0]], [h_r_TCO[1], h_r_TCO[1] + h_v_TCO[1]], color='grey')
+                # plt.plot([r_C[0], r_C[0] + C_R_h[0, 0]], [r_C[1], r_C[1] + C_R_h[0, 1]], color='red')
+                # plt.plot([r_C[0], r_C[0] + C_R_h[1, 0]], [r_C[1], r_C[1] + C_R_h[1, 1]], color='green')
+                # plt.xlim([-1.5, 1.5])
+                # plt.ylim([-1.5, 1.5])
+                # plt.gca().set_aspect('equal')
+                # plt.plot([r_C[0], ems_barycentre[0]], [r_C[1], ems_barycentre[1]])
+                # plt.show()
+
+                fig3 = plt.figure()
+                print(row2['Object id'])
+                print(row2['STC'])
+                print("Coherence with omega 1: " + str(coherence[in_ems_idxs + 1]))
+                print("Coherence with omega 2: " + str(coherencea[in_ems_idxs + 1]))
+                print("Coherence of non-dim vel omega 1: " + str(coherencedim[in_ems_idxs + 1]))
+                print("Coherence of helio vel: " + str(coherenceh[in_ems_idxs + 1]))
+                plt.plot([i for i in range(1, len(coherence) + 1)], coherence, linewidth=1, zorder=5, color='red', label='${}^Cv_{TCO\emptyset}$ with $\Omega_{SE}$')
+                plt.plot([i for i in range(1, len(coherencea) + 1)], coherencea, linewidth=1, zorder=10, color='blue', label='${}^Cv_{TCO\emptyset}$ with $\Omega^{\prime}_{SE}$')
+                plt.plot([i for i in range(1, len(coherencedim) + 1)], coherencedim, linewidth=1, zorder=3, color='green', label='${}^Cv_{TCO}$ with $\Omega_{SE}$')
+                plt.plot([i for i in range(1, len(coherenceh) + 1)], coherenceh, linewidth=3, zorder=2, color='orange', label='${}^hv_{TCO}$')
+                plt.scatter(in_ems_idxs, coherence[in_ems_idxs], s=20, zorder=5, color='red')
+                plt.scatter(in_ems_idxs, coherencea[in_ems_idxs], s=20, zorder=10, color='blue')
+                plt.scatter(in_ems_idxs, coherencedim[in_ems_idxs], s=20, zorder=3, color='green')
+                plt.scatter(in_ems_idxs, coherenceh[in_ems_idxs], s=20, zorder=2, color='orange')
+                plt.xlabel('Timestep')
+                plt.ylabel('Coherence')
+                plt.legend()
+
+                # fig3 = plt.figure()
+                # ax = fig3.add_subplot(111, projection='3d')
+                # vel_scale = 1
+                # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+                # xw = 0.0038752837677 * np.cos(ut) * np.sin(v) + ems[in_ems_idxs][0]
+                # yw = 0.0038752837677 * np.sin(ut) * np.sin(v) + ems[in_ems_idxs][1]
+                # zw = 0.0038752837677 * np.cos(v) + + ems[in_ems_idxs][2]
+                # ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
+                # ax.scatter(+ ems[in_ems_idxs][0], + ems[in_ems_idxs][1], + ems[in_ems_idxs][2], color='blue', s=10)
+                # ax.plot3D(xsdim, ysdim, zsdim, color='grey', zorder=10)
+                # ax.scatter(xsdim[in_ems_idxs], ysdim[in_ems_idxs], zsdim[in_ems_idxs], color='red', s=10)
+                # ax.scatter(xsdim[in_ems_idxs + 10], ysdim[in_ems_idxs + 10], zsdim[in_ems_idxs + 10], color='orange', s=10)
+                # ax.plot3D([xsdim[in_ems_idxs], xsdim[in_ems_idxs] + vel_scale * vxsdim[in_ems_idxs]],
+                #           [ysdim[in_ems_idxs], ysdim[in_ems_idxs] + vel_scale * vysdim[in_ems_idxs]],
+                #           [zsdim[in_ems_idxs], zsdim[in_ems_idxs] + vel_scale * vzsdim[in_ems_idxs]], color='red', zorder=15)
+                # ax.plot3D([xsdim[in_ems_idxs + 10], xsdim[in_ems_idxs + 10] + vel_scale * vxsdim[in_ems_idxs + 10]],
+                #           [ysdim[in_ems_idxs + 10], ysdim[in_ems_idxs + 10] + vel_scale * vysdim[in_ems_idxs + 10]],
+                #           [zsdim[in_ems_idxs + 10], zsdim[in_ems_idxs + 10] + vel_scale * vzsdim[in_ems_idxs + 10]], color='orange',
+                #           zorder=15)
+                #
+                # ax.set_xlim([ems[in_ems_idxs][0] - 0.01, ems[in_ems_idxs][0] + 0.01])
+                # ax.set_ylim([ems[in_ems_idxs][1] - 0.01, ems[in_ems_idxs][1] + 0.01])
+                # ax.set_zlim([ems[in_ems_idxs][2] - 0.01, ems[in_ems_idxs][2] + 0.01])
+
+                # fig3 = plt.figure()
+                # ax = fig3.add_subplot(111, projection='3d')
+                # vel_scale = 1
+                # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+                # xw = 0.0038752837677  * np.cos(ut) * np.sin(v) + data['Earth x (Helio)'].iloc[in_ems_idxs]
+                # yw = 0.0038752837677  * np.sin(ut) * np.sin(v) + data['Earth y (Helio)'].iloc[in_ems_idxs]
+                # zw = 0.0038752837677  * np.cos(v) + data['Earth z (Helio)'].iloc[in_ems_idxs]
+                # ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
+                # ax.scatter(data['Earth x (Helio)'].iloc[in_ems_idxs], data['Earth y (Helio)'].iloc[in_ems_idxs], data['Earth z (Helio)'].iloc[in_ems_idxs], color='blue', s=10)
+                # ax.plot3D(data['Earth x (Helio)'], data['Earth y (Helio)'], data['Earth z (Helio)'], color='grey', zorder=10)
+                # ax.scatter(data['Helio x'].iloc[in_ems_idxs], data['Helio y'].iloc[in_ems_idxs], data['Helio z'].iloc[in_ems_idxs], color='red', s=10)
+                # ax.scatter(xs[in_ems_idxs + 10], ys[in_ems_idxs + 10], zs[in_ems_idxs + 10], color='orange', s=10)
+                # ax.plot3D([data['Earth x (Helio)'].iloc[in_ems_idxs], data['Earth x (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Earth vx (Helio)'].iloc[in_ems_idxs]],
+                #           [data['Earth y (Helio)'].iloc[in_ems_idxs], data['Earth y (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Earth vy (Helio)'].iloc[in_ems_idxs]],
+                #           [data['Earth z (Helio)'].iloc[in_ems_idxs], data['Earth z (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Earth vz (Helio)'].iloc[in_ems_idxs]], color='red', zorder=15)
+                # ax.scatter(data['Earth x (Helio)'].iloc[in_ems_idxs], data['Earth y (Helio)'].iloc[in_ems_idxs],
+                #            data['Earth z (Helio)'].iloc[in_ems_idxs], color='blue', s=10)
+                # ax.plot3D(data['Moon x (Helio)'], data['Moon y (Helio)'], data['Moon z (Helio)'], color='red',
+                #           zorder=10)
+                # ax.scatter(data['Moon x (Helio)'].iloc[in_ems_idxs], data['Moon y (Helio)'].iloc[in_ems_idxs],
+                #            data['Moon z (Helio)'].iloc[in_ems_idxs], color='orange', s=10)
+                # ax.scatter(xs[in_ems_idxs + 10], ys[in_ems_idxs + 10], zs[in_ems_idxs + 10], color='orange', s=10)
+                # ax.plot3D([data['Moon x (Helio)'].iloc[in_ems_idxs],
+                #            data['Moon x (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Moon vx (Helio)'].iloc[
+                #                in_ems_idxs]],
+                #           [data['Moon y (Helio)'].iloc[in_ems_idxs],
+                #            data['Moon y (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Moon vy (Helio)'].iloc[
+                #                in_ems_idxs]],
+                #           [data['Moon z (Helio)'].iloc[in_ems_idxs],
+                #            data['Moon z (Helio)'].iloc[in_ems_idxs] + vel_scale * data['Moon vz (Helio)'].iloc[
+                #                in_ems_idxs]], color='orange', zorder=15)
+                #
+                # ax.set_xlim([0.1, 0.4])
+                # ax.set_ylim([-0.9, 1.1])
+                # ax.set_zlim([-0.01, 0.01])
+                plt.show()
 
     @staticmethod
     def no_moon_pop(master_file_nomoon, master_file):
@@ -1237,7 +1404,7 @@ if __name__ == '__main__':
 
     mm_main = MmMain()
 
-    destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+    destination_path = os.path.join(os.getcwd(), 'Test_Set')
     destination_file = destination_path + '/minimoon_master_final.csv'
     start_file = destination_path + '/minimoon_master_final (copy).csv'
 
