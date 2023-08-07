@@ -3,6 +3,8 @@ from astropy.time import Time
 import astropy.units as u
 from astropy.units import cds
 from scipy.optimize import fsolve
+from poliastro.twobody import Orbit
+from poliastro.bodies import Sun, Earth, Moon
 cds.enable()
 
 
@@ -150,3 +152,186 @@ def get_geo_v(dec, ra, ddec, dra, d, dd):
     geo_vz = dd * np.sin(np.deg2rad(dec)) + d * np.deg2rad(ddec) * np.cos(np.deg2rad(dec))
 
     return geo_vx, geo_vy, geo_vz
+
+def get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M, date_mjd):
+
+    # get the jacobi constant using ephimeris data
+    seconds_in_day = 86400
+    km_in_au = 149597870700 / 1000
+    mu_s = 1.3271244e11 / np.power(km_in_au, 3)  # km^3/s^2 to AU^3/s^2
+    mu_e = 3.986e5  # km^3/s^2
+    mu_M = 4.9028e3  # km^3/s^2
+    mu_EMS = (mu_M + mu_e) / np.power(km_in_au, 3)  # km^3/s^2 = m_E + mu_M to AU^3/s^2
+    m_e = 5.97219e24  # mass of Earth kg
+    m_m = 7.34767309e22  # mass of the Moon kg
+    m_s = 1.9891e30  # mass of the Sun kg
+
+    ############################################
+    # Proposed method
+    ###########################################
+
+    ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre AU
+    vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric velocity of the ems barycentre AU/day
+
+    r_C = (m_e + m_m) * ems_barycentre / (m_e + m_m + m_s)  # barycentre of sun-earth/moon AU
+    r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun AU
+    omega = np.array([0, 0, np.sqrt((mu_s + mu_EMS) * seconds_in_day ** 2 / np.power(r_sE, 3))])  # angular velocity of sun-ems barycentre 1/day
+    omega_2 = np.cross(ems_barycentre, vems_barycentre) / r_sE ** 2
+
+    v_C = np.linalg.norm(r_C) / r_sE * vems_barycentre  # velocity of barycentre  AU/day
+
+    r = [km_in_au * ems_barycentre[0], km_in_au * ems_barycentre[1], km_in_au * ems_barycentre[2]] << u.km  # km
+    v = [km_in_au / seconds_in_day * vems_barycentre[0], km_in_au / seconds_in_day * vems_barycentre[1],
+         km_in_au / seconds_in_day * vems_barycentre[2]] << u.km / u.s  # AU/day
+
+    orb = Orbit.from_vectors(Sun, r, v, Time(date_mjd, format='mjd', scale='utc'))
+    Om = np.deg2rad(orb.raan)  # in rad
+    om = np.deg2rad(orb.argp)
+    i = np.deg2rad(orb.inc)
+    theta = np.deg2rad(orb.nu)
+
+    # convert from heliocentric to synodic with a euler rotation
+    h_R_C_peri = np.array([[-np.sin(Om) * np.cos(i) * np.sin(om) + np.cos(Om) * np.cos(om),
+                            -np.sin(Om) * np.cos(i) * np.cos(om) - np.cos(Om) * np.sin(om),
+                            np.sin(Om) * np.sin(i)],
+                           [np.cos(Om) * np.cos(i) * np.sin(om) + np.sin(Om) * np.cos(om),
+                            np.cos(Om) * np.cos(i) * np.cos(om) - np.sin(Om) * np.sin(om),
+                            -np.cos(Om) * np.sin(i)],
+                           [np.sin(i) * np.sin(om), np.sin(i) * np.cos(om), np.cos(i)]])
+
+    # rotation from perihelion to location of ems_barycentre (i.e. rotation by true anomaly)
+    C_peri_R_C = np.array([[np.cos(theta), -np.sin(theta), 0.],
+                           [np.sin(theta), np.cos(theta), 0.],
+                           [0., 0., 1.]])
+
+    C_R_h = C_peri_R_C.T @ h_R_C_peri.T
+
+    # translation
+    C_T_h = np.array([np.linalg.norm(r_C), 0., 0.]).ravel()  # AU
+
+    # in sun-earth/moon corotating
+    C_r_TCO = C_R_h @ h_r_TCO - C_T_h  # AU
+    C_ems = C_R_h @ ems_barycentre - C_T_h
+    C_moon = C_R_h @ h_r_M - C_T_h
+
+    C_v_TCO = C_R_h @ (h_v_TCO - v_C) - np.cross(omega, C_r_TCO)  # AU/day
+    C_v_TCO_2 = C_R_h @ (h_v_TCO - v_C) - np.cross(omega_2, C_r_TCO)  # AU/day
+
+    ################################
+    # Anderson and Lo
+    ###############################
+
+    # 1 - get state vectors (we have from proposed method)
+
+    # 2 - Length unit
+    LU = r_sE
+
+    # 3 - Compute omega
+    # omega_a = np.cross(ems_barycentre, vems_barycentre)
+    # omega_a_n = omega_a / LU ** 2
+
+    # 4 - Time and velocity unites
+    # TU = 1 / np.linalg.norm(omega_a_n)
+    # VU = LU / TU
+
+    # 5 - First axis of rotated frame
+    # e_1 = ems_barycentre / np.linalg.norm(ems_barycentre)
+
+    # 6- third axis
+    # e_3 = omega_a_n / np.linalg.norm(omega_a_n)
+
+    # 7 - second axis
+    # e_2 = np.cross(e_3, e_1)
+
+    # 8 - rotation matrix
+    # Q = np.array([e_1, e_2, e_3])
+
+    # 9 - rotate postion vector
+    # C_r_TCO_a = Q @ h_r_TCO
+
+    # 10 - get velocity
+    # C_v_TCO_a = Q @ (h_v_TCO - v_C) - Q @ np.cross(omega_a_n, h_r_TCO)
+
+    # 11 - convert to nondimensional
+    # C_r_TCO_a_n = C_r_TCO_a / LU
+    # C_v_TCO_a_n = C_v_TCO_a / VU
+
+    # C_r_TCO_a_n = C_r_TCO_a_n + np.array([mu, 0., 0.])
+
+    return C_r_TCO, C_v_TCO, C_v_TCO_2, C_ems, C_moon, ems_barycentre, vems_barycentre, omega, omega_2, r_sE, mu_s, mu_EMS
+
+def jacobi_dim_and_non_dim(C_r_TCO, C_v_TCO, h_r_TCO, ems_barycentre, mu, mu_s, mu_EMS, omega, r_sE):
+
+    seconds_in_day = 86400
+    km_in_au = 149597870700 / 1000
+
+    v_rel = np.linalg.norm(C_v_TCO)  # AU/day
+
+    # sun-TCO distance
+    r_s = np.linalg.norm(h_r_TCO)  # AU
+
+    # ems-TCO distance
+    r_EMS = np.linalg.norm([h_r_TCO[0] - ems_barycentre[0], h_r_TCO[1] - ems_barycentre[1], h_r_TCO[2] - ems_barycentre[2]])  # AU
+
+    constant = 0 #mu * (1 - mu) * (r_sE * km_in_au) ** 2 * np.linalg.norm(omega / seconds_in_day) ** 2
+
+    # dimensional Jacobi constant km^2/s^2
+    print(np.linalg.norm(omega))
+    C_J_dimensional = ((np.linalg.norm(omega) / seconds_in_day) ** 2 * (C_r_TCO[0] ** 2 + C_r_TCO[1] ** 2) + 2 * mu_s / r_s + 2 * mu_EMS / r_EMS - (
+            v_rel / seconds_in_day) ** 2) * np.power(km_in_au, 2) + constant  # might be missing a constant
+
+    # non dimensional Jacobi constant
+    x_prime = C_r_TCO[0] / r_sE
+    y_prime = C_r_TCO[1] / r_sE
+    z_prime = C_r_TCO[2] / r_sE
+
+    x_dot_prime = C_v_TCO[0] / (np.linalg.norm(omega) * r_sE)
+    y_dot_prime = C_v_TCO[1] / (np.linalg.norm(omega) * r_sE)
+    z_dot_prime = C_v_TCO[2] / (np.linalg.norm(omega) * r_sE)
+    v_prime = x_dot_prime ** 2 + y_dot_prime ** 2 + z_dot_prime ** 2
+    r_s_prime = np.sqrt((x_prime + mu) ** 2 + y_prime ** 2 + z_prime ** 2)
+    r_EMS_prime = np.sqrt((x_prime - (1 - mu)) ** 2 + y_prime ** 2 + z_prime ** 2)
+    C_J_nondimensional = x_prime ** 2 + y_prime ** 2 + 2 * (
+            1 - mu) / r_s_prime + 2 * mu / r_EMS_prime - v_prime  #+ mu * (1 - mu)
+
+    return C_J_dimensional, C_J_nondimensional
+
+def model(state, time, mu=0.01215):
+    # Define the dynamics of the system
+    # state: current state vector
+    # time: current time
+    # return: derivative of the state vector
+
+    x, y, z, vx, vy, vz = state  # position and velocity
+
+    dUdx = -(mu * (mu + x - 1))/np.power(((mu + x - 1)**2 + y**2 + z**2), (3/2)) - \
+           ((1 - mu) * (mu + x))/np.power(((mu + x)**2 + y**2 + z**2),(3/2)) + x
+    dUdy = - (mu * y)/np.power(((mu + x - 1)**2 + y**2 + z**2), (3/2)) - \
+           ((1 - mu) * y)/np.power(((mu + x)**2 + y**2 + z**2), (3/2)) + y
+    dUdz = - (mu * z)/np.power(((mu + x - 1)**2 + y**2 + z**2), (3/2)) - \
+           ((1 - mu) * z)/np.power(((mu + x)**2 + y**2 + z**2), (3/2))
+
+    dxdt = vx  # derivative of position is velocity
+    dydt = vy
+    dzdt = vz
+    dvxdt = dUdx + 2*dydt  # derivative of velocity is acceleration
+    dvydt = dUdy - 2*dxdt
+    dvzdt = dUdz
+
+    dXdt = np.array([dxdt, dydt, dzdt, dvxdt, dvydt, dvzdt])
+
+    return dXdt
+
+def jacobi(res, mu):
+    """
+
+    :param res: the resultant state vector from a periodic orbit
+    :param mu: the gravitational parameter
+    :return: the jacobi constant
+    """
+    x, y, z, vx, vy, vz = res
+    r1 = np.sqrt((x + mu) ** 2 + y ** 2)
+    r2 = np.sqrt((x - 1 + mu) ** 2 + y ** 2)
+    U = 0.5 * (x ** 2 + y ** 2) + (1 - mu) / r1 + mu / r2
+
+    return 2*U - vx**2 - vy**2 - vz**2

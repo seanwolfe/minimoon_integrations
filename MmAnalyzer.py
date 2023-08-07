@@ -8,7 +8,7 @@ from space_fncs import get_M
 from space_fncs import get_theta_from_M
 from space_fncs import getH2D
 from space_fncs import get_emb_synodic
-# import pyoorb
+import pyoorb
 import numpy as np
 import os
 from astropy.time import Time
@@ -22,6 +22,12 @@ from scipy.signal import argrelextrema
 from space_fncs import get_geo_v
 from poliastro.twobody import Orbit
 from poliastro.bodies import Sun, Earth, Moon
+from space_fncs import get_r_and_v_cr3bp_from_nbody_sun_emb
+from space_fncs import jacobi_dim_and_non_dim
+from space_fncs import model
+from space_fncs import jacobi
+from scipy.integrate import odeint
+import matplotlib.ticker as ticker
 
 cds.enable()
 numpy.set_printoptions(threshold=sys.maxsize)
@@ -1334,11 +1340,149 @@ class MmAnalyzer:
 
         return results
 
+    @staticmethod
+    def calc_coherence(C_r_TCO, C_v_TCO, C_r_TCO_p1, C_v_TCO_p1):
+
+        return (C_r_TCO_p1 - C_r_TCO) / np.linalg.norm(C_r_TCO_p1 - C_r_TCO) @ (C_v_TCO_p1 + C_v_TCO) / np.linalg.norm(
+            C_v_TCO_p1 + C_v_TCO)
+
+    def find_good_cr3bp_state(self, data, in_ems_idxs, coherence_threshold, omega, r_sE, mu):
+
+        # look backwards until you find a good coherence
+        seconds_in_day = 86400
+        i = in_ems_idxs - 1
+        coherence = 0
+        found = 0
+        r_SOIEMS = 0.0038752837677 / r_sE
+        rs = []
+
+        while coherence < coherence_threshold:
+            h_r_TCO = np.array(
+                [data['Helio x'].iloc[i], data['Helio y'].iloc[i], data['Helio z'].iloc[i]]).ravel()  # AU
+            h_r_M = np.array([data['Moon x (Helio)'].iloc[i], data['Moon y (Helio)'].iloc[i],
+                              data['Moon z (Helio)'].iloc[i]]).ravel()
+            h_r_E = np.array([data['Earth x (Helio)'].iloc[i], data['Earth y (Helio)'].iloc[i],
+                              data['Earth z (Helio)'].iloc[i]]).ravel()
+            h_v_TCO = np.array(
+                [data['Helio vx'].iloc[i], data['Helio vy'].iloc[i], data['Helio vz'].iloc[i]]).ravel()  # AU/day
+            h_v_M = np.array([data['Moon vx (Helio)'].iloc[i], data['Moon vy (Helio)'].iloc[i],
+                              data['Moon vz (Helio)'].iloc[i]]).ravel()
+            h_v_E = np.array([data['Earth vx (Helio)'].iloc[i], data['Earth vy (Helio)'].iloc[i],
+                              data['Earth vz (Helio)'].iloc[i]]).ravel()
+            date_mjd = Time(data['Julian Date'].iloc[i], format='jd').to_value('mjd')
+
+            C_r_TCO, C_v_TCO, C_v_TCO_2, C_ems, C_moon, ems_barycentre, vems_barycentre, omega, omega_2, r_sE, mu_s, mu_EMS = (
+                get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M, date_mjd))
+
+            h_r_TCO_p1 = np.array(
+                [data['Helio x'].iloc[i + 1], data['Helio y'].iloc[i + 1], data['Helio z'].iloc[i + 1]]).ravel()  # AU
+            h_r_M_p1 = np.array([data['Moon x (Helio)'].iloc[i + 1], data['Moon y (Helio)'].iloc[i + 1],
+                                 data['Moon z (Helio)'].iloc[i + 1]]).ravel()
+            h_r_E_p1 = np.array([data['Earth x (Helio)'].iloc[i + 1], data['Earth y (Helio)'].iloc[i + 1],
+                                 data['Earth z (Helio)'].iloc[i + 1]]).ravel()
+            h_v_TCO_p1 = np.array([data['Helio vx'].iloc[i + 1], data['Helio vy'].iloc[i + 1],
+                                   data['Helio vz'].iloc[i + 1]]).ravel()  # AU/day
+            h_v_M_p1 = np.array([data['Moon vx (Helio)'].iloc[i + 1], data['Moon vy (Helio)'].iloc[i + 1],
+                                 data['Moon vz (Helio)'].iloc[i + 1]]).ravel()
+            h_v_E_p1 = np.array([data['Earth vx (Helio)'].iloc[i + 1], data['Earth vy (Helio)'].iloc[i + 1],
+                                 data['Earth vz (Helio)'].iloc[i + 1]]).ravel()
+            date_mjd_p1 = Time(data['Julian Date'].iloc[i + 1], format='jd').to_value('mjd')
+
+            C_r_TCO_p1, C_v_TCO_p1, C_v_TCO_2_p1, C_ems_p1, C_moon_p1, ems_barycentre_p1, vems_barycentre_p1, omega_p1, omega_2_p1, r_sE_p1, mu_s_p1, mu_EMS_p1 = (
+                get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO_p1, h_v_TCO_p1, h_r_E_p1, h_v_E_p1, h_r_M_p1, h_v_M_p1,
+                                                     date_mjd_p1))
+            C_r_TCO_nondim = C_r_TCO / r_sE
+            C_v_TCO_nondim = C_v_TCO_2 / (np.linalg.norm(omega) * r_sE)
+            C_r_TCO_nondim_p1 = C_r_TCO_p1 / r_sE_p1
+            C_v_TCO_nondim_p1 = C_v_TCO_2_p1 / (np.linalg.norm(omega_p1) * r_sE_p1)
+
+            rs.append(C_r_TCO_nondim)
+
+            coherence = self.calc_coherence(C_r_TCO_nondim, C_v_TCO_nondim, C_r_TCO_nondim_p1, C_v_TCO_nondim_p1)
+
+            if coherence > coherence_threshold:
+                found = 1
+                i = i + 1
+                # grab state
+                good_r_coh = C_r_TCO_nondim
+                good_v_coh = C_v_TCO_nondim
+
+            i = i - 1
+
+        if found:
+
+            # integrate state until soi of ems + 1
+            index_span = in_ems_idxs - i  # also number of hours for hour long integration step
+            additional = 1000
+            num_days = (index_span + additional) * (
+                        data["Julian Date"].iloc[1] - data["Julian Date"].iloc[0])
+            space = 8000  # number of points to plot
+            start = 0  # start time
+            end_time = num_days * (np.linalg.norm(omega))
+            time_span = np.linspace(start, end_time, space)  # over T instead of T/2
+            state = np.hstack((good_r_coh, good_v_coh))
+            print(state)
+            res = odeint(model, state, time_span, args=(mu,))
+
+            fig3 = plt.figure()
+            ax = fig3.add_subplot(111, projection='3d')
+            ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            xw = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + 1
+            yw = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v)
+            zw = 0.0038752837677 / r_sE * np.cos(v)
+            ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1, label='SOI of EMS')
+            ax.scatter(1, 0, 0, color='blue', s=50, label='Earth-Moon barycentre')
+            ax.plot3D(res[:, 0], res[:, 1], res[:, 2])
+            rs = np.array(rs)
+            print(rs)
+            ax.plot3D(rs[:, 0], rs[:, 1], rs[:, 2])
+            print(res)
+            plt.show()
+
+
+            for t in time_span:
+
+                # solve ODE
+                new_time_span = np.linspace(start, t, space)
+
+                res = odeint(model, state, new_time_span, args=(mu,))[-1]
+
+                dist = np.linalg.norm(np.array([res[0] - 1, res[1], res[2]]))
+
+                print(dist)
+                print(r_SOIEMS)
+
+                # Check the stop condition (for example, if the solution crosses a certain threshold)
+                if dist < r_SOIEMS:
+                    final_state_p1 = res
+                    # solve ODE
+                    final_state = odeint(model, state, new_time_span, args=(mu,))[-2]
+                    C_r_TCO_nondim_final = np.array(final_state[0:3])
+                    C_v_TCO_nondim_final = np.array(final_state[3:])
+                    C_r_TCO_nondim_p1_final = np.array(final_state_p1[0:3])
+                    C_v_TCO_nondim_p1_final =  np.array(final_state_p1[3:])
+
+                    # calc coherence
+                    print(self.calc_coherence(C_r_TCO_nondim_final, C_v_TCO_nondim_final, C_r_TCO_nondim_p1_final,
+                                              C_v_TCO_nondim_p1_final))
+
+                    break
+
+
+
+        else:
+            print("error, no good coherence found")
+
+        return C_r_TCO_nondim_final, C_v_TCO_nondim_final
+
     def alpha_beta_jacobi(self, object_id):
 
+        seconds_in_day = 86400
+        km_in_au = 149597870700 / 1000
+
         # go through all the files of test particles
-        # population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
-        population_dir = os.path.join(os.getcwd(), 'Test_Set')
+        population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        # population_dir = os.path.join(os.getcwd(), 'Test_Set')
         population_file = 'minimoon_master_final.csv'
         population_file_path = population_dir + '/' + population_file
 
@@ -1351,14 +1495,6 @@ class MmAnalyzer:
         master = full_master[full_master['Object id'] == object_id]
         print(master)
 
-        # get the jacobi constant using ephimeris data
-        seconds_in_day = 86400
-        km_in_au = 149597870700 / 1000
-
-        mu_s = 1.3271244e11 / np.power(km_in_au, 3)  # km^3/s^2 to AU^3/s^2
-        mu_e = 3.986e5  # km^3/s^2
-        mu_M = 4.9028e3  # km^3/s^2
-        mu_EMS = (mu_M + mu_e) / np.power(km_in_au, 3)  # km^3/s^2 = m_E + mu_M to AU^3/s^2
         x = master['Helio x at EMS']  # AU
         y = master['Helio y at EMS']
         z = master['Helio z at EMS']
@@ -1380,7 +1516,13 @@ class MmAnalyzer:
         date_ems = master['Entry Date to EMS'].iloc[0]  # Julian date
 
         if not np.isnan(date_ems):
+
+            in_ems_idxs = int(master['Entry to EMS Index'].iloc[0])
             date_mjd = Time(date_ems, format='jd').to_value('mjd')
+
+            # read the file
+            name = str(object_id) + ".csv"
+            data = mm_parser.mm_file_parse_new(population_dir + '/' + name)
 
             h_r_TCO = np.array([x, y, z]).ravel()  # AU
             h_r_M = np.array([x_M, y_M, z_M]).ravel()
@@ -1389,111 +1531,61 @@ class MmAnalyzer:
             h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
             h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
 
-            m_e = 5.97219e24  # mass of Earth kg
-            m_m = 7.34767309e22  # mass of the Moon kg
-            m_s = 1.9891e30  # mass of the Sun kg
 
-            ############################################
-            # Proposed method
-            ###########################################
+            C_r_TCO, C_v_TCO, C_v_TCO_2, C_ems, C_moon, ems_barycentre, vems_barycentre, omega, omega_2, r_sE, mu_s, mu_EMS = (
+                get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M, date_mjd))
 
-            ems_barycentre = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre AU
-            vems_barycentre = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric velocity of the ems barycentre AU/day
+            h_r_TCO_p1 = np.array([data['Helio x'].iloc[in_ems_idxs + 1], data['Helio y'].iloc[in_ems_idxs + 1], data['Helio z'].iloc[in_ems_idxs + 1]]).ravel()  # AU
+            h_r_M_p1 = np.array([data['Moon x (Helio)'].iloc[in_ems_idxs + 1], data['Moon y (Helio)'].iloc[in_ems_idxs + 1], data['Moon z (Helio)'].iloc[in_ems_idxs + 1]]).ravel()
+            h_r_E_p1 = np.array([data['Earth x (Helio)'].iloc[in_ems_idxs + 1], data['Earth y (Helio)'].iloc[in_ems_idxs + 1], data['Earth z (Helio)'].iloc[in_ems_idxs + 1]]).ravel()
+            h_v_TCO_p1 = np.array([data['Helio vx'].iloc[in_ems_idxs + 1], data['Helio vy'].iloc[in_ems_idxs + 1], data['Helio vz'].iloc[in_ems_idxs + 1]]).ravel()  # AU/day
+            h_v_M_p1 = np.array([data['Moon vx (Helio)'].iloc[in_ems_idxs + 1], data['Moon vy (Helio)'].iloc[in_ems_idxs + 1], data['Moon vz (Helio)'].iloc[in_ems_idxs + 1]]).ravel()
+            h_v_E_p1 = np.array([data['Earth vx (Helio)'].iloc[in_ems_idxs + 1], data['Earth vy (Helio)'].iloc[in_ems_idxs + 1], data['Earth vz (Helio)'].iloc[in_ems_idxs + 1]]).ravel()
+            date_mjd_p1 = Time(data['Julian Date'].iloc[in_ems_idxs + 1], format='jd').to_value('mjd')
 
-            r_C = (m_e + m_m) * ems_barycentre / (m_e + m_m + m_s)  # barycentre of sun-earth/moon AU
-            r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun AU
-            omega = np.sqrt((mu_s + mu_EMS)/np.power(r_sE, 3))  # angular velocity of sun-ems barycentre 1/s
-
-            v_C = np.linalg.norm(r_C) / r_sE * vems_barycentre  # velocity of barycentre  AU/day
-
-            # not sure if this part is necessary
-            # ephfile = ""
-            # if os.getenv('OORB_DATA'):
-            #     ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
-            # pyoorb.pyoorb.oorb_init(ephfile)
-
-            # sun_c = 11  # 11 for Sun, 3 for Earth
-            # print("Getting helio keplarian osculating elements...")
-            #
-            # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
-            # orbits = np.zeros([1, 12], dtype=np.double, order='F')  # the pyorb function takes slice of 3-d list
-            # orbits[0][:] = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
-            #                 vems_barycentre[2], 1, date_mjd, 1, 10., 0.15]
-            #
-            # new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-            #                                                                 in_element_type=3, in_center=sun_c)
-
-            # Om = new_orbits_kep[0][4]  # in rad
-            # om = new_orbits_kep[0][5]
-            # i = new_orbits_kep[0][3]
-            # M = new_orbits_kep[0][6]
-            # e = new_orbits_kep[0][2]
-
-            r = [km_in_au * ems_barycentre[0], km_in_au * ems_barycentre[1], km_in_au * ems_barycentre[2]] << u.km  # km
-            v = [km_in_au / seconds_in_day * vems_barycentre[0], km_in_au / seconds_in_day * vems_barycentre[1], km_in_au / seconds_in_day * vems_barycentre[2]] << u.km / u.s  # AU/day
-
-            orb = Orbit.from_vectors(Sun, r, v, Time(date_mjd, format='mjd', scale='utc'))
-            Om = np.deg2rad(orb.raan)  # in rad
-            om = np.deg2rad(orb.argp)
-            i = np.deg2rad(orb.inc)
-            theta = np.deg2rad(orb.nu)
-
-            # convert from heliocentric to synodic with a euler rotation
-            h_R_C_peri = np.array([[-np.sin(Om) * np.cos(i) * np.sin(om) + np.cos(Om) * np.cos(om),
-                               -np.sin(Om) * np.cos(i) * np.cos(om) - np.cos(Om) * np.sin(om),
-                               np.sin(Om) * np.sin(i)],
-                               [np.cos(Om) * np.cos(i) * np.sin(om) + np.sin(Om) * np.cos(om),
-                               np.cos(Om) * np.cos(i) * np.cos(om) - np.sin(Om) * np.sin(om),
-                               -np.cos(Om) * np.sin(i)],
-                               [np.sin(i) * np.sin(om), np.sin(i) * np.cos(om), np.cos(i)]])
-
-
-            # rotation from perihelion to location of ems_barycentre (i.e. rotation by true anomaly)
-            C_peri_R_C = np.array([[np.cos(theta), -np.sin(theta), 0.],
-                                   [np.sin(theta), np.cos(theta), 0.],
-                                   [0., 0., 1.]])
-
-            C_R_h = C_peri_R_C.T @ h_R_C_peri.T
-
-            # translation
-            C_T_h = np.array([np.linalg.norm(r_C), 0., 0.]).ravel()  # AU
-
-            # in sun-earth/moon corotating
-            C_r_TCO = C_R_h @ h_r_TCO - C_T_h  # AU
-            C_ems = C_R_h @ ems_barycentre - C_T_h
-            C_moon = C_R_h @ np.array([x_M, y_M, z_M]).ravel() - C_T_h
-
-            # v_rel in Jacobi constant
-            C_v_TCO = C_R_h @ (h_v_TCO - v_C) - np.cross(np.array([0, 0, omega * seconds_in_day]), C_r_TCO)  # AU/day
-            v_rel = np.linalg.norm(C_v_TCO)  # AU/day
-
-            # sun-TCO distance
-            r_s = np.linalg.norm([x, y, z])  # AU
-
-            # ems-TCO distance
-            r_EMS = np.linalg.norm([x - ems_barycentre[0], y - ems_barycentre[1], z - ems_barycentre[2]])  # AU
-
+            C_r_TCO_p1, C_v_TCO_p1, C_v_TCO_2_p1, C_ems_p1, C_moon_p1, ems_barycentre_p1, vems_barycentre_p1, omega_p1, omega_2_p1, r_sE_p1, mu_s_p1, mu_EMS_p1 = (
+                get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO_p1, h_v_TCO_p1, h_r_E_p1, h_v_E_p1, h_r_M_p1, h_v_M_p1, date_mjd_p1))
             mu = mu_EMS / (mu_EMS + mu_s)
-            constant = 0  # mu * (1 - mu) * (r_sE * km_in_au) ** 2 * omega ** 2
 
-            # dimensional Jacobi constant km^2/s^2
-            C_J_dimensional = (omega ** 2 * (C_r_TCO[0] ** 2 + C_r_TCO[1] ** 2) + 2 * mu_s / r_s + 2 * mu_EMS / r_EMS - (v_rel / seconds_in_day) ** 2) * np.power(km_in_au, 2) + constant  # might be missing a constant
+            C_r_TCO_nondim = C_r_TCO / r_sE
+            C_v_TCO_nondim = C_v_TCO / (np.linalg.norm(omega) * r_sE)
+            C_v_TCO_2_nondim = C_v_TCO_2 / (np.linalg.norm(omega_2) * r_sE)
+            C_r_TCO_nondim_p1 = C_r_TCO_p1 / r_sE_p1
+            C_v_TCO_nondim_p1 = C_v_TCO_p1 / (np.linalg.norm(omega_p1) * r_sE_p1)
+            C_v_TCO_2_nondim_p1 = C_v_TCO_2_p1 / (np.linalg.norm(omega_2_p1) * r_sE_p1)
 
-            # non dimensional Jacobi constant
-            x_prime = C_r_TCO[0] / r_sE
-            y_prime = C_r_TCO[1] / r_sE
-            z_prime = C_r_TCO[2] / r_sE
+            coherence = self.calc_coherence(C_r_TCO_nondim, C_v_TCO_nondim, C_r_TCO_nondim_p1, C_v_TCO_nondim_p1)
+            coherence_2 = self.calc_coherence(C_r_TCO_nondim, C_v_TCO_2_nondim, C_r_TCO_nondim_p1, C_v_TCO_2_nondim_p1)
+            coherence_threshold = 0.95
+            if coherence > coherence_2 and coherence > coherence_threshold:
+                good_r = C_r_TCO
+                good_v = C_v_TCO
+                good_omega = omega
+                C_J_dimensional, C_J_nondimensional = jacobi_dim_and_non_dim(good_r, good_v, h_r_TCO, ems_barycentre,
+                                                                             mu,
+                                                                             mu_s, mu_EMS, good_omega, r_sE)
+                good_r = good_r / r_sE
+                good_v = good_v / (np.linalg.norm(good_omega) * r_sE)
+            elif coherence_2 >= coherence and coherence_2 > coherence_threshold:
+                good_r = C_r_TCO
+                good_v = C_v_TCO_2
+                good_omega = omega_2
+                C_J_dimensional, C_J_nondimensional = jacobi_dim_and_non_dim(good_r, good_v, h_r_TCO, ems_barycentre,
+                                                                             mu,
+                                                                             mu_s, mu_EMS, good_omega, r_sE)
+                good_r = good_r / r_sE
+                good_v = good_v / (np.linalg.norm(good_omega) * r_sE)
 
-            x_dot_prime = C_v_TCO[0] / (omega * r_sE * seconds_in_day)
-            y_dot_prime = C_v_TCO[1] / (omega * r_sE * seconds_in_day)
-            z_dot_prime = C_v_TCO[2] / (omega * r_sE * seconds_in_day)
-            v_prime = x_dot_prime ** 2 + y_dot_prime ** 2 + z_dot_prime ** 2
-            r_s_prime = np.sqrt((x_prime + mu) ** 2 + y_prime ** 2 + z_prime ** 2)
-            r_EMS_prime = np.sqrt((x_prime - (1 - mu)) ** 2 + y_prime ** 2 + z_prime ** 2)
-            C_J_nondimensional = x_prime ** 2 + y_prime ** 2 + 2 * (1 - mu) / r_s_prime + 2 * mu / r_EMS_prime - v_prime + mu * (1 - mu)
+            else:
+                good_r, good_v = self.find_good_cr3bp_state(data, in_ems_idxs, 0.999, omega, r_sE, mu)
+                good_omega = omega
+                C_J_nondimensional = jacobi(np.hstack((good_r, good_v)))
+                C_J_dimensional = C_J_nondimensional * (r_sE * km_in_au) ** 2 * (np.linalg.norm(good_omega) / seconds_in_day) ** 2
+
+
 
             # angle between x-axis of C and TCO at SOI of EMS centered at EMS barycentre
-            alpha = np.rad2deg(np.arctan2((C_r_TCO[1] - C_ems[1]), (C_r_TCO[0] - C_ems[0])))
+            alpha = np.rad2deg(np.arctan2((good_r[1] - C_ems[1]), (good_r[0] - C_ems[0])))
             if alpha < 0:
                 alpha += 360
 
@@ -1505,7 +1597,7 @@ class MmAnalyzer:
 
             # to calculate beta, first calculate psi, the angle from the x-axis of C centered at EMS-barycentre to the
             # vector described by the velocity of the TCO in the C frame
-            psi = np.rad2deg(np.arctan2(C_v_TCO[1], C_v_TCO[0]))
+            psi = np.rad2deg(np.arctan2(good_v[1], good_v[0]))
             if psi < 0:
                 psi += 360
             beta = (psi - 90 - alpha)  # negative to follow Qi convention
@@ -1519,47 +1611,30 @@ class MmAnalyzer:
             print(master['Became Minimoon'])
             print(master['STC'])
 
-            ################################
-            # Anderson and Lo
-            ###############################
+            fig3 = plt.figure()
+            ax = fig3.add_subplot(111, projection='3d')
+            ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            xw = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + 1
+            yw = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v)
+            zw = 0.0038752837677 / r_sE * np.cos(v)
+            ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1, label='SOI of EMS')
+            ax.scatter(1, 0, 0, color='blue', s=50, label='Earth-Moon barycentre')
+            ax.scatter(good_r[0], good_r[1], good_r[2], color='red', s=10,
+                       label='r')
+            ax.plot3D([good_r[0], good_r[0] + good_v[0]], [good_r[1], good_r[1] + good_v[1]],
+                      [good_r[2], good_r[2] + good_v[2]], color='red', zorder=15)
 
-            # 1 - get state vectors (we have from proposed method)
-
-            # 2 - Length unit
-            LU = r_sE
-
-            # 3 - Compute omega
-            omega_a = np.cross(ems_barycentre, vems_barycentre)
-            omega_a_n = omega_a / LU ** 2
-
-            # 4 - Time and velocity unites
-            TU = 1 / np.linalg.norm(omega_a_n)
-            VU = LU / TU
-
-            # 5 - First axis of rotated frame
-            e_1 = ems_barycentre / np.linalg.norm(ems_barycentre)
-
-            # 6- third axis
-            e_3 = omega_a_n / np.linalg.norm(omega_a_n)
-
-            # 7 - second axis
-            e_2 = np.cross(e_3, e_1)
-
-            # 8 - rotation matrix
-            Q = np.array([e_1, e_2, e_3])
-
-            # 9 - rotate postion vector
-            C_r_TCO_a = Q @ h_r_TCO
-
-            # 10 - get velocity
-            C_v_TCO_a = Q @ h_v_TCO - np.cross(omega_a_n, h_r_TCO)
-
-            # 11 - convert to nondimensional
-            C_r_TCO_a_n = C_r_TCO_a / LU
-            C_v_TCO_a_n = C_v_TCO_a / TU
-
-            C_r_TCO_a_n = C_r_TCO_a_n + np.array([mu, 0., 0.])
-            print(C_r_TCO_a_n)
+            ax.set_xlim([0.99, 1.01])
+            ax.set_ylim([-0.01, 0.01])
+            ax.set_zlim([-0.01, 0.01])
+            num_ticks = 3
+            ax.xaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+            ax.yaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+            ax.zaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+            ax.set_xlabel('Synodic x ($\emptyset$)')
+            ax.set_ylabel('Synodic y ($\emptyset$)')
+            ax.set_zlabel('Synodic z ($\emptyset$)')
+            ax.legend()
 
             # fig2 = plt.figure()
             # plt.scatter(C_ems[0], C_ems[1], color='blue')
@@ -1581,16 +1656,16 @@ class MmAnalyzer:
             # plt.ylim([-0.01, 0.01])
             # plt.gca().set_aspect('equal')
 
-            fig3 = plt.figure()
-            ax = fig3.add_subplot(111, projection='3d')
-            ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
-            x = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + C_ems[0] / r_sE
-            y = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v) + C_ems[1] / r_sE
-            z = 0.0038752837677 / r_sE * np.cos(v) + C_ems[2] / r_sE
-            ax.plot_wireframe(x, y, z, color="b", alpha=0.1)
-            ax.scatter(C_ems[0] / r_sE, C_ems[1] / r_sE, C_ems[2] / r_sE, color='blue', s=10)
-            ax.scatter(x_prime, y_prime, z_prime, color='red', s=10)
-            ax.plot3D([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], [z_prime, z_prime + z_dot_prime], color='red')
+            # fig3 = plt.figure()
+            # ax = fig3.add_subplot(111, projection='3d')
+            # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            # x = 0.0038752837677 / r_sE * np.cos(ut) * np.sin(v) + C_ems[0] / r_sE
+            # y = 0.0038752837677 / r_sE * np.sin(ut) * np.sin(v) + C_ems[1] / r_sE
+            # z = 0.0038752837677 / r_sE * np.cos(v) + C_ems[2] / r_sE
+            # ax.plot_wireframe(x, y, z, color="b", alpha=0.1)
+            # ax.scatter(C_ems[0] / r_sE, C_ems[1] / r_sE, C_ems[2] / r_sE, color='blue', s=10)
+            # ax.scatter(x_prime, y_prime, z_prime, color='red', s=10)
+            # ax.plot3D([x_prime, x_prime + x_dot_prime], [y_prime, y_prime + y_dot_prime], [z_prime, z_prime + z_dot_prime], color='red')
             # ax.plot3D([C_])
 
             # fig = plt.figure()

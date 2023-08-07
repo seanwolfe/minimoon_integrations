@@ -698,10 +698,10 @@ class MmMain():
         mm_parser = MmParser("", "", "")
         master = mm_parser.parse_master(master_file)
 
-        # bad_stc = master[(master['STC'] == True) & (master['Beta_I'] < -180)]
-        population_dir = os.path.join(os.getcwd(), 'Test_Set')
+        bad_stc = master[(master['STC'] == True) & (master['Beta_I'] < -180)]
+        population_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
 
-        for index2, row2 in master.iterrows():
+        for index2, row2 in bad_stc.iterrows():
 
             object_id = row2['Object id']
 
@@ -804,8 +804,7 @@ class MmMain():
                             r_sE = np.linalg.norm(ems_barycentre)  # distance between ems and sun AU
                             omega = np.sqrt(
                                 (mu_s + mu_EMS) / np.power(r_sE, 3))  # angular velocity of sun-ems barycentre 1/s
-                            omega_a = np.cross(ems_barycentre, vems_barycentre)
-                            omega_2 = omega_a / r_sE ** 2
+                            omega_2 = np.cross(ems_barycentre, vems_barycentre) / r_sE ** 2
 
                             v_C = np.linalg.norm(r_C) / r_sE * vems_barycentre  # velocity of barycentre  AU/day
 
@@ -816,30 +815,6 @@ class MmMain():
                                  km_in_au / seconds_in_day * vems_barycentre[1],
                                  km_in_au / seconds_in_day * vems_barycentre[2]] << u.km / u.s  # AU/day
 
-                            # not sure if this part is necessary
-                            # ephfile = ""
-                            # if os.getenv('OORB_DATA'):
-                            #     ephfile = os.path.join(os.getenv('OORB_DATA'), 'de430.dat')
-                            # pyoorb.pyoorb.oorb_init(ephfile)
-
-                            # sun_c = 11  # 11 for Sun, 3 for Earth
-                            # print("Getting helio keplarian osculating elements...")
-                            #
-                            # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
-                            # orbits = np.zeros([1, 12], dtype=np.double, order='F')  # the pyorb function takes slice of 3-d list
-                            # orbits[0][:] = [0, ems_barycentre[0], ems_barycentre[1], ems_barycentre[2], vems_barycentre[0], vems_barycentre[1],
-                            #                 vems_barycentre[2], 1, date_mjd, 1, 10., 0.15]
-                            #
-                            # new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                            #                                                                 in_element_type=3, in_center=sun_c)
-
-
-                            # Om = new_orbits_kep[0][4]  # in rad
-                            # om = new_orbits_kep[0][5]
-                            # i = new_orbits_kep[0][3]
-                            # M = new_orbits_kep[0][6]
-                            # e = new_orbits_kep[0][2]
-                            # theta = get_theta_from_M(M, e)
 
                             orb = Orbit.from_vectors(Sun, r, v, Time(date_mjd, format='mjd', scale='utc'))
                             Om = np.deg2rad(orb.raan)  # in rad
@@ -1404,7 +1379,7 @@ if __name__ == '__main__':
 
     mm_main = MmMain()
 
-    destination_path = os.path.join(os.getcwd(), 'Test_Set')
+    destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
     destination_file = destination_path + '/minimoon_master_final.csv'
     start_file = destination_path + '/minimoon_master_final (copy).csv'
 
@@ -1470,7 +1445,7 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    # mm_main.add_new_column(start_file, destination_file)
+    mm_main.add_new_column(start_file, destination_file)
 
     ########################################
     # clustering graphs
@@ -1488,7 +1463,7 @@ if __name__ == '__main__':
     # Investigate the distribution of alpha beta jacobi
     ##############################################
 
-    mm_main.alphabetastc(destination_file)
+    # mm_main.alphabetastc(destination_file)
 
     #####################################
     # Investigate the population when there is no moon present
