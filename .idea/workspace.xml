@@ -4,11 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="90f9300d-b63d-455a-9782-621e100e5c13" name="Changes" comment="jacobi comp">
+    <list default="true" id="1fc426de-2665-4cf3-b3fd-69a2e9afd0a5" name="Changes" comment="work on coherence still">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MmAnalyzer.py" beforeDir="false" afterPath="$PROJECT_DIR$/MmAnalyzer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MmMain.py" beforeDir="false" afterPath="$PROJECT_DIR$/MmMain.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/f0.svg" beforeDir="false" afterPath="$PROJECT_DIR$/figures/f0.svg" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/space_fncs.py" beforeDir="false" afterPath="$PROJECT_DIR$/space_fncs.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -25,6 +24,13 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GithubProjectSettings">
+    <option name="branchProtectionPatterns">
+      <list>
+        <option value="main" />
+      </list>
+    </option>
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -64,13 +70,7 @@
         <envs>
           <env key="PYTHONPATH" value="$PROJECT_DIR$/../oorb/python " />
         </envs>
-        <option name="sdk">
-          <Sdk />
-        </option>
         <option name="mySdkHome" value="/usr/bin/python" />
-        <option name="mySdk">
-          <Sdk />
-        </option>
         <option name="myModuleName" value="minimoon_integrations" />
         <option name="myEnvs">
           <map>
@@ -220,6 +220,7 @@
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
+    <option name="SHOW_OTHER_BRANCHES" value="true" />
     <option name="COLUMN_ID_ORDER">
       <list>
         <option value="Default.Root" />
@@ -229,7 +230,6 @@
         <option value="Space.CommitStatus" />
       </list>
     </option>
-    <option name="SHOW_OTHER_BRANCHES" value="true" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">
@@ -272,13 +272,14 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/space_fncs.py</url>
-          <line>226</line>
-          <option name="timeStamp" value="11" />
+          <url>file://$PROJECT_DIR$/MmAnalyzer.py</url>
+          <line>1683</line>
+          <option name="timeStamp" value="6" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/MmMain.py</url>
-          <option name="timeStamp" value="14" />
+          <url>file://$PROJECT_DIR$/MmAnalyzer.py</url>
+          <line>1624</line>
+          <option name="timeStamp" value="9" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

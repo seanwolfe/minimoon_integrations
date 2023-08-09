@@ -647,12 +647,22 @@ class MmMain():
         # pool = multiprocessing.Pool()
         # results = pool.map(mm_analyzer.short_term_capture, master['Object id'])  # input your function
         # pool.close()
+        for root, dirs, files in os.walk(dest_path):
+
+            for file in files:
+                if file == 'minimoon_master_final (copy).csv' or file == 'minimoon_master_final.csv' or\
+                        file == 'minimoon_master_final_previous.csv' or file == 'NESCv9reintv1.TCO.withH.kep.des':
+                    pass
+                else:
+                    data = mm_parser.mm_file_parse_new(dest_path + '/' + file)
+                    object_id = data['Object id'].iloc[0]
+                    res = mm_analyzer.alpha_beta_jacobi(object_id)
 
         # parallel version of jacobi alpha beta
-        stc_pop = master[master['STC'] == True]
+        # stc_pop = master[master['STC'] == True]
         # print(master)
-        for idx, row in stc_pop.iterrows():
-            res = mm_analyzer.alpha_beta_jacobi(row['Object id'])
+        # for idx, row in stc_pop.iterrows():
+        #     res = mm_analyzer.alpha_beta_jacobi(row['Object id'])
         #     res = mm_analyzer.short_term_capture(master['Object id'].iloc[i])
         # pool = multiprocessing.Pool()
         # results = pool.map(mm_analyzer.alpha_beta_jacobi, master['Object id'])
@@ -1379,7 +1389,7 @@ if __name__ == '__main__':
 
     mm_main = MmMain()
 
-    destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+    destination_path = os.path.join(os.getcwd(), 'Test_Set')
     destination_file = destination_path + '/minimoon_master_final.csv'
     start_file = destination_path + '/minimoon_master_final (copy).csv'
 
@@ -1445,7 +1455,7 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    mm_main.add_new_column(start_file, destination_file)
+    mm_main.add_new_column(start_file, destination_path)
 
     ########################################
     # clustering graphs

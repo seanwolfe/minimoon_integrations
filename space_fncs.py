@@ -276,7 +276,6 @@ def jacobi_dim_and_non_dim(C_r_TCO, C_v_TCO, h_r_TCO, ems_barycentre, mu, mu_s, 
     constant = 0 #mu * (1 - mu) * (r_sE * km_in_au) ** 2 * np.linalg.norm(omega / seconds_in_day) ** 2
 
     # dimensional Jacobi constant km^2/s^2
-    print(np.linalg.norm(omega))
     C_J_dimensional = ((np.linalg.norm(omega) / seconds_in_day) ** 2 * (C_r_TCO[0] ** 2 + C_r_TCO[1] ** 2) + 2 * mu_s / r_s + 2 * mu_EMS / r_EMS - (
             v_rel / seconds_in_day) ** 2) * np.power(km_in_au, 2) + constant  # might be missing a constant
 
