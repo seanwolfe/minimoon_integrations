@@ -647,16 +647,16 @@ class MmMain():
         # pool = multiprocessing.Pool()
         # results = pool.map(mm_analyzer.short_term_capture, master['Object id'])  # input your function
         # pool.close()
-        for root, dirs, files in os.walk(dest_path):
-
-            for file in files:
-                if file == 'minimoon_master_final (copy).csv' or file == 'minimoon_master_final.csv' or\
-                        file == 'minimoon_master_final_previous.csv' or file == 'NESCv9reintv1.TCO.withH.kep.des':
-                    pass
-                else:
-                    data = mm_parser.mm_file_parse_new(dest_path + '/' + file)
-                    object_id = data['Object id'].iloc[0]
-                    res = mm_analyzer.alpha_beta_jacobi(object_id)
+        # for root, dirs, files in os.walk(dest_path):
+        #
+        #     for file in files:
+        #         if file == 'minimoon_master_final (copy).csv' or file == 'minimoon_master_final.csv' or\
+        #                 file == 'minimoon_master_final_previous.csv' or file == 'NESCv9reintv1.TCO.withH.kep.des':
+        #             pass
+        #         else:
+        #             data = mm_parser.mm_file_parse_new(dest_path + '/' + file)
+        #             object_id = data['Object id'].iloc[0]
+        #             res = mm_analyzer.alpha_beta_jacobi(object_id)
 
         # parallel version of jacobi alpha beta
         # stc_pop = master[master['STC'] == True]
@@ -664,12 +664,12 @@ class MmMain():
         # for idx, row in stc_pop.iterrows():
         #     res = mm_analyzer.alpha_beta_jacobi(row['Object id'])
         #     res = mm_analyzer.short_term_capture(master['Object id'].iloc[i])
-        # pool = multiprocessing.Pool()
-        # results = pool.map(mm_analyzer.alpha_beta_jacobi, master['Object id'])
-        # pool.close()
+        pool = multiprocessing.Pool()
+        results = pool.map(mm_analyzer.alpha_beta_jacobi, master['Object id'])
+        pool.close()
 
         # repack list according to index
-        # repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
+        repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
 
 
         # create your columns according to the data in results
@@ -681,14 +681,14 @@ class MmMain():
         # pd.set_option('display.max_rows', None)
         # print(master['Entry Date to EMS'])
 
-        # master['Dimensional Jacobi'] = repacked_results[0]
-        # master['Non-Dimensional Jacobi'] = repacked_results[1]
-        # master['Alpha_I'] = repacked_results[2]
-        # master['Beta_I'] = repacked_results[3]
-        # master['Theta_M'] = repacked_results[4]
+        master['Dimensional Jacobi'] = repacked_results[0]
+        master['Non-Dimensional Jacobi'] = repacked_results[1]
+        master['Alpha_I'] = repacked_results[2]
+        master['Beta_I'] = repacked_results[3]
+        master['Theta_M'] = repacked_results[4]
 
         # write the master to csv - only if your sure you have the right data, otherwise in will be over written
-        # master.to_csv(dest_path, sep=' ', header=True, index=False)
+        master.to_csv(dest_path + '/minimoon_master_final.csv', sep=' ', header=True, index=False)
 
     @staticmethod
     def cluster_viz_main(master_file):
@@ -1455,7 +1455,7 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    mm_main.add_new_column(start_file, destination_path)
+    # mm_main.add_new_column(start_file, destination_path)
 
     ########################################
     # clustering graphs
@@ -1467,7 +1467,7 @@ if __name__ == '__main__':
     # STC population visualization
     #######################################
 
-    # mm_main.stc_viz_main(destination_file)
+    mm_main.stc_viz_main(destination_file)
 
     ######################################
     # Investigate the distribution of alpha beta jacobi

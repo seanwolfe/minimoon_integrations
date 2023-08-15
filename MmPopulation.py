@@ -482,7 +482,7 @@ class MmPopulation:
         stc_pop_ini = self.population[self.population['STC'] == True]
         tco_pop = self.population[self.population['Became Minimoon'] == 1]
         tcf_pop = self.population[self.population['Became Minimoon'] == 0]
-        stc_pop = stc_pop_ini[(stc_pop_ini['Non-Dimensional Jacobi'] < 3.000835) & (stc_pop_ini['Non-Dimensional Jacobi'] > 2.999868)]
+        stc_pop = stc_pop_ini[(stc_pop_ini['Non-Dimensional Jacobi'] > 3.0002) & (stc_pop_ini['Non-Dimensional Jacobi'] < 3.0009)]
         non_stc_pop = self.population[self.population['STC'] == False]
         # Get retrograde and prograde TCOs
         # retrograde_stc = stc_pop[stc_pop['Retrograde'] == 1]
@@ -492,24 +492,36 @@ class MmPopulation:
         all_betas = stc_pop['Beta_I'].tolist()
         all_jacobis = stc_pop['Non-Dimensional Jacobi'].tolist()
 
+        all_data = pd.read_csv('all_paths.csv', sep=' ', header=0, names=['x', 'y', 'z', 'vx', 'vy', 'vz', 'L', 'alpha', 'beta', 'cj'])
+
+        all_data_cdes = all_data[all_data['cj'] > 3.0002]
 
         fig = plt.figure()
-        sc = plt.scatter(all_alphas, all_betas, c=all_jacobis, cmap='gist_rainbow', s=5)
-        cbar = fig.colorbar(sc, label='Jacobi Constant')
+        plt.scatter(all_data_cdes['alpha'], all_data_cdes['beta'], color='#5cff00', s=15, label='Planar Lyapunov')
+        plt.scatter(all_alphas, all_betas, color='black', s=1, label='N-Body')
         plt.xlabel(r'$\alpha_I$ (degrees)')
         plt.ylabel(r'$\beta_I$ (degrees)')
         plt.xlim([0, 360])
         plt.ylim([-180, 0])
+        plt.legend()
+
+        fig = plt.figure()
+        sc = plt.scatter(all_alphas, all_betas, c=all_jacobis, cmap='gist_rainbow', s=5)
+        cbar = fig.colorbar(sc, label='Jacobi Constant $C_{SE\emptyset}$')
+        plt.xlabel(r'$\alpha_I$ (degrees)')
+        plt.ylabel(r'$\beta_I$ (degrees)')
+        plt.xlim([0, 360])
+        plt.ylim([-360, 0])
         plt.savefig("figures/stc_alpha_beta.svg", format="svg")
         plt.savefig("figures/stc_alpha_beta.png", format="png")
 
         fig = plt.figure()
-        plt.scatter(tco_pop['Min. Distance'], tco_pop['Non-Dimensional Jacobi'], color='blue', s=5, label='TCOs', zorder=5)
-        plt.scatter(tcf_pop['Min. Distance'], tcf_pop['Non-Dimensional Jacobi'], color='orange', s=3, label='TCFs', zorder=10)
-        plt.scatter(stc_pop_ini['Min. Distance'], stc_pop_ini['Non-Dimensional Jacobi'], color='red', s=1, label='STCs', zorder=15)
-        plt.xlabel('Min. Distance to Earth (AU)')
+        plt.scatter(tco_pop['3 Hill Duration'], tco_pop['Non-Dimensional Jacobi'], color='blue', s=5, label='TCOs', zorder=5)
+        plt.scatter(tcf_pop['3 Hill Duration'], tcf_pop['Non-Dimensional Jacobi'], color='orange', s=3, label='TCFs', zorder=10)
+        plt.scatter(stc_pop_ini['3 Hill Duration'], stc_pop_ini['Non-Dimensional Jacobi'], color='red', s=1, label='STCs', zorder=15)
+        plt.xlabel('Duration inside Three Earth Hill Radii (Days)')
         plt.ylabel('Non-Dimensional Jacobi Constant')
-        plt.xlim([0, 0.004])
+        # plt.xlim([0, 0.004])
         plt.ylim([2.998, 3.0015])
         plt.legend()
         plt.savefig("figures/jacobi_dist.svg", format="svg")
