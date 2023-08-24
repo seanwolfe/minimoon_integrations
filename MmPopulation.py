@@ -8,6 +8,7 @@ from MmAnalyzer import MmAnalyzer
 from MM_Parser import MmParser
 import astropy.units as u
 import multiprocessing
+import matplotlib.ticker as ticker
 
 class MmPopulation:
     """
@@ -121,32 +122,194 @@ class MmPopulation:
 
         return df
 
-    def cluster_viz(self):
-
-        master = self.population
-
-        """
-        mm_geo = np.array([master['Geo x at Capture'], master['Geo y at Capture'], master['Geo z at Capture']])
-        mm_helio = np.array([master["Helio x at Capture"], master["Helio y at Capture"], master["Helio z at Capture"]])
-        earth_xyz = mm_helio - mm_geo
-
+    @staticmethod
+    def make_set(master, variable, axislabel):
         fig8 = plt.figure()
-        plt.scatter(master['Helio x at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio x at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
+        ax1 = plt.subplot(3, 3, 1)
+        ax1.scatter(master['Helio x at Capture'], variable, s=0.1)
+        ax1.set_xlabel('Helio x at Capture (AU)')
+        ax1.set_ylabel(axislabel)
         # plt.savefig("figures/helx_3hill.svg", format="svg")
 
-        fig8 = plt.figure()
-        plt.scatter(master['Helio y at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio y at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
+        ax2 = plt.subplot(3, 3, 2)
+        ax2.scatter(master['Helio y at Capture'], variable, s=0.1)
+        ax2.set_xlabel('Helio y at Capture (AU)')
+        ax2.set_ylabel(axislabel)
         # plt.savefig("figures/hely_3hill.svg", format="svg")
 
-        fig8 = plt.figure()
-        plt.scatter(master['Helio z at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio z at Capture (AU)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
+        ax3 = plt.subplot(3, 3, 3)
+        ax3.scatter(master['Helio z at Capture'], variable, s=0.1)
+        ax3.set_xlabel('Helio z at Capture (AU)')
+        ax3.set_ylabel(axislabel)
         # plt.savefig("figures/helz_3hill.svg", format="svg")
+
+        ax4 = plt.subplot(3, 3, 4)
+        ax4.scatter(master['Helio vx at Capture'], variable, s=0.1)
+        ax4.set_xlabel('Helio vx at Capture')
+        ax4.set_ylabel(axislabel)
+        # plt.savefig("figures/helvx_3hill.svg", format="svg")
+
+        ax5 = plt.subplot(3, 3, 5)
+        ax5.scatter(master['Helio vy at Capture'], variable, s=0.1)
+        ax5.set_xlabel('Helio vy at Capture')
+        ax5.set_ylabel(axislabel)
+        # plt.savefig("figures/helvy_3hill.svg", format="svg")
+
+        ax6 = plt.subplot(3, 3, 6)
+        ax6.scatter(master['Helio vz at Capture'], variable, s=0.1)
+        ax6.set_xlabel('Helio vz at Capture')
+        ax6.set_ylabel(axislabel)
+        # plt.savefig("figures/helvz_3hill.svg", format="svg")
+
+        ax7 = plt.subplot(3, 3, 7)
+        ax7.scatter(master['Capture Date'], variable, s=0.1)
+        ax7.set_xlabel('Capture Date (JD)')
+        ax7.set_ylabel(axislabel)
+
+        colored = 'red'
+
+        fig8 = plt.figure()
+        ax1 = plt.subplot(3, 3, 1)
+        ax1.scatter(master['Helio x at Release'], variable, s=0.1, color=colored)
+        ax1.set_xlabel('Helio x at Release (AU)')
+        ax1.set_ylabel(axislabel)
+        # plt.savefig("figures/helx_3hill.svg", format="svg")
+
+        ax2 = plt.subplot(3, 3, 2)
+        ax2.scatter(master['Helio y at Release'], variable, s=0.1, color=colored)
+        ax2.set_xlabel('Helio y at Release (AU)')
+        ax2.set_ylabel(axislabel)
+        # plt.savefig("figures/hely_3hill.svg", format="svg")
+
+        ax3 = plt.subplot(3, 3, 3)
+        ax3.scatter(master['Helio z at Release'], variable, s=0.1, color=colored)
+        ax3.set_xlabel('Helio z at Release (AU)')
+        ax3.set_ylabel(axislabel)
+        # plt.savefig("figures/helz_3hill.svg", format="svg")
+
+        ax4 = plt.subplot(3, 3, 4)
+        ax4.scatter(master['Helio vx at Release'], variable, s=0.1, color=colored)
+        ax4.set_xlabel('Helio vx at Release')
+        ax4.set_ylabel(axislabel)
+        # plt.savefig("figures/helvx_3hill.svg", format="svg")
+
+        ax5 = plt.subplot(3, 3, 5)
+        ax5.scatter(master['Helio vy at Release'], variable, s=0.1, color=colored)
+        ax5.set_xlabel('Helio vy at Release')
+        ax5.set_ylabel(axislabel)
+        # plt.savefig("figures/helvy_3hill.svg", format="svg")
+
+        ax6 = plt.subplot(3, 3, 6)
+        ax6.scatter(master['Helio vz at Release'], variable, s=0.1, color=colored)
+        ax6.set_xlabel('Helio vz at Release')
+        ax6.set_ylabel(axislabel)
+        # plt.savefig("figures/helvz_3hill.svg", format="svg")
+
+        ax7 = plt.subplot(3, 3, 7)
+        ax7.scatter(master['Release Date'], variable, s=0.1, color=colored)
+        ax7.set_xlabel('Release Date (JD)')
+        ax7.set_ylabel(axislabel)
+
+        colored = 'green'
+
+        fig8 = plt.figure()
+        ax1 = plt.subplot(3, 3, 1)
+        ax1.scatter(master['Helio x at EMS'], variable, s=0.1, color=colored)
+        ax1.set_xlabel('Helio x at EMS (AU)')
+        ax1.set_ylabel(axislabel)
+        # plt.savefig("figures/helx_3hill.svg", format="svg")
+
+        ax2 = plt.subplot(3, 3, 2)
+        ax2.scatter(master['Helio y at EMS'], variable, s=0.1, color=colored)
+        ax2.set_xlabel('Helio y at EMS (AU)')
+        ax2.set_ylabel(axislabel)
+        # plt.savefig("figures/hely_3hill.svg", format="svg")
+
+        ax3 = plt.subplot(3, 3, 3)
+        ax3.scatter(master['Helio z at EMS'], variable, s=0.1, color=colored)
+        ax3.set_xlabel('Helio z at Release (AU)')
+        ax3.set_ylabel(axislabel)
+        # plt.savefig("figures/helz_3hill.svg", format="svg")
+
+        ax4 = plt.subplot(3, 3, 4)
+        ax4.scatter(master['Helio vx at EMS'], variable, s=0.1, color=colored)
+        ax4.set_xlabel('Helio vx at EMS')
+        ax4.set_ylabel(axislabel)
+        # plt.savefig("figures/helvx_3hill.svg", format="svg")
+
+        ax5 = plt.subplot(3, 3, 5)
+        ax5.scatter(master['Helio vy at EMS'], variable, s=0.1, color=colored)
+        ax5.set_xlabel('Helio vy at EMS')
+        ax5.set_ylabel(axislabel)
+        # plt.savefig("figures/helvy_3hill.svg", format="svg")
+
+        ax6 = plt.subplot(3, 3, 6)
+        ax6.scatter(master['Helio vz at EMS'], variable, s=0.1, color=colored)
+        ax6.set_xlabel('Helio vz at EMS')
+        ax6.set_ylabel(axislabel)
+        # plt.savefig("figures/helvz_3hill.svg", format="svg")
+
+        ax7 = plt.subplot(3, 3, 7)
+        ax7.scatter(master['Entry Date to EMS'], variable, s=0.1, color=colored)
+        ax7.set_xlabel('Date at SOI of EMS (JD)')
+        ax7.set_ylabel(axislabel)
+
+        return
+
+    def cluster_viz(self):
+
+
+        master = self.population[self.population['STC'] == True]
+        self.make_set(master, master['3 Hill Duration'], 'Duration in 3 Earth Hill (Days)')
+        self.make_set(master, master['Periapsides in EMS'], 'Number of Periapsides Inside the SOI of the EMS')
+        self.make_set(master, master['Min. Distance'], 'Minimum Distance to Earth (AU)')
+        self.make_set(master, master['Max. Distance'], 'Maximum Distance to Earth (during capture) (AU)')
+        self.make_set(master, master['Non-Dimensional Jacobi'], 'Jacobi Constant')
+
+
+
+        # plt.savefig("figures/capdate_3hill.svg", format="svg")
+
+        # Set the bin size
+        bin_size = 10
+
+        # Calculate the number of bins based on data range and bin size
+        data_range = max(master['3 Hill Duration']) - min(master['3 Hill Duration'])
+        num_bins = int(data_range / bin_size)
+
+        fig2 = plt.figure()
+        plt.hist(master['3 Hill Duration'], bins=num_bins, edgecolor="#038cfc",
+                 color="#03b1fc", zorder=10, alpha=0.5, )
+        plt.xlim([0, 1400])
+        plt.ylim([0, 800])
+        plt.xlabel('3 Hill Duration(days)')
+        plt.ylabel('Count')
+        # plt.savefig("figures/3hill_hist.svg", format="svg")
+        # plt.savefig("figures/3hill_hist.pdf", format="pdf")
+
+
+        # Set the bin size
+        bin_size = 0.00001
+
+        # Calculate the number of bins based on data range and bin size
+        data_range = max(master['Helio vz at Capture']) - min(master['Helio vz at Capture'])
+        num_bins = int(data_range / bin_size)
+
+        fig2 = plt.figure()
+        plt.hist(master['Helio vz at Capture'], bins=num_bins, edgecolor="#038cfc",
+                 color="#03b1fc", zorder=10, alpha=0.5, )
+        plt.xlim([-0.0005, 0.0005])
+        plt.ylim([0, 1500])
+        plt.xlabel('Helio vz at Capture (AU/day)')
+        plt.ylabel('Count')
+        # plt.savefig("figures/vz_hist.svg", format="svg")
+        # plt.savefig("figures/vz_hist.pdf", format="pdf")
+
+        plt.show()
+
+        # mm_geo = np.array([master['Geo x at Capture'], master['Geo y at Capture'], master['Geo z at Capture']])
+        # mm_helio = np.array([master["Helio x at Capture"], master["Helio y at Capture"], master["Helio z at Capture"]])
+        # earth_xyz = mm_helio - mm_geo
 
         # fig8 = plt.figure()
         # plt.scatter(master['Geo x at Capture'], master['3 Hill Duration'], s=0.1)
@@ -185,35 +348,13 @@ class MmPopulation:
         # plt.ylabel('Time Spend in 3 Hill (days)')
         # plt.savefig("figures/synz_3hill.svg", format="svg")
 
-        fig8 = plt.figure()
-        plt.scatter(master['Capture Date'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Capture Date (JD)')
-        plt.ylabel('Time Spend in 3 Hill (days)')
-        # plt.savefig("figures/capdate_3hill.svg", format="svg")
 
-        fig8 = plt.figure()
-        plt.scatter(master['Capture Date'] - master['STC Start'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Time from Crossing 3 Hill to Capture')
-        plt.ylabel('3 Hill Duration (days)')
+
+        # fig8 = plt.figure()
+        # plt.scatter(master['Capture Date'] - master['STC Start'], master['3 Hill Duration'], s=0.1)
+        # plt.xlabel('Time from Crossing 3 Hill to Capture')
+        # plt.ylabel('3 Hill Duration (days)')
         # plt.savefig("figures/3hill_to_cap_time_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Helio vx at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio vx at Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/helvx_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Helio vy at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio vy at Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/helvy_3hill.svg", format="svg")
-
-        fig8 = plt.figure()
-        plt.scatter(master['Helio vz at Capture'], master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Helio vz at Capture')
-        plt.ylabel('3 Hill Duration (days)')
-        # plt.savefig("figures/helvz_3hill.svg", format="svg")
 
         # fig8 = plt.figure()
         # plt.scatter(master['Geo vx at Capture'], master['3 Hill Duration'], s=0.1)
@@ -260,53 +401,21 @@ class MmPopulation:
         # plt.show()
         # plt.savefig("figures/stc_at_ems.svg", format="svg")
 
-        fig8 = plt.figure()
-        plt.scatter(master.index.tolist(), master['3 Hill Duration'], s=0.1)
-        plt.xlabel('Id of TCO')
-        plt.ylabel('3 Hill Duration (days)')
-        plt.savefig("figures/tcoid_3hill.svg", format="svg")
-        plt.savefig("figures/tcoid_3hill.pdf", format="pdf")
+        # fig8 = plt.figure()
+        # plt.scatter(master.index.tolist(), master['3 Hill Duration'], s=0.1)
+        # plt.xlabel('Id of TCO')
+        # plt.ylabel('3 Hill Duration (days)')
+        # plt.savefig("figures/tcoid_3hill.svg", format="svg")
+        # plt.savefig("figures/tcoid_3hill.pdf", format="pdf")
 
-        fig8 = plt.figure()
-        plt.scatter(master.index.tolist(), master['Helio vz at Capture'], s=0.1)
-        plt.xlabel('Id of TCO')
-        plt.ylabel('Helio vz at Capture (AU/day)')
-        plt.savefig("figures/tcoid_vz.svg", format="svg")
-        plt.savefig("figures/tcoid_vz.pdf", format="pdf")
+        # fig8 = plt.figure()
+        # plt.scatter(master.index.tolist(), master['Helio vz at Capture'], s=0.1)
+        # plt.xlabel('Id of TCO')
+        # plt.ylabel('Helio vz at Capture (AU/day)')
+        # plt.savefig("figures/tcoid_vz.svg", format="svg")
+        # plt.savefig("figures/tcoid_vz.pdf", format="pdf")
 
-        # Set the bin size
-        bin_size = 10
 
-        # Calculate the number of bins based on data range and bin size
-        data_range = max(master['3 Hill Duration']) - min(master['3 Hill Duration'])
-        num_bins = int(data_range / bin_size)
-
-        fig2 = plt.figure()
-        plt.hist(master['3 Hill Duration'], bins=num_bins, edgecolor="#038cfc",
-                 color="#03b1fc", zorder=10, alpha=0.5, )
-        plt.xlim([0, 1400])
-        plt.ylim([0, 800])
-        plt.xlabel('3 Hill Duration(days)')
-        plt.ylabel('Count')
-        plt.savefig("figures/3hill_hist.svg", format="svg")
-        plt.savefig("figures/3hill_hist.pdf", format="pdf")
-
-        # Set the bin size
-        bin_size = 0.00001
-
-        # Calculate the number of bins based on data range and bin size
-        data_range = max(master['Helio vz at Capture']) - min(master['Helio vz at Capture'])
-        num_bins = int(data_range / bin_size)
-
-        fig2 = plt.figure()
-        plt.hist(master['Helio vz at Capture'], bins=num_bins, edgecolor="#038cfc",
-                 color="#03b1fc", zorder=10, alpha=0.5, )
-        plt.xlim([-0.0005, 0.0005])
-        plt.ylim([0, 1500])
-        plt.xlabel('Helio vz at Capture (AU/day)')
-        plt.ylabel('Count')
-        plt.savefig("figures/vz_hist.svg", format="svg")
-        plt.savefig("figures/vz_hist.pdf", format="pdf")
         """
         start_value = 0
         end_value = max(master['3 Hill Duration'])
@@ -365,6 +474,7 @@ class MmPopulation:
         plt.scatter(binning, variances)
         plt.plot(x_curve, y_curve)
         plt.show()
+        """
 
         return
 
@@ -479,43 +589,215 @@ class MmPopulation:
 
     def stc_pop_viz(self):
 
+        all_data = pd.read_csv('all_paths.csv', sep=' ', header=0,
+                               names=['x', 'y', 'z', 'vx', 'vy', 'vz', 'L', 'alpha_I', 'beta_I', 'jacobi'])
+
+        # omega = 1.993722232068e-7
+        # time = 1 / omega
+        # distance = 1.49461e8
+        # mu = 3.040424e-6
+        # mu_s = 1.3271244e11
+        # mu_e = 3.986e3
+        # mu_m = 4.902e3
+        # mu_ems = mu_m + mu_e
+        #
+        # jacobis = []
+        # for idx, row in all_data.iterrows():
+        #     x = row['x'] * distance
+        #     y = row['y'] * distance
+        #     z = row['z'] * distance
+        #     vx = row['vx'] * distance / time
+        #     vy = row['vy'] * distance / time
+        #     vz = row['vz'] * distance / time
+        #     r_s = np.linalg.norm([row['x'] + mu, row['y'], row['z']]) * distance
+        #     r_ems = np.linalg.norm([row['x'] - (1 - mu), row['y'], row['z']]) * distance
+        #
+        #     jacobis.append(
+        #         omega ** 2 * (x ** 2 + y ** 2) + 2 * mu_s / r_s + 2 * mu_ems / r_ems - (vx ** 2 + vy ** 2 + vz ** 2))
+
+
+        # all_data['Dimensional Jacobi'] = jacobis
+
+        # all_data_26632 = all_data[all_data['Dimensional Jacobi'] >= 2663.2]
+        # all_data_26630 = all_data[all_data['Dimensional Jacobi'] >= 2663]
+        # all_data_26628 = all_data[all_data['Dimensional Jacobi'] >= 2662.8]
+        # all_data_26626 = all_data[all_data['Dimensional Jacobi'] >= 2662.6]
+
         stc_pop_ini = self.population[self.population['STC'] == True]
-        tco_pop = self.population[self.population['Became Minimoon'] == 1]
-        tcf_pop = self.population[self.population['Became Minimoon'] == 0]
-        stc_pop = stc_pop_ini[(stc_pop_ini['Non-Dimensional Jacobi'] < 3.000835) & (stc_pop_ini['Non-Dimensional Jacobi'] > 2.999868)]
-        non_stc_pop = self.population[self.population['STC'] == False]
-        # Get retrograde and prograde TCOs
-        # retrograde_stc = stc_pop[stc_pop['Retrograde'] == 1]
-        # prograde_stc = stc_pop[stc_pop['Retrograde'] == 0]
+        stc_pop_planar = stc_pop_ini[(abs(stc_pop_ini['Helio z at EMS']) < 0.0001) & (abs(stc_pop_ini['Helio vz at EMS']) < 0.00001)]
+        stc_pop_planar_2 = stc_pop_planar[(abs(stc_pop_planar['Helio z at Capture']) < 0.0001) & (abs(stc_pop_planar['Helio vz at Capture']) < 0.00001)]
+        stc_pop_planar_3 = stc_pop_planar_2[(abs(stc_pop_planar_2['Helio z at Release']) < 0.0001) & (
+                    abs(stc_pop_planar_2['Helio vz at Release']) < 0.00001)]
+        actual_planar_ids = ['NESC00000Opf', 'NESC00001xp6', 'NESC00003HO8', 'NESC00004Hzu', 'NESC00004m1B', 'NESC00004zBZ',
+                             'NESC00009F39', 'NESC0000as6C', 'NESC0000AWYz', 'NESC0000BHG1', 'NESC0000CdOz', 'NESC0000dbfP',
+                             'NESC0000dPxh', 'NESC0000dR3v', 'NESC0000ds7v', 'NESC0000dw0G', 'NESC0000eGj2', 'NESC0000EXSB',
+                             'NESC0000m2AL', 'NESC0000nlWD', 'NESC0000qF2S', 'NESC0000u8R8', 'NESC0000wMjh', 'NESC0000yn24',
+                             'NESC0000zHqv']
+        final_planar = stc_pop_planar_3[stc_pop_planar_3['Object id'].isin(actual_planar_ids)]
+        print(len(stc_pop_planar))
+        print(stc_pop_planar['Object id'])
+        print(len(stc_pop_planar_2))
+        print(stc_pop_planar_2['Object id'])
+        print(len(stc_pop_planar_3))
+        print(stc_pop_planar_3['Object id'])
+        print(stc_pop_planar['Non-Dimensional Jacobi'])
+        # tco_pop = self.population[self.population['Became Minimoon'] == 1]
+        # tcf_pop = self.population[self.population['Became Minimoon'] == 0]
+        # stc_pop = stc_pop_ini[(stc_pop_ini['Dimensional Jacobi'] < 2720) & (stc_pop_ini['Dimensional Jacobi'] > 2663.2)]
 
-        all_alphas = stc_pop['Alpha_I'].tolist()
-        all_betas = stc_pop['Beta_I'].tolist()
-        all_jacobis = stc_pop['Non-Dimensional Jacobi'].tolist()
 
+        # all_alphas = stc_pop['Alpha_I'].tolist()
+        # all_betas = stc_pop['Beta_I'].tolist()
+        # all_jacobis = stc_pop['Non-Dimensional Jacobi'].tolist()
+        # all_jacobisd = stc_pop['Dimensional Jacobi'].tolist()
+        # all_data_jacobi = all_data_26632['Dimensional Jacobi'].tolist()
+        # all_data_alphas = all_data_26632['alpha_I'].tolist()
+        # all_data_betas = all_data_26632['beta_I'].tolist()
+        #
+        # plt.rcParams.update({'font.size': 24})
+
+        # fig = plt.figure()
+        # plt.scatter(all_data_alphas, all_data_betas, color='#ff00eb', s=15, label='Planar Lyapunov Orbits')
+        # plt.scatter(all_alphas, all_betas, color='black', s=2, label='STCs Obtained Numerically')
+        # plt.xlabel(r'$\alpha_I$ (degrees)')
+        # plt.ylabel(r'$\beta_I$ (degrees)')
+        # plt.title(r'$C_{SE} > 2663.2$ $km^2/s^2$')
+        # plt.xlim([0, 360])
+        # plt.ylim([-180, 0])
+        # plt.legend()
+        #
+        # stc_pop2 = stc_pop_ini[(stc_pop_ini['Dimensional Jacobi'] < 2720) & (stc_pop_ini['Dimensional Jacobi'] > 2663)]
+        #
+        # all_alphas = stc_pop2['Alpha_I'].tolist()
+        # all_betas = stc_pop2['Beta_I'].tolist()
+        # all_data_alphas = all_data_26630['alpha_I'].tolist()
+        # all_data_betas = all_data_26630['beta_I'].tolist()
+        #
+        # fig = plt.figure()
+        # plt.scatter(all_data_alphas, all_data_betas, color='#0012ff', s=15, label='Planar Lyapunov Orbits')
+        # plt.scatter(all_alphas, all_betas, color='black', s=2, label='STCs Obtained Numerically')
+        # plt.xlabel(r'$\alpha_I$ (degrees)')
+        # plt.ylabel(r'$\beta_I$ (degrees)')
+        # plt.title(r'$C_{SE} > 2663$ $km^2/s^2$')
+        # plt.xlim([0, 360])
+        # plt.ylim([-180, 0])
+        # plt.legend()
+        #
+        # stc_pop3= stc_pop_ini[(stc_pop_ini['Dimensional Jacobi'] < 2720) & (stc_pop_ini['Dimensional Jacobi'] > 2662.8)]
+        #
+        # all_alphas = stc_pop3['Alpha_I'].tolist()
+        # all_betas = stc_pop3['Beta_I'].tolist()
+        # all_data_alphas = all_data_26628['alpha_I'].tolist()
+        # all_data_betas = all_data_26628['beta_I'].tolist()
+        #
+        # fig = plt.figure()
+        # plt.scatter(all_data_alphas, all_data_betas, color='#00ffdd', s=15, label='Planar Lyapunov Orbits')
+        # plt.scatter(all_alphas, all_betas, color='black', s=2, label='STCs Obtained Numerically')
+        # plt.xlabel(r'$\alpha_I$ (degrees)')
+        # plt.ylabel(r'$\beta_I$ (degrees)')
+        # plt.title(r'$C_{SE} > 2662.8$ $km^2/s^2$')
+        # plt.xlim([0, 360])
+        # plt.ylim([-180, 0])
+        # plt.legend()
+        #
+        # stc_pop4 = stc_pop_ini[
+        #     (stc_pop_ini['Dimensional Jacobi'] < 2720) & (stc_pop_ini['Dimensional Jacobi'] > 2662.6)]
+        #
+        # all_alphas = stc_pop4['Alpha_I'].tolist()
+        # all_betas = stc_pop4['Beta_I'].tolist()
+        # all_data_alphas = all_data_26626['alpha_I'].tolist()
+        # all_data_betas = all_data_26626['beta_I'].tolist()
+        #
+        # fig = plt.figure()
+        # plt.scatter(all_data_alphas, all_data_betas, color='#51ff00', s=15, label='Planar Lyapunov Orbits')
+        # plt.scatter(all_alphas, all_betas, color='black', s=2, label='STCs Obtained Numerically')
+        # plt.xlabel(r'$\alpha_I$ (degrees)')
+        # plt.ylabel(r'$\beta_I$ (degrees)')
+        # plt.title(r'$C_{SE} > 2662.6$ $km^2/s^2$')
+        # plt.xlim([0, 360])
+        # plt.ylim([-180, 0])
+        # plt.legend()
+        #
+        # plt.show()
+
+
+        plt.rcParams.update({'font.size': 12})
+        # index = master.index[master['Object id'] == name].tolist()
+        # mm_flag = True if master.loc[index[0], "Became Minimoon"] == 1 else False
+
+        # final_planar_good = final_planar[(final_planar['Non-Dimensional Jacobi'] > 2.9999) & (final_planar['Non-Dimensional Jacobi'] < 3.0009)]
+        # for ix, row in final_planar.iterrows():
+        #     if row['Non-Dimensional Jacobi'] > 3.0009:
+        #         final_planar.loc[ix, 'Non-Dimensional Jacobi'] = 3.0009
+        #     elif row['Non-Dimensional Jacobi'] < 2.9999:
+        #         final_planar.loc[ix, 'Non-Dimensional Jacobi'] = 2.9999
+
+        # print(final_planar['Non-Dimensional Jacobi'])
+        # fig = plt.figure()
+        # sc = plt.scatter(all_data['alpha_I'], all_data['beta_I'],
+        #                   c=all_data['jacobi'], cmap='gist_rainbow', s=5)
+        # sc2 = plt.scatter(final_planar['Alpha_I'], final_planar['Beta_I'], c=final_planar['Non-Dimensional Jacobi'], cmap='gist_rainbow', s=25, edgecolors='black')
+        # cbar = fig.colorbar(sc, label='Jacobi Constant ($\emptyset$)')
+        # plt.xlabel(r'$\alpha_I$ (degrees)')
+        # plt.ylabel(r'$\beta_I$ (degrees)')
+        # plt.xlim([0, 360])
+        # plt.ylim([-180, 0])
+        # plt.savefig("figures/stc_alpha_beta.svg", format="svg")
+        # plt.savefig("figures/stc_alpha_beta.png", format="png")
+
+        all_data_8 = all_data[all_data['jacobi'] > 3.0002]
+        all_data_alphas = all_data_8['alpha_I']
+        all_data_betas = all_data_8['beta_I']
+        final_planar = final_planar[(final_planar['Non-Dimensional Jacobi'] > 3.0002) & (final_planar['Non-Dimensional Jacobi'] < 3.000997)]
 
         fig = plt.figure()
-        sc = plt.scatter(all_alphas, all_betas, c=all_jacobis, cmap='gist_rainbow', s=5)
-        cbar = fig.colorbar(sc, label='Jacobi Constant')
+        plt.scatter(all_data_alphas, all_data_betas, color='#5cff00', s=15, label='Planar Lyapunov Orbits')
+        plt.scatter(final_planar['Alpha_I'], final_planar['Beta_I'], color='black', s=25, label='Planar STCs')
         plt.xlabel(r'$\alpha_I$ (degrees)')
         plt.ylabel(r'$\beta_I$ (degrees)')
+        plt.title(r'$C_{SE\emptyset} > 3.0002$')
         plt.xlim([0, 360])
         plt.ylim([-180, 0])
-        plt.savefig("figures/stc_alpha_beta.svg", format="svg")
-        plt.savefig("figures/stc_alpha_beta.png", format="png")
+        plt.legend()
+
+
+        plt.show()
 
         fig = plt.figure()
-        plt.scatter(tco_pop['Min. Distance'], tco_pop['Non-Dimensional Jacobi'], color='blue', s=5, label='TCOs', zorder=5)
-        plt.scatter(tcf_pop['Min. Distance'], tcf_pop['Non-Dimensional Jacobi'], color='orange', s=3, label='TCFs', zorder=10)
-        plt.scatter(stc_pop_ini['Min. Distance'], stc_pop_ini['Non-Dimensional Jacobi'], color='red', s=1, label='STCs', zorder=15)
+        # plt.scatter(tco_pop['3 Hill Duration'], tco_pop['Non-Dimensional Jacobi'], color='blue', s=5, label='TCOs', zorder=5)
+        # plt.scatter(tcf_pop['3 Hill Duration'], tcf_pop['Non-Dimensional Jacobi'], color='orange', s=3, label='TCFs', zorder=10)
+        plt.scatter(final_planar['3 Hill Duration'], final_planar['Non-Dimensional Jacobi'], color='red', s=1, label='STCs', zorder=15)
+        plt.xlabel('Capture Duration (Days)')
+        plt.ylabel('Non-Dimensional Jacobi Constant ($\emptyset$)')
+        # plt.xlim([0, 0.004])
+        # plt.ylim([2.998, 3.0015])
+        plt.legend()
+        plt.show()
+        """
+        fig = plt.figure()
+        plt.scatter(tco_pop['Min. Distance'], tco_pop['Dimensional Jacobi'], color='blue', s=5, label='TCOs',
+                    zorder=5)
+        plt.scatter(tcf_pop['Min. Distance'], tcf_pop['Dimensional Jacobi'], color='orange', s=3, label='TCFs',
+                    zorder=10)
+        plt.scatter(stc_pop['Min. Distance'], stc_pop['Dimensional Jacobi'], color='red', s=1, label='STCs',
+                    zorder=15)
         plt.xlabel('Min. Distance to Earth (AU)')
         plt.ylabel('Non-Dimensional Jacobi Constant')
-        plt.xlim([0, 0.004])
-        plt.ylim([2.998, 3.0015])
+        # plt.xlim([0, 0.004])
+        # plt.ylim([2.998, 3.0015])
         plt.legend()
-        plt.savefig("figures/jacobi_dist.svg", format="svg")
-        plt.savefig("figures/jacobi_dist.png", format="png")
+        # plt.savefig("figures/jacobi_dist.svg", format="svg")
+        # plt.savefig("figures/jacobi_dist.png", format="png")
 
-        """
+        fig = plt.figure()
+        sc = plt.scatter(all_alphas, all_betas, c=all_jacobisd, cmap='gist_rainbow', s=5)
+        cbar = fig.colorbar(sc, label='Jacobi Constant ($km^2/s^2$)')
+        plt.xlabel(r'$\alpha_I$ (degrees)')
+        plt.ylabel(r'$\beta_I$ (degrees)')
+        # plt.xlim([0, 360])
+        # plt.ylim([-180, 0])
+        # plt.savefig("figures/stc_alpha_beta.svg", format="svg")
+        # plt.savefig("figures/stc_alpha_beta.png", format="png")
 
         # Set the bin size
         bin_size = 1
@@ -840,6 +1122,194 @@ class MmPopulation:
 
         return
 
+    @staticmethod
+    def no_moon_table(mm_pop, mm_pop_nomoon):
+
+        tco_pop = mm_pop.population[mm_pop.population['Became Minimoon'] == 1]
+        stc_pop = mm_pop.population[mm_pop.population['STC'] == True]
+        tco_pop_nomoon = mm_pop_nomoon[mm_pop_nomoon['Became Minimoon'] == 1]
+        stc_pop_nomoon = mm_pop_nomoon[mm_pop_nomoon['STC'] == True]
+        tcf_pop = mm_pop.population[mm_pop.population['Became Minimoon'] == 0]
+        tcf_pop_nomoon = mm_pop_nomoon[mm_pop_nomoon['Became Minimoon'] == 0]
+        stc_tcos_moon = stc_pop[stc_pop['Became Minimoon'] == 1]
+        stc_tcfs_moon = stc_pop[stc_pop['Became Minimoon'] == 0]
+        stc_tcos_nomoon = stc_pop_nomoon[stc_pop_nomoon['Became Minimoon'] == 1]
+        stc_tcfs_nomoon = stc_pop_nomoon[stc_pop_nomoon['Became Minimoon'] == 0]
+
+        print("Original TCOs: " + str(len(tco_pop['Object id'])))
+        print("TCOs without Moon: " + str(len(tco_pop_nomoon['Object id'])))
+
+        print("Original TCFs: " + str(len(tcf_pop['Object id'])))
+        print("TCFs without Moon: " + str(len(tcf_pop_nomoon['Object id'])))
+
+        print("Original STCs: " + str(len(stc_pop['Object id'])))
+        print("STCs without moon: " + str(len(stc_pop_nomoon['Object id'])))
+
+        print("STCs that are TCOs: " + str(len(stc_tcos_moon['Object id'])))
+        print("STCs that are TCOs without moon: " + str(len(stc_tcos_nomoon['Object id'])))
+
+        print("STCs that are TCFs: " + str(len(stc_tcfs_moon['Object id'])))
+        print("STCs that are TCFs without moon: " + str(len(stc_tcfs_nomoon['Object id'])))
+
+        tcf_became_tco = 0
+        tco_became_tcf = 0
+        stayed_tco = 0
+        stayed_tcf = 0
+
+        for idx3, row3 in mm_pop.population.iterrows():
+
+            object_id = row3['Object id']
+            index = mm_pop_nomoon.index[mm_pop_nomoon['Object id'] == object_id].tolist()
+            tco_occ_nomoon = mm_pop_nomoon.loc[index[0], 'Became Minimoon']
+            tco_occ_moon = row3['Became Minimoon']
+
+            if tco_occ_moon == 1 and tco_occ_nomoon == 1:
+                stayed_tco += 1
+            elif tco_occ_moon == 1 and tco_occ_nomoon == 0:
+                tco_became_tcf += 1
+            elif tco_occ_moon == 0 and tco_occ_nomoon == 0:
+                stayed_tcf += 1
+            else:
+                tcf_became_tco += 1
+
+        print("TCOs that remained TCOs: " + str(stayed_tco))
+        print("TCFs that remained TCFs: " + str(stayed_tcf))
+        print("TCOs that became TCFs: " + str(tco_became_tcf))
+        print("TCFs that became TCOs: " + str(tcf_became_tco))
+
+        stcstc = []
+        stcnonstc = []
+        nonstcstc = []
+        nonstcnonstc = []
+
+        for idx2, row2 in mm_pop.population.iterrows():
+
+            limbo = mm_pop_nomoon[mm_pop_nomoon['Object id'] == row2['Object id']]
+            if limbo['STC'].iloc[0] == True and row2['STC'] == True:  # if it was stc and remained stc
+                stcstc.append(row2['Object id'])
+            elif limbo['STC'].iloc[0] == False and row2['STC'] == True:  # if it was stc and became non-stc
+                stcnonstc.append(row2['Object id'])
+            elif limbo['STC'].iloc[0] == True and row2['STC'] == False:  # non stc became stc
+                nonstcstc.append(row2['Object id'])
+            else:
+                nonstcnonstc.append(row2['Object id'])  # nonstc remained  stc
+
+        stcstc_pop = mm_pop.population[mm_pop.population['Object id'].isin(stcstc)]
+        stcnonstc_pop = mm_pop.population[mm_pop.population['Object id'].isin(stcnonstc)]
+        nonstcstc_pop = mm_pop.population[mm_pop.population['Object id'].isin(nonstcstc)]
+        nonstcnonstc_pop = mm_pop.population[mm_pop.population['Object id'].isin(nonstcnonstc)]
+
+        print("STCs that remained STCs: " + str(len(stcstc_pop['Object id'])))
+        print("Non STCs that remained non STCs: " + str(len(nonstcnonstc_pop['Object id'])))
+        print("STCs that became non STCs: " + str(len(stcnonstc_pop['Object id'])))
+        print("non STCs that became STCs: " + str(len(nonstcstc_pop['Object id'])))
+
+        return stcstc_pop, stcnonstc_pop, nonstcnonstc_pop, nonstcstc_pop
+
+    @staticmethod
+    def planar_stc(mm_pop, mm_pop_nomoon, path_moon, path_nomoon):
+
+        mm_parser = MmParser("", "", "")
+
+        # Examining the planar population of STCs
+        actual_planar_ids = ['NESC00000Opf', 'NESC00001xp6', 'NESC00003HO8', 'NESC00004Hzu', 'NESC00004m1B',
+                             'NESC00004zBZ',
+                             'NESC00009F39', 'NESC0000as6C', 'NESC0000AWYz', 'NESC0000BHG1', 'NESC0000CdOz',
+                             'NESC0000dbfP', 'NESC0000dR3v', 'NESC0000ds7v', 'NESC0000dw0G', 'NESC0000eGj2',
+                             'NESC0000EXSB',
+                             'NESC0000m2AL', 'NESC0000nlWD', 'NESC0000qF2S', 'NESC0000u8R8', 'NESC0000wMjh',
+                             'NESC0000yn24',
+                             'NESC0000zHqv']  # removed 'NESC0000dPxh' because it impacts Earth
+
+        planar_stc = mm_pop.population[mm_pop.population['Object id'].isin(actual_planar_ids)]
+        planar_stc_nomoon = mm_pop_nomoon[mm_pop_nomoon['Object id'].isin(actual_planar_ids)]
+
+        planar_stcstc = []
+        planar_stcnonstc = []
+
+        for idx2, row2 in planar_stc.iterrows():
+
+            limbo = planar_stc_nomoon[planar_stc_nomoon['Object id'] == row2['Object id']]
+            if limbo['STC'].iloc[0] == True:  # if it was stc and remained stc
+                planar_stcstc.append(row2['Object id'])
+            elif limbo['STC'].iloc[0] == False:  # if it was stc and became non-stc
+                planar_stcnonstc.append(row2['Object id'])
+
+        stc_stayed_stc_planar = planar_stc[planar_stc['Object id'].isin(planar_stcstc)]
+        stc_became_nonstc_planar = planar_stc[planar_stc['Object id'].isin(planar_stcnonstc)]
+
+        print("Planar STC that remained STC: " + str(len(stc_stayed_stc_planar['Object id'])))
+        print("STC that became non-STC: " + str(len(stc_became_nonstc_planar['Object id'])))
+
+        fig = plt.figure()
+        plt.scatter(stc_became_nonstc_planar['3 Hill Duration'], stc_became_nonstc_planar['Non-Dimensional Jacobi'],
+                    s=1, color='red', label='Became Non-STC without influence of the Moon')
+        plt.scatter(stc_stayed_stc_planar['3 Hill Duration'], stc_stayed_stc_planar['Non-Dimensional Jacobi'], s=1,
+                    color='blue', label='Remained STC without influence of the Moon')
+        plt.plot(np.linspace(0, 1400, 200), 2.9999 * np.linspace(1, 1, 200), linestyle='--', color='green', linewidth=1)
+        plt.xlabel('Capture Duration (days)')
+        plt.ylabel('Jacobi Constant ($\emptyset$)')
+        plt.xlim([0, 1400])
+        plt.ylim([2.9985, 3.0015])
+        plt.legend()
+
+        # fig = plt.figure()
+        # plt.scatter(stc_stayed_stc_planar['3 Hill Duration'], stc_stayed_stc_planar['Non-Dimensional Jacobi'], s=1,
+        #             color='blue')
+        # plt.plot(np.linspace(0, 1400, 200), 2.9999 * np.linspace(1, 1, 200), linestyle='--',
+        #          color='green', linewidth=1)
+        # plt.xlabel('Capture Duration (days)')
+        # plt.ylabel('Jacobi Constant ($\emptyset$)')
+        # plt.xlim([0, 1400])
+        # plt.ylim([2.9985, 3.0015])
+
+        plt.show()
+
+        # planar population visualization
+        for idx, row in planar_stc.iterrows():
+            # print(row)
+
+            stc_name = str(row['Object id']) + '.csv'
+            index = mm_pop_nomoon.index[mm_pop_nomoon['Object id'] == row['Object id']].tolist()
+            stc_name_no_moon = mm_pop_nomoon.loc[index[0], 'Object id']
+            stc_occ = mm_pop_nomoon.loc[index[0], 'STC']
+
+            print("Examining Previously STC: " + stc_name)
+            print("Still STC?: " + str(stc_occ) + " for STC: " + str(stc_name_no_moon))
+            print("Jacobi constant: " + str(row['Non-Dimensional Jacobi']))
+            data_nomoon = mm_parser.mm_file_parse_new(path_nomoon + '/' + stc_name)
+            data_moon = mm_parser.mm_file_parse_new(path_moon + '/' + stc_name)
+
+            fig3 = plt.figure()
+            ax = fig3.add_subplot(111, projection='3d')
+            vel_scale = 1
+            ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
+            xw = 0.0038752837677 * np.cos(ut) * np.sin(v)
+            yw = 0.0038752837677 * np.sin(ut) * np.sin(v)
+            zw = 0.0038752837677 * np.cos(v)
+            ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
+            ax.scatter(0, 0, 0, color='blue', s=10)
+            ax.plot3D(data_moon['Synodic x'], data_moon['Synodic y'], data_moon['Synodic z'], color='grey', zorder=15,
+                      linewidth=1, label='With Moon')
+            ax.plot3D(data_nomoon['Synodic x'], data_nomoon['Synodic y'], data_nomoon['Synodic z'], color='orange',
+                      zorder=10, linewidth=3, label='Without Moon')
+            ax.set_xlabel('Synodic x (AU)')
+            ax.set_ylabel('Synodic y (AU)')
+            ax.set_zlabel('Synodic z (AU)')
+            ax.set_xlim([-0.01, 0.01])
+            ax.set_ylim([-0.01, 0.01])
+            ax.set_zlim([-0.01, 0.01])
+            ax.set_title('STC ' + str(stc_name_no_moon) + '\nJacobi Constant = ' + str(round(row['Non-Dimensional Jacobi'], 5)))
+            num_ticks = 3
+            ax.xaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+            ax.yaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+            ax.zaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+            ax.legend()
+            # plt.savefig('figures/' + stc_name_no_moon + '_nomoon.svg', format='svg')
+            # plt.savefig('figures/' + stc_name_no_moon + '_nomoon.png', format='png')
+            plt.show()
+
+        return stc_stayed_stc_planar, stc_became_nonstc_planar
 
 if __name__ == '__main__':
 

@@ -21,6 +21,8 @@ from space_fncs import get_theta_from_M
 import matplotlib.ticker as ticker
 from space_fncs import get_emb_synodic
 from scipy.signal import argrelextrema
+from space_fncs import get_r_and_v_cr3bp_from_nbody_sun_emb
+from space_fncs import jacobi_dim_and_non_dim
 
 cds.enable()
 numpy.set_printoptions(threshold=sys.maxsize)
@@ -93,16 +95,13 @@ class MmMain():
 
     def integrate_parallel(self, idx, object_id):
 
-        print(idx)
+        # print(idx)
         print(object_id)
         # create an analyzer
         mm_analyzer = MmAnalyzer()
 
         # Constants
         mu_e = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
-
-        # Amount before and after you want oorb integrations to start (in days) with respect to Fedorets data
-        leadtime = 365 * cds.d
 
         # Perturbers (for OpenOrb) - Array of ints (0 = FALSE (i.e. not included) and 1 = TRUE) if a gravitational body
         # should be included in integrations
@@ -138,6 +137,7 @@ class MmMain():
         start_date = old_data['Julian Date'].iloc[0]
         end_date = old_data['Julian Date'].iloc[-1]
         int_step_rev = round(1/(old_data['Julian Date'].iloc[1] - old_data['Julian Date'].iloc[0]))
+        print(int_step_rev)
         int_step = 1/int_step_rev
         start_time = Time(start_date, format="jd", scale='utc')
         end_time = Time(end_date, format="jd", scale='utc')
@@ -146,26 +146,7 @@ class MmMain():
         new_data = mm_analyzer.get_data_mm_oorb(master_i, old_data, int_step, perturbers, start_time, end_time, mu_e)
 
         print("Number of integration steps: " + str(steps))
-        """
-        if steps < 90000:  # JPL Horizons limit
 
-            new_data = mm_analyzer.get_data_mm_oorb(master_i, old_data, int_step, perturbers, start_time, end_time, mu_e)
-
-        else:
-
-            start_time = Time(start_date * cds.d - leadtime, format="jd", scale='utc')
-            end_time = Time(end_date * cds.d + leadtime, format="jd", scale='utc')
-            steps = int((end_time.to_value('jd') - start_time.to_value('jd'))/int_step)
-
-            if steps < 90000:
-                new_data = mm_analyzer.get_data_mm_oorb(master_i, old_data, int_step, perturbers, start_time, end_time, mu_e)
-
-            else:
-                int_step = 1
-                new_data = mm_analyzer.get_data_mm_oorb(master_i, old_data, int_step, perturbers, start_time, end_time, mu_e)
-
-
-        """
         destination_path = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
         new_data.to_csv(destination_path + '/' + str(object_id) + '.csv', sep=' ', header=True, index=False)
 
@@ -641,22 +622,29 @@ class MmMain():
         mm_analyzer = MmAnalyzer()
 
         # get the master file - you need a list of initial orbits to integrate with openorb (pyorb)
-        master = mm_parser.parse_master(master_path)
+        master = mm_parser.parse_master(dest_path)
 
+        #########################################
         # parrelelized version of short term capture
+        ###########################################
         # pool = multiprocessing.Pool()
         # results = pool.map(mm_analyzer.short_term_capture, master['Object id'])  # input your function
         # pool.close()
-        for root, dirs, files in os.walk(dest_path):
 
-            for file in files:
-                if file == 'minimoon_master_final (copy).csv' or file == 'minimoon_master_final.csv' or\
-                        file == 'minimoon_master_final_previous.csv' or file == 'NESCv9reintv1.TCO.withH.kep.des':
-                    pass
-                else:
-                    data = mm_parser.mm_file_parse_new(dest_path + '/' + file)
-                    object_id = data['Object id'].iloc[0]
-                    res = mm_analyzer.alpha_beta_jacobi(object_id)
+
+        ##########################################
+        # alpha beta jacobi
+        #########################################
+        # for root, dirs, files in os.walk(dest_path):
+        #
+        #     for file in files:
+        #         if file == 'minimoon_master_final (copy).csv' or file == 'minimoon_master_final.csv' or\
+        #                 file == 'minimoon_master_final_previous.csv' or file == 'NESCv9reintv1.TCO.withH.kep.des':
+        #             pass
+        #         else:
+        #             data = mm_parser.mm_file_parse_new(dest_path + '/' + file)
+        #             object_id = data['Object id'].iloc[0]
+        #             res = mm_analyzer.alpha_beta_jacobi(object_id)
 
         # parallel version of jacobi alpha beta
         # stc_pop = master[master['STC'] == True]
@@ -687,6 +675,15 @@ class MmMain():
         # master['Beta_I'] = repacked_results[3]
         # master['Theta_M'] = repacked_results[4]
 
+        #################################################
+        # cluster data
+        ################################################
+
+        for idx, row in master.iterrows():
+            idx += 2
+            res = mm_analyzer.get_cluster_data(master['Object id'].iloc[idx])
+
+
         # write the master to csv - only if your sure you have the right data, otherwise in will be over written
         # master.to_csv(dest_path, sep=' ', header=True, index=False)
 
@@ -714,6 +711,7 @@ class MmMain():
         for index2, row2 in bad_stc.iterrows():
 
             object_id = row2['Object id']
+            print(row2['Object id'])
 
             xs = []
             ys = []
@@ -856,7 +854,7 @@ class MmMain():
 
                             # v_rel in Jacobi constant
                             C_v_TCO = C_R_h @ (h_v_TCO - v_C) - np.cross(np.array([0, 0, omega * seconds_in_day]), C_r_TCO)  # AU/day
-                            C_v_TCO_2 = C_R_h @ (h_v_TCO - v_C) - np.cross(omega_2, C_r_TCO)  # AU/day
+                            C_v_TCO_2 = C_R_h @ (h_v_TCO - v_C) - np.cross(C_R_h @ omega_2, C_r_TCO)  # AU/day
 
                             # non dimensional Jacobi constant
                             x_prime = C_r_TCO[0] / r_sE
@@ -921,9 +919,9 @@ class MmMain():
                             xsdim.append(C_r_TCO[0])
                             ysdim.append(C_r_TCO[1])
                             zsdim.append(C_r_TCO[2])
-                            vxsdim.append(C_v_TCO[0])
-                            vysdim.append(C_v_TCO[1])
-                            vzsdim.append(C_v_TCO[2])
+                            vxsdim.append(C_v_TCO_2[0])
+                            vysdim.append(C_v_TCO_2[1])
+                            vzsdim.append(C_v_TCO_2[2])
                             xsdima.append(x_prime)
                             ysdima.append(y_prime)
                             zsdima.append(z_prime)
@@ -1046,15 +1044,15 @@ class MmMain():
                 print("Coherence with omega 2: " + str(coherencea[in_ems_idxs + 1]))
                 print("Coherence of non-dim vel omega 1: " + str(coherencedim[in_ems_idxs + 1]))
                 print("Coherence of helio vel: " + str(coherenceh[in_ems_idxs + 1]))
-                plt.plot([i for i in range(1, len(coherence) + 1)], coherence, linewidth=1, zorder=5, color='red', label='${}^Cv_{TCO\emptyset}$ with $\Omega_{SE}$')
-                plt.plot([i for i in range(1, len(coherencea) + 1)], coherencea, linewidth=1, zorder=10, color='blue', label='${}^Cv_{TCO\emptyset}$ with $\Omega^{\prime}_{SE}$')
-                plt.plot([i for i in range(1, len(coherencedim) + 1)], coherencedim, linewidth=1, zorder=3, color='green', label='${}^Cv_{TCO}$ with $\Omega_{SE}$')
+                plt.plot([i for i in range(1, len(coherence) + 1)], coherence, linewidth=1, zorder=5, color='red', label='${}^Cv_{TCO\emptyset}$ with $\omega_{SE}$')
+                plt.plot([i for i in range(1, len(coherencea) + 1)], coherencea, linewidth=1, zorder=10, color='blue', label='${}^Cv_{TCO\emptyset}$ with $\omega^{\prime}_{SE}$')
+                plt.plot([i for i in range(1, len(coherencedim) + 1)], coherencedim, linewidth=1, zorder=3, color='green', label='${}^Cv_{TCO}$ with $\omega^{\prime}_{SE}$')
                 plt.plot([i for i in range(1, len(coherenceh) + 1)], coherenceh, linewidth=3, zorder=2, color='orange', label='${}^hv_{TCO}$')
                 plt.scatter(in_ems_idxs, coherence[in_ems_idxs], s=20, zorder=5, color='red')
                 plt.scatter(in_ems_idxs, coherencea[in_ems_idxs], s=20, zorder=10, color='blue')
                 plt.scatter(in_ems_idxs, coherencedim[in_ems_idxs], s=20, zorder=3, color='green')
                 plt.scatter(in_ems_idxs, coherenceh[in_ems_idxs], s=20, zorder=2, color='orange')
-                plt.xlabel('Timestep')
+                plt.xlabel('Time-step')
                 plt.ylabel('Coherence')
                 plt.legend()
 
@@ -1130,98 +1128,319 @@ class MmMain():
         pd.set_option('display.max_rows', None)
         # print(mm_pop_nomoon.iloc[0])
 
-        tco_pop = mm_pop.population[mm_pop.population['Became Minimoon'] == 1]
-        stc_pop = mm_pop.population[mm_pop.population['STC'] == True]
-        tco_pop_nomoon = mm_pop_nomoon[mm_pop_nomoon['Became Minimoon'] == 1]
-        stc_pop_nomoon = mm_pop_nomoon[mm_pop_nomoon['STC'] == True]
-        tcf_pop = mm_pop.population[mm_pop.population['Became Minimoon'] == 0]
-        tcf_pop_nomoon = mm_pop_nomoon[mm_pop_nomoon['Became Minimoon'] == 0]
-        stc_tcos_moon = stc_pop[stc_pop['Became Minimoon'] == 1]
-        stc_tcfs_moon = stc_pop[stc_pop['Became Minimoon'] == 0]
-        stc_tcos_nomoon = stc_pop_nomoon[stc_pop_nomoon['Became Minimoon'] == 1]
-        stc_tcfs_nomoon = stc_pop_nomoon[stc_pop_nomoon['Became Minimoon'] == 0]
+        # Statistics on transitions
+        stcstc_pop, stcnonstc_pop, nonstcnonstc_pop, nonstcstc_pop = mm_pop.no_moon_table(mm_pop, mm_pop_nomoon)
 
-        print("Original TCOs: " + str(len(tco_pop['Object id'])))
-        print("TCOs without Moon: " + str(len(tco_pop_nomoon['Object id'])))
+        # Jacobi constant graphs
+        fig = plt.figure()
+        plt.scatter(stcnonstc_pop['3 Hill Duration'], stcnonstc_pop['Non-Dimensional Jacobi'], s=1, color='red', label='Became Non-STC without influence of the Moon')
+        plt.scatter(stcstc_pop['3 Hill Duration'], stcstc_pop['Non-Dimensional Jacobi'], s=1, color='blue', label='Remained STC without influence of the Moon')
+        plt.plot(np.linspace(0, 1000, 200), 2.9999 * np.linspace(1, 1, 200), linestyle='--', color='green', linewidth=1)
+        plt.xlabel('Capture Duration (days)')
+        plt.ylabel('Jacobi Constant ($\emptyset$)')
+        plt.xlim([0, 1000])
+        plt.ylim([2.9985, 3.0015])
+        plt.legend()
 
-        print("Original TCFs: " + str(len(tcf_pop['Object id'])))
-        print("TCFs without Moon: " + str(len(tcf_pop_nomoon['Object id'])))
-
-        print("Original STCs: " + str(len(stc_pop['Object id'])))
-        print("STCs without moon: " + str(len(stc_pop_nomoon['Object id'])))
-
-        print("STCs that are TCOs: " + str(len(stc_tcos_moon['Object id'])))
-        print("STCs that are TCOs without moon: " + str(len(stc_tcos_nomoon['Object id'])))
-
-        print("STCs that are TCFs: " + str(len(stc_tcfs_moon['Object id'])))
-        print("STCs that are TCFs without moon: " + str(len(stc_tcfs_nomoon['Object id'])))
-
-        tcf_became_tco = 0
-        tco_became_tcf = 0
-        stayed_tco = 0
-        stayed_tcf = 0
-
-        # for idx3, row3 in mm_pop.population.iterrows():
+        # fig = plt.figure()
+        # plt.scatter(stcstc_pop['3 Hill Duration'], stcstc_pop['Non-Dimensional Jacobi'], s=1, color='blue')
+        # plt.plot(np.linspace(0, 1000, 200), 2.9999 * np.linspace(1, 1, 200), linestyle='--',
+        #          color='green', linewidth=1)
+        # plt.xlabel('Capture Duration (days)')
+        # plt.ylabel('Jacobi Constant ($\emptyset$)')
+        # plt.xlim([0, 1000])
+        # plt.ylim([2.9985, 3.0015])
         #
-        #     object_id = row3['Object id']
-        #     index = mm_pop_nomoon.index[mm_pop_nomoon['Object id'] == object_id].tolist()
-        #     tco_occ_nomoon = mm_pop_nomoon.loc[index[0], 'Became Minimoon']
-        #     tco_occ_moon = row3['Became Minimoon']
-        #
-        #     if tco_occ_moon == 1 and tco_occ_nomoon == 1:
-        #         stayed_tco += 1
-        #     elif tco_occ_moon == 1 and tco_occ_nomoon == 0:
-        #         tco_became_tcf += 1
-        #     elif tco_occ_moon == 0 and tco_occ_nomoon == 0:
-        #         stayed_tcf += 1
-        #     else:
-        #         tcf_became_tco += 1
+        # plt.show()
 
-        print("TCOs that remained TCOs: " + str(stayed_tco))
-        print("TCFs that remained TCFs: " + str(stayed_tcf))
-        print("TCOs that became TCFs: " + str(tco_became_tcf))
-        print("TCFs that became TCOs: " + str(tcf_became_tco))
+        # Examine the planar population of STCs
+        stc_stayed_stc_planar, stc_became_nonstc_planar = mm_pop.planar_stc(mm_pop, mm_pop_nomoon, path_moon, path_nomoon)
 
-        for idx, row in stc_pop.iterrows():
-            # print(row)
+        stc_stayed_stc_planar = nonstcstc_pop
+        stc_became_nonstc_planar = stcnonstc_pop
 
-            stc_name = str(row['Object id']) + '.csv'
-            index = mm_pop_nomoon.index[mm_pop_nomoon['Object id'] == row['Object id']].tolist()
-            stc_name_no_moon = mm_pop_nomoon.loc[index[0], 'Object id']
-            stc_occ = mm_pop_nomoon.loc[index[0], 'STC']
+        vels_stayed = []
+        vels_became_nonstc = []
+        thills_stayed = []
+        thills_became = []
+        for idx3, master in stc_stayed_stc_planar.iterrows():
 
-            print("Examining Previously STC: " + stc_name)
-            print("Still STC?: " + str(stc_occ)+ " for STC: " + str(stc_name_no_moon))
-            data_nomoon = mm_parser.mm_file_parse_new(path_nomoon + '/' + stc_name)
-            data_moon = mm_parser.mm_file_parse_new(path_moon + '/' + stc_name)
+            x = master['Helio x at EMS']  # AU
+            y = master['Helio y at EMS']
+            z = master['Helio z at EMS']
+            vx = master['Helio vx at EMS']  # AU/day
+            vy = master['Helio vy at EMS']
+            vz = master['Helio vz at EMS']
+            vx_M = master['Moon vx at EMS (Helio)']  # AU/day
+            vy_M = master['Moon vy at EMS (Helio)']
+            vz_M = master['Moon vz at EMS (Helio)']
+            x_M = master['Moon x at EMS (Helio)']  # AU
+            y_M = master['Moon y at EMS (Helio)']
+            z_M = master['Moon z at EMS (Helio)']
+            x_E = master['Earth x at EMS (Helio)']
+            y_E = master['Earth y at EMS (Helio)']
+            z_E = master['Earth z at EMS (Helio)']
+            vx_E = master['Earth vx at EMS (Helio)']  # AU/day
+            vy_E = master['Earth vy at EMS (Helio)']
+            vz_E = master['Earth vz at EMS (Helio)']
+            date_ems = master['Entry Date to EMS'] # Julian date
 
-            # fig3 = plt.figure()
-            # ax = fig3.add_subplot(111, projection='3d')
-            # vel_scale = 1
-            # ut, v = np.mgrid[0:2 * np.pi:20j, 0:np.pi:10j]
-            # xw = 0.0038752837677 * np.cos(ut) * np.sin(v)
-            # yw = 0.0038752837677 * np.sin(ut) * np.sin(v)
-            # zw = 0.0038752837677 * np.cos(v)
-            # ax.plot_wireframe(xw, yw, zw, color="b", alpha=0.1)
-            # ax.scatter(0, 0, 0, color='blue', s=10)
-            # ax.plot3D(data_moon['Synodic x'], data_moon['Synodic y'], data_moon['Synodic z'], color='grey', zorder=15, linewidth=1, label='With Moon')
-            # ax.plot3D(data_nomoon['Synodic x'], data_nomoon['Synodic y'], data_nomoon['Synodic z'], color='orange', zorder=10, linewidth=3, label='Without Moon')
-            # ax.set_xlabel('Synodic x (AU)')
-            # ax.set_ylabel('Synodic y (AU)')
-            # ax.set_zlabel('Synodic z (AU)')
-            # ax.set_xlim([-0.01, 0.01])
-            # ax.set_ylim([-0.01, 0.01])
-            # ax.set_zlim([-0.01, 0.01])
-            # ax.set_title('STC ' + str(stc_name_no_moon))
-            # num_ticks = 3
-            # ax.xaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
-            # ax.yaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
-            # ax.zaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
-            # ax.legend()
-            # plt.savefig('figures/' + stc_name_no_moon + '_nomoon.svg', format='svg')
-            # plt.savefig('figures/' + stc_name_no_moon + '_nomoon.png', format='png')
-            # plt.show()
+            if not np.isnan(date_ems):
 
+                date_mjd = Time(date_ems, format='jd').to_value('mjd')
+
+
+                h_r_TCO = np.array([x, y, z]).ravel()  # AU
+                h_r_M = np.array([x_M, y_M, z_M]).ravel()
+                h_r_E = np.array([x_E, y_E, z_E]).ravel()
+                h_v_TCO = np.array([vx, vy, vz]).ravel()  # AU/day
+                h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
+                h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
+
+                C_r_TCO, C_v_TCO, C_v_TCO_2, C_ems, C_moon, ems_barycentre, vems_barycentre, omega, omega_2, r_sE, mu_s, mu_EMS = (
+                    get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M, date_mjd))
+
+                if True: #np.linalg.norm(C_v_TCO_2[2]) < 2.2e-6:
+                    val = np.linalg.norm(C_v_TCO_2) / r_sE / np.linalg.norm(omega_2)#* np.sin(np.deg2rad(abs(90 + master['Beta_I'])))
+                    vels_stayed.append(val)
+                    thills_stayed.append(master['Alpha_I'])
+                    print(str(master['Object id']) + "'s vel: " + str(val))
+
+        for idx3, master in stc_became_nonstc_planar.iterrows():
+
+            x = master['Helio x at EMS']  # AU
+            y = master['Helio y at EMS']
+            z = master['Helio z at EMS']
+            vx = master['Helio vx at EMS']  # AU/day
+            vy = master['Helio vy at EMS']
+            vz = master['Helio vz at EMS']
+            vx_M = master['Moon vx at EMS (Helio)']  # AU/day
+            vy_M = master['Moon vy at EMS (Helio)']
+            vz_M = master['Moon vz at EMS (Helio)']
+            x_M = master['Moon x at EMS (Helio)']  # AU
+            y_M = master['Moon y at EMS (Helio)']
+            z_M = master['Moon z at EMS (Helio)']
+            x_E = master['Earth x at EMS (Helio)']
+            y_E = master['Earth y at EMS (Helio)']
+            z_E = master['Earth z at EMS (Helio)']
+            vx_E = master['Earth vx at EMS (Helio)']  # AU/day
+            vy_E = master['Earth vy at EMS (Helio)']
+            vz_E = master['Earth vz at EMS (Helio)']
+            date_ems = master['Entry Date to EMS']  # Julian date
+
+            if not np.isnan(date_ems):
+                date_mjd = Time(date_ems, format='jd').to_value('mjd')
+
+                h_r_TCO = np.array([x, y, z]).ravel()  # AU
+                h_r_M = np.array([x_M, y_M, z_M]).ravel()
+                h_r_E = np.array([x_E, y_E, z_E]).ravel()
+                h_v_TCO = np.array([vx, vy, vz]).ravel()  # AU/day
+                h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
+                h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
+
+                C_r_TCO, C_v_TCO, C_v_TCO_2, C_ems, C_moon, ems_barycentre, vems_barycentre, omega, omega_2, r_sE, mu_s, mu_EMS = (
+                    get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M, date_mjd))
+
+                if True: #np.linalg.norm(C_v_TCO_2[2]) < 2.2e-6:
+                    val = np.linalg.norm(C_v_TCO_2) / r_sE / np.linalg.norm(omega_2) #* np.sin(np.deg2rad(abs(90 + master['Beta_I'])))
+                    vels_became_nonstc.append(val)
+                    thills_became.append(master['Alpha_I'])
+                    print(str(master['Object id']) + "'s vel: " + str(val))
+
+
+        fig = plt.figure()
+        plt.scatter(thills_stayed, vels_stayed, s=5, color='blue')
+        plt.scatter(thills_became, vels_became_nonstc, s=5, color='red')
+        plt.show()
+
+        # stcs_non.to_csv('minimoon_files_oorb/minimoon_master_nonstcs_nomoon.csv', sep=' ', header=True, index=False)
+        # stcs_non.to_csv('minimoon_files_oorb/minimoon_master_nonstcs_nomoon.csv', sep=' ', header=True, index=False)
+
+
+    """
+            stc_to_non_stcs = pd.DataFrame(columns=['Object id', 'H', 'D', 'Capture Date',
+                                                             'Helio x at Capture', 'Helio y at Capture',
+                                                             'Helio z at Capture', 'Helio vx at Capture',
+                                                             'Helio vy at Capture', 'Helio vz at Capture',
+                                                             'Helio q at Capture', 'Helio e at Capture',
+                                                             'Helio i at Capture', 'Helio Omega at Capture',
+                                                             'Helio omega at Capture', 'Helio M at Capture',
+                                                             'Geo x at Capture', 'Geo y at Capture',
+                                                             'Geo z at Capture', 'Geo vx at Capture',
+                                                             'Geo vy at Capture', 'Geo vz at Capture',
+                                                             'Geo q at Capture', 'Geo e at Capture',
+                                                             'Geo i at Capture', 'Geo Omega at Capture',
+                                                             'Geo omega at Capture', 'Geo M at Capture',
+                                                             'Moon (Helio) x at Capture',
+                                                             'Moon (Helio) y at Capture',
+                                                             'Moon (Helio) z at Capture',
+                                                             'Moon (Helio) vx at Capture',
+                                                             'Moon (Helio) vy at Capture',
+                                                             'Moon (Helio) vz at Capture',
+                                                             'Capture Duration', 'Spec. En. Duration',
+                                                             '3 Hill Duration', 'Number of Rev',
+                                                             '1 Hill Duration', 'Min. Distance',
+                                                             'Release Date', 'Helio x at Release',
+                                                             'Helio y at Release', 'Helio z at Release',
+                                                             'Helio vx at Release', 'Helio vy at Release',
+                                                             'Helio vz at Release', 'Helio q at Release',
+                                                             'Helio e at Release', 'Helio i at Release',
+                                                             'Helio Omega at Release',
+                                                             'Helio omega at Release',
+                                                             'Helio M at Release', 'Geo x at Release',
+                                                             'Geo y at Release', 'Geo z at Release',
+                                                             'Geo vx at Release', 'Geo vy at Release',
+                                                             'Geo vz at Release', 'Geo q at Release',
+                                                             'Geo e at Release', 'Geo i at Release',
+                                                             'Geo Omega at Release',
+                                                             'Geo omega at Release', 'Geo M at Release',
+                                                             'Moon (Helio) x at Release',
+                                                             'Moon (Helio) y at Release',
+                                                             'Moon (Helio) z at Release',
+                                                             'Moon (Helio) vx at Release',
+                                                             'Moon (Helio) vy at Release',
+                                                             'Moon (Helio) vz at Release', 'Retrograde',
+                                                             'Became Minimoon', 'Max. Distance', 'Capture Index',
+                                                             'Release Index', 'X at Earth Hill', 'Y at Earth Hill',
+                                                             'Z at Earth Hill', 'Taxonomy', 'STC', "EMS Duration",
+                                                             "Periapsides in EMS", "Periapsides in 3 Hill",
+                                                             "Periapsides in 2 Hill", "Periapsides in 1 Hill",
+                                                             "STC Start", "STC Start Index", "STC End", "STC End Index",
+                                                             "Helio x at EMS", "Helio y at EMS", "Helio z at EMS",
+                                                             "Helio vx at EMS", "Helio vy at EMS", "Helio vz at EMS",
+                                                             "Earth x at EMS (Helio)", "Earth y at EMS (Helio)",
+                                                             "Earth z at EMS (Helio)", "Earth vx at EMS (Helio)",
+                                                             "Earth vy at EMS (Helio)", "Earth vz at EMS (Helio)",
+                                                             "Moon x at EMS (Helio)", "Moon y at EMS (Helio)",
+                                                             "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
+                                                             "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)",
+                                                             'Entry Date to EMS', 'Entry to EMS Index',
+                                                             'Exit Date to EMS', 'Exit Index to EMS',
+                                                             "Dimensional Jacobi", "Non-Dimensional Jacobi", 'Alpha_I',
+                                                             'Beta_I', 'Theta_M'])
+
+
+
+
+        
+        vels_stayed_non = []
+        vels_became_nonstc_non2 = []
+        thills_stayed_non = []
+        thills_became_non2 = []
+        for idx3, master in stcs_non.iterrows():
+
+            x = master['Helio x at EMS']  # AU
+            y = master['Helio y at EMS']
+            z = master['Helio z at EMS']
+            vx = master['Helio vx at EMS']  # AU/day
+            vy = master['Helio vy at EMS']
+            vz = master['Helio vz at EMS']
+            vx_M = master['Moon vx at EMS (Helio)']  # AU/day
+            vy_M = master['Moon vy at EMS (Helio)']
+            vz_M = master['Moon vz at EMS (Helio)']
+            x_M = master['Moon x at EMS (Helio)']  # AU
+            y_M = master['Moon y at EMS (Helio)']
+            z_M = master['Moon z at EMS (Helio)']
+            x_E = master['Earth x at EMS (Helio)']
+            y_E = master['Earth y at EMS (Helio)']
+            z_E = master['Earth z at EMS (Helio)']
+            vx_E = master['Earth vx at EMS (Helio)']  # AU/day
+            vy_E = master['Earth vy at EMS (Helio)']
+            vz_E = master['Earth vz at EMS (Helio)']
+            date_ems = master['Entry Date to EMS']  # Julian date
+
+            if not np.isnan(date_ems):
+
+                date_mjd = Time(date_ems, format='jd').to_value('mjd')
+
+                h_r_TCO = np.array([x, y, z]).ravel()  # AU
+                h_r_M = np.array([x_M, y_M, z_M]).ravel()
+                h_r_E = np.array([x_E, y_E, z_E]).ravel()
+                h_v_TCO = np.array([vx, vy, vz]).ravel()  # AU/day
+                h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
+                h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
+
+                C_r_TCO, C_v_TCO, C_v_TCO_2, C_ems, C_moon, ems_barycentre, vems_barycentre, omega, omega_2, r_sE, mu_s, mu_EMS = (
+                    get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M, date_mjd))
+
+                if master['Beta_I'] > -180 and master['Beta_I'] < 0: #if np.linalg.norm(C_v_TCO_2[2]) < 2.2e-6:
+                    vels_stayed_non.append(
+                        np.linalg.norm(C_v_TCO_2[:3]) * np.cos(np.deg2rad(abs(90 + master['Beta_I']))))
+                    thills_stayed_non.append(master['3 Hill Duration'])
+
+        for idx3, master in stcs_non2.iterrows():
+
+            x = master['Helio x at EMS']  # AU
+            y = master['Helio y at EMS']
+            z = master['Helio z at EMS']
+            vx = master['Helio vx at EMS']  # AU/day
+            vy = master['Helio vy at EMS']
+            vz = master['Helio vz at EMS']
+            vx_M = master['Moon vx at EMS (Helio)']  # AU/day
+            vy_M = master['Moon vy at EMS (Helio)']
+            vz_M = master['Moon vz at EMS (Helio)']
+            x_M = master['Moon x at EMS (Helio)']  # AU
+            y_M = master['Moon y at EMS (Helio)']
+            z_M = master['Moon z at EMS (Helio)']
+            x_E = master['Earth x at EMS (Helio)']
+            y_E = master['Earth y at EMS (Helio)']
+            z_E = master['Earth z at EMS (Helio)']
+            vx_E = master['Earth vx at EMS (Helio)']  # AU/day
+            vy_E = master['Earth vy at EMS (Helio)']
+            vz_E = master['Earth vz at EMS (Helio)']
+            date_ems = master['Entry Date to EMS']  # Julian date
+
+            if not np.isnan(date_ems):
+
+                date_mjd = Time(date_ems, format='jd').to_value('mjd')
+
+                h_r_TCO = np.array([x, y, z]).ravel()  # AU
+                h_r_M = np.array([x_M, y_M, z_M]).ravel()
+                h_r_E = np.array([x_E, y_E, z_E]).ravel()
+                h_v_TCO = np.array([vx, vy, vz]).ravel()  # AU/day
+                h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
+                h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
+
+                C_r_TCO, C_v_TCO, C_v_TCO_2, C_ems, C_moon, ems_barycentre, vems_barycentre, omega, omega_2, r_sE, mu_s, mu_EMS = (
+                    get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M,
+                                                         date_mjd))
+
+                if master['Beta_I'] > -180 and master['Beta_I'] < 0: #if np.linalg.norm(C_v_TCO_2[2]) < 2.2e-6:
+                    vels_became_nonstc_non2.append(
+                        np.linalg.norm(C_v_TCO_2[:3]) * np.cos(np.deg2rad(abs(90 + master['Beta_I']))))
+                    thills_became_non2.append(master['3 Hill Duration'])
+
+        fig = plt.figure()
+        plt.scatter(thills_stayed_non, vels_stayed_non, s=1, color='blue')
+        plt.scatter(thills_became_non2, vels_became_nonstc_non2, s=1, color='red')
+
+        # Set the bin size
+        bin_size = 0.00001
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_stc = max(vels_stayed_non) - min(vels_stayed_non)
+        num_bins_stc = int(data_range_stc / bin_size)
+        data_range_nonstc = max(vels_became_nonstc_non2) - min(vels_became_nonstc_non2)
+        num_bins_nonstc = int(data_range_nonstc / bin_size)
+
+        fig = plt.figure()
+        plt.hist(vels_stayed_non, bins=num_bins_stc, label='STCs', edgecolor="#038cfc",
+                 color="#03b1fc")
+        plt.hist(vels_became_nonstc_non2, bins=num_bins_nonstc, label='Non-STCs', edgecolor="#ed0000",
+                 color="#f54747")
+        # plt.xlim([0, 60])
+        # plt.ylim([0, 3500])
+        plt.xlabel('Duration in the SOI of EMS (days)')
+        plt.ylabel('Count')
+        plt.legend()
+
+        plt.show()
+        print(stcs_non['STC'])
+        print(stcs_non2['STC'])
+        print(len(stcs_non))
+        print(len(stcs_non2))
+        
+            
             # constants
             three_eh = 0.03
             r_ems = 0.0038752837677  # sphere of influence of earth-moon system
@@ -1384,12 +1603,107 @@ class MmMain():
             # plt.savefig("figures/" + str(stc_name_no_moon) + "_distance_nomoon.svg", format="svg")
             # plt.savefig("figures/" + str(stc_name_no_moon) + "_distance_nomoon.png", format="png")
             plt.show()
+    """
+
+    @staticmethod
+    def jacobi_variation():
+
+        actual_planar_ids = ['2006 RH120', 'NESC00000Opf', 'NESC00001xp6', 'NESC00003HO8', 'NESC00004Hzu', 'NESC00004m1B',
+                             'NESC00004zBZ',
+                             'NESC00009F39', 'NESC0000as6C', 'NESC0000AWYz', 'NESC0000BHG1', 'NESC0000CdOz',
+                             'NESC0000dbfP',
+                             'NESC0000dPxh', 'NESC0000dR3v', 'NESC0000ds7v', 'NESC0000dw0G', 'NESC0000eGj2',
+                             'NESC0000EXSB',
+                             'NESC0000m2AL', 'NESC0000nlWD', 'NESC0000qF2S', 'NESC0000u8R8', 'NESC0000wMjh',
+                             'NESC0000yn24',
+                             'NESC0000zHqv']
+
+        destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+
+        mm_parser = MmParser("", "", "")
+
+        jacobis = []
+        fig, ax = plt.subplots()
+        for idx, id in enumerate(actual_planar_ids):
+
+            file_path = destination_path + '/' + id + '.csv'
+            print(id)
+
+            data = mm_parser.mm_file_parse_new(file_path)
+            jacobi = []
+            for j, master in data.iterrows():
+
+                # print(j)
+
+                x = master['Helio x']  # AU
+                y = master['Helio y']
+                z = master['Helio z']
+                vx = master['Helio vx']  # AU/day
+                vy = master['Helio vy']
+                vz = master['Helio vz']
+                vx_M = master['Moon vx (Helio)']  # AU/day
+                vy_M = master['Moon vy (Helio)']
+                vz_M = master['Moon vz (Helio)']
+                x_M = master['Moon x (Helio)']  # AU
+                y_M = master['Moon y (Helio)']
+                z_M = master['Moon z (Helio)']
+                x_E = master['Earth x (Helio)']
+                y_E = master['Earth y (Helio)']
+                z_E = master['Earth z (Helio)']
+                vx_E = master['Earth vx (Helio)']  # AU/day
+                vy_E = master['Earth vy (Helio)']
+                vz_E = master['Earth vz (Helio)']
+                date_ems = master['Julian Date']  # Julian date
+
+                date_mjd = Time(date_ems, format='jd').to_value('mjd')
+                h_r_TCO = np.array([x, y, z]).ravel()  # AU
+                h_r_M = np.array([x_M, y_M, z_M]).ravel()
+                h_r_E = np.array([x_E, y_E, z_E]).ravel()
+                h_v_TCO = np.array([vx, vy, vz]).ravel()  # AU/day
+                h_v_M = np.array([vx_M, vy_M, vz_M]).ravel()
+                h_v_E = np.array([vx_E, vy_E, vz_E]).ravel()
+
+                C_r_TCO, C_v_TCO, C_v_TCO_2, C_ems, C_moon, ems_barycentre, vems_barycentre, omega, omega_2, r_sE, mu_s, mu_EMS = (
+                    get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M, date_mjd))
+
+                mu = mu_EMS / (mu_EMS + mu_s)
+
+                good_r = C_r_TCO
+                good_v = C_v_TCO_2
+                good_omega = omega_2
+                C_J_dimensional, C_J_nondimensional = jacobi_dim_and_non_dim(good_r, good_v, h_r_TCO, ems_barycentre,
+                                                                             mu, mu_s, mu_EMS, good_omega, r_sE)
+                jacobi.append(C_J_nondimensional)
+
+
+            time = np.linspace(0, data['Julian Date'].iloc[-1] - data['Julian Date'].iloc[0], len(data['Julian Date']))
+
+            window_size = 600
+            weights = np.ones(window_size) / window_size
+            new_jacob = np.convolve(jacobi, weights, mode='valid')
+
+            # plt.plot(time, jacobi, label=id)
+            plt.plot(time[:len(new_jacob)], new_jacob, label=id)
+
+            ax.get_yaxis().get_major_formatter().set_useOffset(False)
+            if idx > 4:
+                plt.plot(time[:len(new_jacob)], 2.999 * np.ones((len(time[:len(new_jacob)]),)), color='black')
+                plt.plot(time[:len(new_jacob)], 3.001 * np.ones((len(time[:len(new_jacob)]),)), color='black')
+                plt.xlabel('Time (Days)')
+                plt.ylabel('Jacobi Constant ($\emptyset$)')
+                plt.legend()
+                plt.show()
+
+            jacobis.append(jacobi)
+
+
+
 
 if __name__ == '__main__':
 
     mm_main = MmMain()
 
-    destination_path = os.path.join(os.getcwd(), 'Test_Set')
+    destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
     destination_file = destination_path + '/minimoon_master_final.csv'
     start_file = destination_path + '/minimoon_master_final (copy).csv'
 
@@ -1455,7 +1769,7 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    mm_main.add_new_column(start_file, destination_path)
+    # mm_main.add_new_column(start_file, destination_file)
 
     ########################################
     # clustering graphs
@@ -1480,13 +1794,18 @@ if __name__ == '__main__':
     ########################################
 
     # no moon data
-    # master_path_nomoon = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
-    # master_file_name_nomoon = 'minimoon_master_final.csv'
-    # master_file_nomoon =  master_path_nomoon + '/' + master_file_name_nomoon
+    master_path_nomoon = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
+    master_file_name_nomoon = 'minimoon_master_final.csv'
+    master_file_nomoon =  master_path_nomoon + '/' + master_file_name_nomoon
 
     # with moon data
-    # master_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
-    # master_file = destination_path + '/minimoon_master_final.csv'
+    master_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+    master_file = destination_path + '/minimoon_master_final.csv'
     #
-    # mm_main.no_moon_pop(master_file_nomoon, master_file)
+    mm_main.no_moon_pop(master_file_nomoon, master_file)
 
+    ##########################################
+    # Investigate the variation of jacobi constants of planar asteroids
+    #########################################
+
+    mm_main.jacobi_variation()

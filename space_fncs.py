@@ -215,7 +215,7 @@ def get_r_and_v_cr3bp_from_nbody_sun_emb(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, 
     C_moon = C_R_h @ h_r_M - C_T_h
 
     C_v_TCO = C_R_h @ (h_v_TCO - v_C) - np.cross(omega, C_r_TCO)  # AU/day
-    C_v_TCO_2 = C_R_h @ (h_v_TCO - v_C) - np.cross(omega_2, C_r_TCO)  # AU/day
+    C_v_TCO_2 = C_R_h @ (h_v_TCO - v_C) - np.cross(C_R_h @ omega_2, C_r_TCO)  # AU/day
 
     ################################
     # Anderson and Lo
