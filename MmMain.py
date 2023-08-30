@@ -624,13 +624,35 @@ class MmMain():
         # get the master file - you need a list of initial orbits to integrate with openorb (pyorb)
         master = mm_parser.parse_master(dest_path)
 
+        helio_E_x = master['Helio x at Capture'] - master['Geo x at Capture']
+        helio_E_y = master['Helio y at Capture'] - master['Geo y at Capture']
+        helio_E_z = master['Helio z at Capture'] - master['Geo z at Capture']
+        helio_E_vx = master['Helio vx at Capture'] - master['Geo vx at Capture']
+        helio_E_vy = master['Helio vy at Capture'] - master['Geo vy at Capture']
+        helio_E_vz = master['Helio vz at Capture'] - master['Geo vz at Capture']
+        desired_cols = ['1 Hill Duration', 'Min. Distance', 'Helio x at Capture', 'Helio y at Capture',
+                        'Helio z at Capture', 'Helio vx at Capture',
+                        'Helio vy at Capture', 'Helio vz at Capture',
+                        'Moon (Helio) x at Capture',
+                        'Moon (Helio) y at Capture',
+                        'Moon (Helio) z at Capture',
+                        'Moon (Helio) vx at Capture',
+                        'Moon (Helio) vy at Capture',
+                        'Moon (Helio) vz at Capture', 'Capture Date']
+
+        cluster_df = master[desired_cols]
+        cluster_df.loc[:, ('Earth (Helio) x at Capture', 'Earth (Helio) y at Capture', 'Earth (Helio) z at Capture',
+                           'Earth (Helio) vx at Capture', 'Earth (Helio) vy at Capture', 'Earth (Helio) vz at Capture')]\
+            = np.array([helio_E_x, helio_E_y, helio_E_z, helio_E_vx, helio_E_vy, helio_E_vz]).T
+
+        cluster_df.to_csv('cluster_df.csv', sep=' ', header=True, index=False)
+
         #########################################
         # parrelelized version of short term capture
         ###########################################
         # pool = multiprocessing.Pool()
         # results = pool.map(mm_analyzer.short_term_capture, master['Object id'])  # input your function
         # pool.close()
-
 
         ##########################################
         # alpha beta jacobi
@@ -679,9 +701,9 @@ class MmMain():
         # cluster data
         ################################################
 
-        for idx, row in master.iterrows():
-            idx += 2
-            res = mm_analyzer.get_cluster_data(master['Object id'].iloc[idx])
+        # for idx, row in master.iterrows():
+        #     idx += 2
+        #     res = mm_analyzer.get_cluster_data(master['Object id'].iloc[idx])
 
 
         # write the master to csv - only if your sure you have the right data, otherwise in will be over written
@@ -1769,7 +1791,7 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    # mm_main.add_new_column(start_file, destination_file)
+    mm_main.add_new_column(start_file, destination_file)
 
     ########################################
     # clustering graphs
@@ -1794,18 +1816,18 @@ if __name__ == '__main__':
     ########################################
 
     # no moon data
-    master_path_nomoon = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
-    master_file_name_nomoon = 'minimoon_master_final.csv'
-    master_file_nomoon =  master_path_nomoon + '/' + master_file_name_nomoon
+    # master_path_nomoon = os.path.join('/media', 'aeromec', 'data', 'minimoon_files_oorb_nomoon')
+    # master_file_name_nomoon = 'minimoon_master_final.csv'
+    # master_file_nomoon =  master_path_nomoon + '/' + master_file_name_nomoon
 
     # with moon data
-    master_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
-    master_file = destination_path + '/minimoon_master_final.csv'
+    # master_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+    # master_file = destination_path + '/minimoon_master_final.csv'
     #
-    mm_main.no_moon_pop(master_file_nomoon, master_file)
+    # mm_main.no_moon_pop(master_file_nomoon, master_file)
 
     ##########################################
     # Investigate the variation of jacobi constants of planar asteroids
     #########################################
 
-    mm_main.jacobi_variation()
+    # mm_main.jacobi_variation()

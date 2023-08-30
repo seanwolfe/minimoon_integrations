@@ -1746,146 +1746,144 @@ class MmAnalyzer:
         # results = np.array((len(object_id), 3))
 
         full_master = mm_parser.parse_master(population_file_path)
-        master_i = full_master[full_master['Object id'] == object_id]
-        name = str(object_id) + ".csv"
-        data_i = mm_parser.mm_file_parse_new(population_dir + '/' + name)
+
+        ############################################################
+        # for adding characteristics that don't exist
+        ############################################################
+
+        # master_i = full_master[full_master['Object id'] == object_id]
+        # name = str(object_id) + ".csv"
+        # data_i = mm_parser.mm_file_parse_new(population_dir + '/' + name)
 
         # variables
-        one_hill = 0.01
-        seconds_in_day = 86400
-        km_in_au = 149597870700 / 1000
-        mu_e = 3.986e5 * seconds_in_day ** 2 / np.power(km_in_au, 3)  # km^3/s^2
+        # one_hill = 0.01
+        # seconds_in_day = 86400
+        # km_in_au = 149597870700 / 1000
+        # mu_e = 3.986e5 * seconds_in_day ** 2 / np.power(km_in_au, 3)  # km^3/s^2
 
         # indices of trajectory when insides one hill
-        in_1hill_idxs = [index for index, value in enumerate(data_i['Distance']) if value <= one_hill]
+        # in_1hill_idxs = [index for index, value in enumerate(data_i['Distance']) if value <= one_hill]
         # Get 1 Hill entrance and last exit indices
 
         # Get index of minimum distance and min dist.
-        min_dist = min(data_i['Distance'])
-        min_dist_index = data_i.index[data_i['Distance'] == min_dist]
+        # min_dist = min(data_i['Distance'])
+        # min_dist_index = data_i.index[data_i['Distance'] == min_dist]
 
         # Get time to minimum distance
-        time_to_min_dist = data_i['Julian Date'].iloc[min_dist_index] - master_i['Capture Date'].iloc[0]
-
-
+        # time_to_min_dist = data_i['Julian Date'].iloc[min_dist_index] - master_i['Capture Date'].iloc[0]
 
         # Get min specific energy
-        spec_energy_in_one_hill_temp = [(np.linalg.norm([data_i['Geo vx'].iloc[i], data_i['Geo vy'].iloc[i],
-                                        data_i['Geo vz'].iloc[i]]) ** 2 / 2 - mu_e / data_i['Distance'].iloc[i]) * km_in_au ** 2 / seconds_in_day ** 2
-                                        for i, value in data_i.iterrows()]
+        # spec_energy_in_one_hill_temp = [(np.linalg.norm([data_i['Geo vx'].iloc[i], data_i['Geo vy'].iloc[i],
+        #                                 data_i['Geo vz'].iloc[i]]) ** 2 / 2 - mu_e / data_i['Distance'].iloc[i]) * km_in_au ** 2 / seconds_in_day ** 2
+        #                                 for i, value in data_i.iterrows()]
 
-        if in_1hill_idxs:
-            one_hill_start_idx = in_1hill_idxs[0]
-            one_hill_end_idx = in_1hill_idxs[-1]
+        # if in_1hill_idxs:
+        #     one_hill_start_idx = in_1hill_idxs[0]
+        #     one_hill_end_idx = in_1hill_idxs[-1]
 
             # Get Eccentricity during 1 Hill
-            geo_e_in_one_hill = data_i['Geo e'].iloc[one_hill_start_idx:one_hill_end_idx]
+            # geo_e_in_one_hill = data_i['Geo e'].iloc[one_hill_start_idx:one_hill_end_idx]
 
             # Get perihelion during 1 Hill
-            geo_q_in_one_hill = data_i['Geo q'].iloc[one_hill_start_idx:one_hill_end_idx]
+            # geo_q_in_one_hill = data_i['Geo q'].iloc[one_hill_start_idx:one_hill_end_idx]
 
             # Get inclination during 1 Hill
-            geo_i_in_one_hill = data_i['Geo i'].iloc[one_hill_start_idx:one_hill_end_idx]
+            # geo_i_in_one_hill = data_i['Geo i'].iloc[one_hill_start_idx:one_hill_end_idx]
 
             # Calculate means
-            geo_e_mean = np.mean(geo_e_in_one_hill)
-            geo_i_mean = np.mean(geo_i_in_one_hill)
-            geo_q_mean = np.mean(geo_q_in_one_hill)
+            # geo_e_mean = np.mean(geo_e_in_one_hill)
+            # geo_i_mean = np.mean(geo_i_in_one_hill)
+            # geo_q_mean = np.mean(geo_q_in_one_hill)
 
             # Calculate the std deviation
-            geo_e_std_u = np.std(geo_e_in_one_hill)
-            geo_q_std_u = np.std(geo_q_in_one_hill)
-            geo_i_std_u = np.std(geo_i_in_one_hill)
+            # geo_e_std_u = np.std(geo_e_in_one_hill)
+            # geo_q_std_u = np.std(geo_q_in_one_hill)
+            # geo_i_std_u = np.std(geo_i_in_one_hill)
             #in percent
-            geo_e_std = geo_e_std_u / geo_e_mean * 100
-            geo_i_std = geo_i_std_u / geo_i_mean * 100
-            geo_q_std = geo_q_std_u / geo_q_mean * 100
+            # geo_e_std = geo_e_std_u / geo_e_mean * 100
+            # geo_i_std = geo_i_std_u / geo_i_mean * 100
+            # geo_q_std = geo_q_std_u / geo_q_mean * 100
 
-            spec_energy_in_one_hill = spec_energy_in_one_hill_temp[one_hill_start_idx:one_hill_end_idx]
-            min_spec_energy = min(spec_energy_in_one_hill)
-            min_spec_energy_ind = pd.Series(spec_energy_in_one_hill).idxmin()
-
-
-        fig = plt.figure()
-        ax1 = fig.add_subplot(2, 3, 1)
-        ax1.plot(data_i['Julian Date'] - data_i['Julian Date'].iloc[0], data_i['Distance'], label='Geocentric Distance', color='grey', linewidth=1)
-        ax1.scatter(data_i['Julian Date'].iloc[min_dist_index] - data_i['Julian Date'].iloc[0], data_i['Distance'].iloc[min_dist_index], color='black', label='Days to Min. Dist.: ' + str(round(time_to_min_dist.iloc[0], 2)))
-        ax1.scatter(master_i['Capture Date'] - data_i['Julian Date'].iloc[0], data_i['Distance'].iloc[master_i['Capture Index']], color='yellow', label='Capture Start')
-        ax1.set_ylabel('Distance to Earth (AU)')
-        ax1.set_xlabel('Time (days)')
-        ax1.set_title(str(object_id))
-
-        ax2 = ax1.twinx()
-        ax2.plot(data_i['Julian Date'] - data_i['Julian Date'].iloc[0], spec_energy_in_one_hill_temp, color='tab:purple')
-
-        if in_1hill_idxs:
-            ax1.scatter(data_i['Julian Date'].iloc[one_hill_start_idx] - data_i['Julian Date'].iloc[0], data_i['Distance'].iloc[one_hill_start_idx], color='red', label='One Hill Start')
-            ax1.scatter(data_i['Julian Date'].iloc[one_hill_end_idx] - data_i['Julian Date'].iloc[0] , data_i['Distance'].iloc[one_hill_end_idx],
-                        color='blue', label='One Hill End')
-            ax1.plot(data_i['Julian Date'].iloc[one_hill_start_idx:one_hill_end_idx] - data_i['Julian Date'].iloc[0],
-                     data_i['Distance'].iloc[one_hill_start_idx:one_hill_end_idx],
-                     label='Days in 1 Hill: ' + str(round(master_i['1 Hill Duration'].iloc[0], 2)), color='green', linewidth=3)
-
-            ax2.scatter(data_i['Julian Date'].iloc[min_spec_energy_ind + one_hill_start_idx] - data_i['Julian Date'].iloc[0], min_spec_energy, color='pink', label='Min. Spec Energy')
-        ax2.set_ylabel('Spec. Energy ($km^2/s^2$)', color='tab:purple')
-        ax2.tick_params(axis='y', labelcolor='tab:purple')
-        ax1.legend(loc='upper right')
-        ax1.set_ylim([0, 0.03])
-        ax2.legend(loc='upper left')
-        ax2.set_ylim([-1, 1])
-
-        if in_1hill_idxs:
-            ax3 = fig.add_subplot(2, 3, 2, projection='3d')
-            ax3.plot(data_i['Geo x'].iloc[one_hill_start_idx:one_hill_end_idx], data_i['Geo y'].iloc[one_hill_start_idx:one_hill_end_idx], data_i['Geo z'].iloc[one_hill_start_idx:one_hill_end_idx], color='grey', label='i var: ' + str(round(geo_i_std, 2)) + '%\n' + 'q var: ' + str(round(geo_q_std, 2)) + '%\n' + 'e var: ' + str(round(geo_e_std, 2)) + '%')
-            ax3.scatter(data_i['Geo x'].iloc[one_hill_start_idx],  data_i['Geo y'].iloc[one_hill_start_idx],
-                     data_i['Geo z'].iloc[one_hill_start_idx], color='green',  label='Start')
-            ax3.scatter(data_i['Geo x'].iloc[one_hill_end_idx], data_i['Geo y'].iloc[one_hill_end_idx],
-                        data_i['Geo z'].iloc[one_hill_end_idx], color='red', label='End')
-
-            num_ticks = 3
-            ax3.xaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
-            ax3.yaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
-            ax3.zaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
-            ax3.set_xlabel('Geo x (AU)')
-            ax3.set_ylabel('Geo y (AU)')
-            ax3.set_zlabel('Geo z (AU)')
-            ax3.legend()
-
-            ax4 = fig.add_subplot(2, 3, 4)
-            ax4.plot(data_i['Julian Date'].iloc[one_hill_start_idx:one_hill_end_idx] - data_i['Julian Date'].iloc[0], geo_q_in_one_hill)
-            ax4.set_xlabel('Time (days)')
-            ax4.set_ylabel('Geo. Osc. q (AU)')
-
-            ax5 = fig.add_subplot(2, 3, 3)
-            ax5.plot(data_i['Julian Date'].iloc[one_hill_start_idx:one_hill_end_idx] - data_i['Julian Date'].iloc[0], geo_i_in_one_hill)
-            ax5.set_xlabel('Time (days)')
-            ax5.set_ylabel('Geo. Osc. i ($\circ$)')
-
-            ax6 = fig.add_subplot(2, 3, 5)
-            ax6.plot(data_i['Julian Date'].iloc[one_hill_start_idx:one_hill_end_idx] - data_i['Julian Date'].iloc[0],
-                     geo_e_in_one_hill)
-            ax6.set_xlabel('Time (days)')
-            ax6.set_ylabel('Geo. Osc. e')
+            # spec_energy_in_one_hill = spec_energy_in_one_hill_temp[one_hill_start_idx:one_hill_end_idx]
+            # min_spec_energy = min(spec_energy_in_one_hill)
+            # min_spec_energy_ind = pd.Series(spec_energy_in_one_hill).idxmin()
 
 
+        # fig = plt.figure()
+        # ax1 = fig.add_subplot(2, 3, 1)
+        # ax1.plot(data_i['Julian Date'] - data_i['Julian Date'].iloc[0], data_i['Distance'], label='Geocentric Distance', color='grey', linewidth=1)
+        # ax1.scatter(data_i['Julian Date'].iloc[min_dist_index] - data_i['Julian Date'].iloc[0], data_i['Distance'].iloc[min_dist_index], color='black', label='Days to Min. Dist.: ' + str(round(time_to_min_dist.iloc[0], 2)))
+        # ax1.scatter(master_i['Capture Date'] - data_i['Julian Date'].iloc[0], data_i['Distance'].iloc[master_i['Capture Index']], color='yellow', label='Capture Start')
+        # ax1.set_ylabel('Distance to Earth (AU)')
+        # ax1.set_xlabel('Time (days)')
+        # ax1.set_title(str(object_id))
+        #
+        # ax2 = ax1.twinx()
+        # ax2.plot(data_i['Julian Date'] - data_i['Julian Date'].iloc[0], spec_energy_in_one_hill_temp, color='tab:purple')
+        #
+        # if in_1hill_idxs:
+        #     ax1.scatter(data_i['Julian Date'].iloc[one_hill_start_idx] - data_i['Julian Date'].iloc[0], data_i['Distance'].iloc[one_hill_start_idx], color='red', label='One Hill Start')
+        #     ax1.scatter(data_i['Julian Date'].iloc[one_hill_end_idx] - data_i['Julian Date'].iloc[0] , data_i['Distance'].iloc[one_hill_end_idx],
+        #                 color='blue', label='One Hill End')
+        #     ax1.plot(data_i['Julian Date'].iloc[one_hill_start_idx:one_hill_end_idx] - data_i['Julian Date'].iloc[0],
+        #              data_i['Distance'].iloc[one_hill_start_idx:one_hill_end_idx],
+        #              label='Days in 1 Hill: ' + str(round(master_i['1 Hill Duration'].iloc[0], 2)), color='green', linewidth=3)
+        #
+        #     ax2.scatter(data_i['Julian Date'].iloc[min_spec_energy_ind + one_hill_start_idx] - data_i['Julian Date'].iloc[0], min_spec_energy, color='pink', label='Min. Spec Energy')
+        # ax2.set_ylabel('Spec. Energy ($km^2/s^2$)', color='tab:purple')
+        # ax2.tick_params(axis='y', labelcolor='tab:purple')
+        # ax1.legend(loc='upper right')
+        # ax1.set_ylim([0, 0.03])
+        # ax2.legend(loc='upper left')
+        # ax2.set_ylim([-1, 1])
+        #
+        # if in_1hill_idxs:
+        #     ax3 = fig.add_subplot(2, 3, 2, projection='3d')
+        #     ax3.plot(data_i['Geo x'].iloc[one_hill_start_idx:one_hill_end_idx], data_i['Geo y'].iloc[one_hill_start_idx:one_hill_end_idx], data_i['Geo z'].iloc[one_hill_start_idx:one_hill_end_idx], color='grey', label='i var: ' + str(round(geo_i_std, 2)) + '%\n' + 'q var: ' + str(round(geo_q_std, 2)) + '%\n' + 'e var: ' + str(round(geo_e_std, 2)) + '%')
+        #     ax3.scatter(data_i['Geo x'].iloc[one_hill_start_idx],  data_i['Geo y'].iloc[one_hill_start_idx],
+        #              data_i['Geo z'].iloc[one_hill_start_idx], color='green',  label='Start')
+        #     ax3.scatter(data_i['Geo x'].iloc[one_hill_end_idx], data_i['Geo y'].iloc[one_hill_end_idx],
+        #                 data_i['Geo z'].iloc[one_hill_end_idx], color='red', label='End')
+        #
+        #     num_ticks = 3
+        #     ax3.xaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+        #     ax3.yaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+        #     ax3.zaxis.set_major_locator(ticker.MaxNLocator(num_ticks))
+        #     ax3.set_xlabel('Geo x (AU)')
+        #     ax3.set_ylabel('Geo y (AU)')
+        #     ax3.set_zlabel('Geo z (AU)')
+        #     ax3.legend()
+        #
+        #     ax4 = fig.add_subplot(2, 3, 4)
+        #     ax4.plot(data_i['Julian Date'].iloc[one_hill_start_idx:one_hill_end_idx] - data_i['Julian Date'].iloc[0], geo_q_in_one_hill)
+        #     ax4.set_xlabel('Time (days)')
+        #     ax4.set_ylabel('Geo. Osc. q (AU)')
+        #
+        #     ax5 = fig.add_subplot(2, 3, 3)
+        #     ax5.plot(data_i['Julian Date'].iloc[one_hill_start_idx:one_hill_end_idx] - data_i['Julian Date'].iloc[0], geo_i_in_one_hill)
+        #     ax5.set_xlabel('Time (days)')
+        #     ax5.set_ylabel('Geo. Osc. i ($\circ$)')
+        #
+        #     ax6 = fig.add_subplot(2, 3, 5)
+        #     ax6.plot(data_i['Julian Date'].iloc[one_hill_start_idx:one_hill_end_idx] - data_i['Julian Date'].iloc[0],
+        #              geo_e_in_one_hill)
+        #     ax6.set_xlabel('Time (days)')
+        #     ax6.set_ylabel('Geo. Osc. e')
 
-        plt.show()
-
+        # plt.show()
 
 
         # Get min distance
-
-        # Get periapsidies in SOI of EMS
-
         # Get 1 Hill duration
-
         # Get TCO state vector at capture
-
         # Get moon state vector at capture
-
         # Get earth state vector at capture
-
         # Get epoch at capture
+
+
+
+
+
 
 
         # Add relevant to master
