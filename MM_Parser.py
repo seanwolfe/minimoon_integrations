@@ -124,6 +124,51 @@ class MmParser:
         return data
 
     @staticmethod
+    def mm_file_parse_new_no_moon(file_path):
+        """
+        Units are au, au/day, degrees
+        This function parses a single minimoon file into a appropriately labelled dataframe, the input file
+        should be a middleman file, which is the result of the integrations adding a year before and after capture,
+        column names:
+        "Object id", "Julian Date", "Distance", "Helio q", "Helio e", "Helio i", "Helio Omega", "Helio omega",
+        "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx", "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z",
+        "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i", "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)",
+        "Earth y (Helio)", "Earth z (Helio)", "Earth vx (Helio)", "Earth vy (Helio)", "Earth vz (Helio)",
+        "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)", "Moon vy (Helio)",
+        "Moon vz (Helio)" "Synodic x" "Synodic y" "Synodic z" "Eclip Long"
+        :return: the data frame
+
+        """
+
+        data = pd.read_csv(file_path, sep=" ", header=0, names=["Object id", "Julian Date", "Distance", "Helio q",
+                                                                "Helio e", "Helio i", "Helio Omega", "Helio omega",
+                                                                "Helio M", "Helio x", "Helio y", "Helio z", "Helio vx",
+                                                                "Helio vy", "Helio vz", "Geo x", "Geo y", "Geo z",
+                                                                "Geo vx", "Geo vy", "Geo vz", "Geo q", "Geo e", "Geo i",
+                                                                "Geo Omega", "Geo omega", "Geo M", "Earth x (Helio)",
+                                                                "Earth y (Helio)", "Earth z (Helio)",
+                                                                "Earth vx (Helio)",
+                                                                "Earth vy (Helio)", "Earth vz (Helio)",
+                                                                "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)",
+                                                                "Moon vx (Helio)",
+                                                                "Moon vy (Helio)", "Moon vz (Helio)", "Synodic x",
+                                                                "Synodic y", "Synodic z", "Eclip Long",
+                                                                "Earth-Moon Synodic x", "Earth-Moon Synodic y",
+                                                                "Earth-Moon Synodic z", "Earth-Moon Synodic vx",
+                                                                "Earth-Moon Synodic vy", "Earth-Moon Synodic Omega x",
+                                                                "Earth-Moon Synodic Omega y",
+                                                                "Earth-Moon Synodic Omega z", "Earth-TCO Distance",
+                                                                "Moon-TCO Distance", "Sun-TCO Distance",
+                                                                "Earth-Moon Synodic Sun x", "Earth-Moon Synodic Sun y",
+                                                                "Earth-Moon Synodic Sun z", "Earth-Moon Synodic Moon x",
+                                                                "Earth-Moon Synodic Moon y",
+                                                                "Earth-Moon Synodic Moon z", "Earth-Moon Distance",
+                                                                "Moon around EMS Omega x", "Moon around EMS Omega y",
+                                                                "Moon around EMS Omega z"])
+
+        return data
+
+    @staticmethod
     def parse_master_previous(file_path):
         """
         function for obtaning master mimimoon data file, with parameters
