@@ -624,6 +624,103 @@ class MmPopulation:
                 plt.show()
         """
 
+        # get 2024 PT5 data from horizons
+        start = '2024-07-01'
+        end = '2025-03-01'
+        nx1 = Horizons(id='2024 PT5', location='500',
+                       epochs={'start': start, 'stop': end,
+                               'step': '1h'})
+
+        # get 2022 NX1 moon data from horizons
+        moon = Horizons(id='301', location='500',
+                        epochs={'start': start, 'stop': end,
+                                'step': '1h'})
+
+        # Get the vectors table from JPL horizons
+        eph_nx1 = nx1.vectors()
+        start = 0
+        end = len(eph_nx1[:]['x']) - 0
+        print(end)
+        cap_start = 90 * 24
+        cap_end = len(eph_nx1[:]['x']) - 96 * 24
+        geo_x = eph_nx1[start:end]['x']
+        geo_y = eph_nx1[start:end]['y']
+        geo_z = eph_nx1[start:end]['z']
+        cap_geo_x = eph_nx1[cap_start:cap_end]['x']
+        cap_geo_y = eph_nx1[cap_start:cap_end]['y']
+        cap_geo_z = eph_nx1[cap_start:cap_end]['z']
+        eph_moon = moon.vectors()
+        moon_geo_x = eph_moon[start:end]['x']
+        moon_geo_y = eph_moon[start:end]['y']
+        moon_geo_z = eph_moon[start:end]['z']
+        pt5_cap_start = '2024-09-29'
+        pt5_cap_end = '2024-11-25'
+
+        # xy pt5
+        fig10 = plt.figure()
+        plt.plot(geo_x, geo_y, color='grey', zorder=10)
+        plt.plot(cap_geo_x, cap_geo_y, linewidth=5, zorder=5, color='#5599ff')
+        plt.scatter(cap_geo_x[0], cap_geo_y[0], color='#afe9af', label=pt5_cap_start,
+                    s=50, zorder=20)
+        plt.scatter(cap_geo_x[-1], cap_geo_y[-1], color='#e9afaf', label=pt5_cap_end,
+                    s=50, zorder=20)
+        plt.plot(moon_geo_x, moon_geo_y, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('x (au)')
+        plt.ylabel('y (au)')
+
+        fig11 = plt.figure()
+        plt.plot(geo_x, geo_z, color='grey', zorder=10)
+        plt.plot(cap_geo_x, cap_geo_z, linewidth=5, zorder=5, color='#5599ff')
+        plt.scatter(cap_geo_x[0], cap_geo_z[0], color='#afe9af', label=pt5_cap_start,
+                    s=50, zorder=20)
+        plt.scatter(cap_geo_x[-1], cap_geo_z[-1], color='#e9afaf', label=pt5_cap_end,
+                    s=50, zorder=20)
+        plt.plot(moon_geo_x, moon_geo_z, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('x (au)')
+        plt.ylabel('z (au)')
+
+        fig12 = plt.figure()
+        plt.plot(geo_y, geo_z, color='grey', zorder=10)
+        plt.plot(cap_geo_y, cap_geo_z, linewidth=5, zorder=5, color='#5599ff')
+        plt.scatter(cap_geo_y[0], cap_geo_z[0], color='#afe9af', label=pt5_cap_start,
+                    s=50, zorder=20)
+        plt.scatter(cap_geo_y[-1], cap_geo_z[-1], color='#e9afaf', label=pt5_cap_end,
+                    s=50, zorder=20)
+        plt.plot(moon_geo_y, moon_geo_z, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('y (au)')
+        plt.ylabel('z (au)')
+        plt.legend()
+
+        # xyz pt5
+        fig13 = plt.figure()
+        ax = plt.axes(projection='3d')
+        ax.plot3D(geo_x, geo_y, geo_z, color='grey', zorder=10)
+        ax.plot3D(cap_geo_x, cap_geo_y, cap_geo_z, linewidth=5, color='#5599ff', zorder=5)
+        ax.plot3D(moon_geo_x, moon_geo_y, moon_geo_z, color='red')
+        ax.scatter3D(0, 0, 0, s=1, color='blue')
+        ax.scatter3D(cap_geo_x[0], cap_geo_y[0], cap_geo_z[0],
+                     color='#afe9af', label=pt5_cap_start, s=50, zorder=20)
+        ax.scatter3D(cap_geo_x[-1], cap_geo_y[-1], cap_geo_z[-1],
+                     color='#e9afaf', label=pt5_cap_end, s=50, zorder=20)
+        # ax.set_xticks(np.arange(0, 11, 2))
+        # ax.set_yticks(np.arange(-0.015, 0.015, 2))
+        # ax.set_zticks(np.arange(0, 11, 2))
+        ax.set_xlabel('x (au)')
+        ax.set_ylabel('y (au)')
+        ax.set_zlabel('z (au)')
+        ax.legend()
+
+        plt.show()
+
         # get 2022 NX1 data from horizons
         start = '2022-01-01'
         end = '2023-01-01'
@@ -1625,8 +1722,10 @@ if __name__ == '__main__':
 
     population_file = 'minimoon_master_final.csv'
     # population_dir = os.path.join(os.path.expanduser('~'), 'Desktop', 'minimoon_integrations', 'minimoon_files_oorb')
-    population_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
-                                   'minimoon_files_oorb')
+    # population_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
+    #                                'minimoon_files_oorb')
+    population_dir = '/media/aeromec/Seagate Desktop Drive/minimoon_files_oorb'
+
     population_path = population_dir + '/' + population_file
 
     # mm_analyzer = MmAnalyzer()
