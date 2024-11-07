@@ -148,6 +148,17 @@ class MainWindow(QMainWindow):
         # pd.set_option('display.max_rows', None)
         # pd.set_option('display.float_format', lambda x: '%.5f' %x)
 
+        # Prompt for directory at startup
+        self.directory_path = self.get_directory_path()
+
+        if self.directory_path:
+            # If a directory was selected, continue with app setup
+            pass
+        else:
+            # If no directory was selected, show a message and exit
+            QMessageBox.warning(self, "No Directory", "No directory selected. Exiting the application.")
+            sys.exit()
+
         # Application title
         self.setWindowTitle("MiniViz")
 
@@ -177,6 +188,11 @@ class MainWindow(QMainWindow):
         self.scroll.setWidget(self.table_widget)
         self.setCentralWidget(self.scroll)
         self.show()
+
+    def get_directory_path(self):
+        # Open a QFileDialog to select a folder
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Directory")
+        return dir_path
 
     def gen_tab_1(self, data, master):
         """
@@ -413,7 +429,7 @@ class MainWindow(QMainWindow):
 
         # Generate new data from clicked minimoon - fedorets
         # destination_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'minimoon_integrations', 'minimoon_files_oorb') # windows
-        destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        destination_path = self.directory_path
         mm_file_name = i.text() + ".csv"
         temp_file = destination_path + '/' + mm_file_name
         data = self.mm_parser.mm_file_parse_new(temp_file)
@@ -467,7 +483,7 @@ class MainWindow(QMainWindow):
         # name of the directory where the mm file is located,
         # also top level directory where all the integration data is located
         # mm_file_dir = os.path.join(os.path.expanduser('~'), 'Desktop', 'minimoon_integrations', 'minimoon_files_oorb') # windows
-        mm_file_dir = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        mm_file_dir = self.directory_path
 
         mm_file_path = mm_file_dir + '/' + mm_master_file_name  # path for the minimoon file
         destination_path_new = mm_file_dir

@@ -495,6 +495,138 @@ def helio_to_earthmoon_corotating(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M, 
     return EMS_rp_TCO, EMS_vp_TCO, EMS_omega_SEMSM, r_ETCO, r_MTCO, r_STCO, EMS_rp_SUN, EMS_rp_M, r_EM, hp_omega_EMSM
 
 
+def helio_to_earthmoon_corotating_vec(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M, date_jd):
+
+
+    # Some constants
+    seconds_in_day = 86400
+    km_in_au = 149597870700 / 1000
+    mu_s = 1.3271244e11 / np.power(km_in_au, 3)  # km^3/s^2 to AU^3/s^2
+    mu_e = 3.986e5  # km^3/s^2
+    mu_M = 4.9028e3  # km^3/s^2
+    mu_EMS = (mu_M + mu_e) / np.power(km_in_au, 3)  # km^3/s^2 = m_E + mu_M to AU^3/s^2
+    m_e = 5.97219e24  # mass of Earth kg
+    m_m = 7.34767309e22  # mass of the Moon kg
+    m_s = 1.9891e30  # mass of the Sun kg
+
+    # Get the position and velocity of the EMS barycentre in the heliocentric frame
+    h_r_EMS = (m_e * h_r_E + m_m * h_r_M) / (m_m + m_e)  # heliocentric position of the ems barycentre AU
+    h_v_EMS = (m_e * h_v_E + m_m * h_v_M) / (m_m + m_e)  # heliocentric velocity of the ems barycentre AU/day
+
+    # translate the TCO and moon position to be with respect to an axis-aligned frame with the heliocentric frame, except
+    # centered at the earth-moon barycentre
+    hp_rp_TCO = h_r_TCO - h_r_EMS  # for the TCO
+    hp_rp_M = h_r_M - h_r_EMS  # for the moon
+    hp_rp_SUN = -1 * h_r_EMS
+
+    # for the orbital elements describing the keplerian orbit of the ems barycentre around the sun
+    r = km_in_au * h_r_EMS << u.km  # km
+    v = km_in_au / seconds_in_day * h_v_EMS << u.km / u.s  # from AU/day to km/s
+    dates = Time(date_jd, format='jd', scale='utc').to_value('mjd')
+
+    Oms = []
+    oms = []
+    incs = []
+    for pos, vel, time in zip(r.T, v.T, dates):
+        orb = Orbit.from_vectors(Sun, pos, vel, Time(time, format='mjd', scale='utc'))
+        Oms.append(np.deg2rad(orb.raan.value))  # in rad
+        oms.append(np.deg2rad(orb.argp.value))
+        incs.append(np.deg2rad(orb.inc.value))
+
+
+    # convert from heliocentric to synodic with a euler rotation
+    h_R_EMS_peri = np.array([[-np.sin(Oms) * np.cos(incs) * np.sin(oms) + np.cos(Oms) * np.cos(oms),
+                            -np.sin(Oms) * np.cos(incs) * np.cos(oms) - np.cos(Oms) * np.sin(oms),
+                            np.sin(Oms) * np.sin(incs)],
+                           [np.cos(Oms) * np.cos(incs) * np.sin(oms) + np.sin(Oms) * np.cos(oms),
+                            np.cos(Oms) * np.cos(incs) * np.cos(oms) - np.sin(Oms) * np.sin(oms),
+                            -np.cos(Oms) * np.sin(incs)],
+                           [np.sin(incs) * np.sin(oms), np.sin(incs) * np.cos(oms), np.cos(incs)]]).transpose(2, 0, 1)
+
+
+    # moon in perifocal
+    EMS_peri_r_M = np.einsum('bij,kib->kbj', h_R_EMS_peri, np.expand_dims(hp_rp_M, axis=0))  # dimensions 1 x timesteps x states
+
+    # get the anlges of the Moon and the perifocal x, going ccw from the x of the translated heliocentric frame 0 to 360
+    theta = np.arctan2(EMS_peri_r_M[:, :, 1], EMS_peri_r_M[:, :, 0])
+
+    # rotation from perihelion to point at the moon (i.e. rotation by theta)
+    EMS_peri_R_EMS = np.array([[np.cos(theta[0, :]), -np.sin(theta[0, :]), np.zeros_like(theta[0, :])],
+                           [np.sin(theta[0, :]), np.cos(theta[0, :]), np.zeros_like(theta[0, :])],
+                           [np.zeros_like(theta[0, :]), np.zeros_like(theta[0, :]), np.ones_like(theta[0, :])]]).transpose(2, 0, 1)
+
+    # overall rotation matrix to go the sun ems orbital plane
+    EMSp_R_h = np.einsum('bij,bki->bjk', EMS_peri_R_EMS, h_R_EMS_peri)
+
+    # the final rotation matrix takes you from the orbital plane of sun-ems, to the orbital plane of ems-moon
+    # calculate position of moon with respect to orbital plane of sun-ems, aligned with the moon
+    EMSp_rp_M = np.einsum('bij,kjb->kbi', EMSp_R_h, np.expand_dims(hp_rp_M, axis=0))
+
+
+    theta_EMS = -np.arctan2(EMSp_rp_M[:, :, 2], EMSp_rp_M[:, :, 0])
+    # rotation from sun-ems orbital plane to moon ems orbital plane (i.e. rotation by theta_EMS)
+    EMSp_R_EMS = np.array([[np.cos(theta_EMS[0, :]), np.zeros_like(theta_EMS[0, :]), np.sin(theta_EMS[0, :])],
+                                     [np.zeros_like(theta_EMS[0, :]),  np.ones_like(theta_EMS[0, :]),  np.zeros_like(theta_EMS[0, :])],
+                                     [-np.sin(theta_EMS[0, :]),  np.zeros_like(theta_EMS[0, :]), np.cos(theta_EMS[0, :])]]).transpose(2, 0, 1)
+
+    # overall overall rotation matrix
+    EMS_R_h = np.einsum('bij,bil->bjl', EMSp_R_EMS, EMSp_R_h)
+
+    # position of TCO in earth-moon corotating frame
+    EMS_rp_TCO = np.einsum('bij,kjb->kbi', EMS_R_h, np.expand_dims(hp_rp_TCO, axis=0))
+
+    # Angular velocity of the ems barycentre around the Sun-EMS barycentre (i.e. SUN) defined in the heliocentric frame
+    r_sEMS = np.linalg.norm(h_r_EMS, axis=0)
+
+    h_omega_sEMS = np.cross(h_r_EMS, h_v_EMS, axis=0) / r_sEMS ** 2
+
+    # velocity of the Moon in the translated heliocentric frame with respect to the EMS barycentre
+    hp_h_v_M_EMS = h_v_M - h_v_EMS
+
+    # distance of the moon to the ems barycentre
+    r_EMSM = np.linalg.norm(h_r_M - h_r_EMS, axis=0)
+
+    # angular velocity of the moon around the EMS barycentre defined in the translated heliocentric frame
+    hp_omega_EMSM = np.cross(hp_rp_M, hp_h_v_M_EMS, axis=0) / r_EMSM ** 2
+
+    # total angular velocity
+    h_omega_SEMSM = hp_omega_EMSM + h_omega_sEMS
+
+    # in the earth moon corotating frame
+    EMS_omega_SEMSM = np.einsum('bij,kjb->kbi', EMS_R_h, np.expand_dims(h_omega_SEMSM, axis=0))
+
+    # calculate the new velocity
+    EMS_vp_TCO = np.einsum('bij,kjb->kbi', EMS_R_h, np.expand_dims(h_v_TCO - h_v_EMS, axis=0)) - np.cross(EMS_omega_SEMSM, EMS_rp_TCO, axis=2)
+
+
+    #TESTS#
+    # calculate position of moon (test) - should always be the same positive x
+    EMS_rp_M = np.einsum('bij,kjb->kbi', EMS_R_h, np.expand_dims(hp_rp_M, axis=0))
+    EMS_rp_E = np.einsum('bij,kjb->kbi', EMS_R_h, np.expand_dims(h_r_E - h_r_EMS, axis=0))
+    # calculate position of earth (test) - should always be the same negative x smaller than the moon' in magnitude
+    # EMS_rp_E = EMS_R_h[1, :, :] @ (h_r_E[:, 1] - h_r_EMS[:, 1])
+    # calculate the new velocity for earth (test) - should be zero
+    # EMS_vp_M = EMS_R_h[1, :, :] @ (h_v_M[:, 1] - h_v_EMS[:, 1]) - np.cross(EMS_omega_SEMSM[0, 1, :], EMS_rp_M)
+    # calculate the new velocity for moon (test)
+    # EMS_vp_E = EMS_R_h[1, :, :] @ (h_v_E[:, 1] - h_v_EMS[:, 1]) - np.cross(EMS_omega_SEMSM[0, 1, :], EMS_rp_E)
+    # EMS_rp_SUN = EMS_R_h[1, :, :] @ hp_rp_SUN[:, 1]
+
+    # print("Position Moon: " + str(EMS_rp_M * km_in_au))
+    # print("Position Earth: " + str(EMS_rp_E * km_in_au))
+    # print("Position TCO: " + str(EMS_rp_TCO * km_in_au))
+    # print("Velocity Moon: " + str(EMS_vp_M))
+    # print("Velocity Earth: " + str(EMS_vp_E))
+    # print("Velocity TCO: " + str(EMS_vp_TCO) + '\n')
+
+    # r_ETCO = np.linalg.norm(h_r_TCO - h_r_E)
+    # r_MTCO = np.linalg.norm(h_r_TCO - h_r_M)
+    # r_STCO = np.linalg.norm(h_r_TCO)
+    # r_EM = np.linalg.norm(h_r_E - h_r_M)
+
+
+    return EMS_rp_TCO[0, :, :], EMS_rp_M[0, :, :], EMS_rp_E[0, :, :]
+
+
 def pseudo_potential(EMS_rp_TCO, EMS_vp_TCO, Omega, r_STCO, r_ETCO, r_MTCO, EMS_rp_SUN, r_EM):
 
     # Some constants

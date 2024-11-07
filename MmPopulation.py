@@ -9,6 +9,8 @@ from MM_Parser import MmParser
 import astropy.units as u
 import multiprocessing
 import matplotlib.ticker as ticker
+from astropy.time import Time
+from astroquery.jplhorizons import Horizons
 
 class MmPopulation:
     """
@@ -491,7 +493,7 @@ class MmPopulation:
                                                       == 1)]
         prograde_pop = self.population[(self.population['Retrograde'] == 0) & (self.population['Became Minimoon']
                                                                                    == 1)]
-
+        """
         fig = plt.figure()
         plt.hist(retrograde_pop['Capture Duration'], bins=1000, label='Retrograde', edgecolor="#038cfc", color="#03b1fc")
         plt.hist(prograde_pop['Capture Duration'], bins=1000, label='Prograde', edgecolor="#ed0000", color="#f54747")
@@ -558,7 +560,7 @@ class MmPopulation:
         plt.ylim([0, 0.065])
         plt.legend()
         # plt.savefig("figures/f6.svg", format="svg")
-
+        
         fig7 = plt.figure()
         tco1_retro = retrograde_pop[(retrograde_pop['Taxonomy'] == '1A') | (retrograde_pop['Taxonomy'] == '1B') |
                                     (retrograde_pop['Taxonomy'] == '1C')]
@@ -586,10 +588,318 @@ class MmPopulation:
         plt.xlabel('Synodic x at Earth Hill sphere (AU)')
         plt.ylabel('Synodic y at Earth Hill sphere (AU)')
         # plt.savefig("figures/f8.svg", format="svg")
+    
+        type = '2B'
+        destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        mm_parser = MmParser("", "", "")
+        tco_type_pop = tco_pop[tco_pop['Taxonomy'] == type]
+        for idx, row in tco_type_pop.iterrows():
+            # get file
+            obj_id = row['Object id']
+            if obj_id == 'NESC0000ii1g':
+                file_path = destination_path + '/' + obj_id + '.csv'
+                print(obj_id)
+
+                data = mm_parser.mm_file_parse_new(file_path)
+
+                # plot
+                fig9 = plt.figure()
+                plt.plot(data['Synodic x'].iloc[0:-2000], data['Synodic y'].iloc[0:-2000], label='TCO Trajectory', color='grey', zorder=10)
+                plt.plot(data['Synodic x'].iloc[row['Capture Index']:row['Release Index']], data['Synodic y'].iloc[row['Capture Index']:row['Release Index']], label='Period of Capture', linewidth=5, zorder=5, color='#5599ff')
+                plt.scatter(data['Synodic x'].iloc[row['Capture Index']], data['Synodic y'].iloc[row['Capture Index']], label='Start', s=50, zorder=15, color='#afe9af')
+                plt.scatter(data['Synodic x'].iloc[row['Release Index']], data['Synodic y'].iloc[row['Release Index']],
+                            label='End', s=50, zorder=15, color='#e9afaf')
+                c1 = plt.Circle((0, 0), radius=0.01, alpha=0.1, zorder=1)
+                c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=2)
+                c3 = plt.Circle((0, 0), radius=0.00256688145, edgecolor='red', fill=False, zorder=3)
+                plt.gca().add_artist(c1)
+                plt.gca().add_artist(c2)
+                plt.gca().add_artist(c3)
+                plt.xlim([-0.02, 0.02])
+                plt.ylim([-0.02, 0.02])
+                plt.xlabel('Synodic x (au)')
+                plt.ylabel('Synodic y (au)')
+                plt.gca().set_aspect('equal')
+                plt.legend()
+                plt.show()
+        """
+
+        # get 2022 NX1 data from horizons
+        start = '2022-01-01'
+        end = '2023-01-01'
+        nx1 = Horizons(id='2022 NX1', location='500',
+                           epochs={'start':start, 'stop':end ,
+                                   'step': '1h'})
+
+        # get 2022 NX1 moon data from horizons
+        moon = Horizons(id='301', location='500',
+                       epochs={'start': start, 'stop': end,
+                               'step': '1h'})
+
+        # Get the vectors table from JPL horizons
+        eph_nx1 = nx1.vectors()
+        start = 0
+        end = len(eph_nx1[:]['x']) - 0
+        print(end)
+        cap_start = 4104 - 24*9
+        cap_end = len(eph_nx1[:]['x']) - 4416 + 24*3
+        geo_x = eph_nx1[start:end]['x']
+        geo_y = eph_nx1[start:end]['y']
+        geo_z = eph_nx1[start:end]['z']
+        cap_geo_x = eph_nx1[cap_start:cap_end]['x']
+        cap_geo_y = eph_nx1[cap_start:cap_end]['y']
+        cap_geo_z = eph_nx1[cap_start:cap_end]['z']
+        eph_moon = moon.vectors()
+        moon_geo_x = eph_moon[start:end]['x']
+        moon_geo_y = eph_moon[start:end]['y']
+        moon_geo_z = eph_moon[start:end]['z']
+        nx1_cap_start = '2022-06-11'
+        nx1_cap_end = '2022-07-02'
+
+        # xy rh120
+        fig10 = plt.figure()
+        plt.plot(geo_x, geo_y, color='grey', zorder=10)
+        plt.plot(cap_geo_x, cap_geo_y, linewidth=5, zorder=5, color='#5599ff')
+        plt.scatter(cap_geo_x[0], cap_geo_y[0], color='#afe9af', label=nx1_cap_start,
+                    s=50, zorder=20)
+        plt.scatter(cap_geo_x[-1], cap_geo_y[-1], color='#e9afaf', label=nx1_cap_end,
+                    s=50, zorder=20)
+        plt.plot(moon_geo_x, moon_geo_y, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('x (au)')
+        plt.ylabel('y (au)')
+
+        fig11 = plt.figure()
+        plt.plot(geo_x, geo_z, color='grey', zorder=10)
+        plt.plot(cap_geo_x, cap_geo_z, linewidth=5, zorder=5, color='#5599ff')
+        plt.scatter(cap_geo_x[0], cap_geo_z[0], color='#afe9af', label=nx1_cap_start,
+                    s=50, zorder=20)
+        plt.scatter(cap_geo_x[-1], cap_geo_z[-1], color='#e9afaf', label=nx1_cap_end,
+                    s=50, zorder=20)
+        plt.plot(moon_geo_x, moon_geo_z, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('x (au)')
+        plt.ylabel('z (au)')
+
+        fig12 = plt.figure()
+        plt.plot(geo_y, geo_z, color='grey', zorder=10)
+        plt.plot(cap_geo_y, cap_geo_z, linewidth=5, zorder=5, color='#5599ff')
+        plt.scatter(cap_geo_y[0], cap_geo_z[0], color='#afe9af', label=nx1_cap_start,
+                    s=50, zorder=20)
+        plt.scatter(cap_geo_y[-1], cap_geo_z[-1], color='#e9afaf', label=nx1_cap_end,
+                    s=50, zorder=20)
+        plt.plot(moon_geo_y, moon_geo_z, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('y (au)')
+        plt.ylabel('z (au)')
+        plt.legend()
+
+        # xyz rh120
+        fig13 = plt.figure()
+        ax = plt.axes(projection='3d')
+        ax.plot3D(geo_x, geo_y, geo_z, color='grey', zorder=10)
+        ax.plot3D(cap_geo_x, cap_geo_y, cap_geo_z, linewidth=5, color='#5599ff', zorder=5)
+        ax.plot3D(moon_geo_x, moon_geo_y, moon_geo_z, color='red')
+        ax.scatter3D(0, 0, 0, s=1, color='blue')
+        ax.scatter3D(cap_geo_x[0], cap_geo_y[0], cap_geo_z[0],
+                     color='#afe9af', label=nx1_cap_start, s=50, zorder=20)
+        ax.scatter3D(cap_geo_x[-1], cap_geo_y[-1], cap_geo_z[-1],
+                     color='#e9afaf', label=nx1_cap_end, s=50, zorder=20)
+        # ax.set_xticks(np.arange(0, 11, 2))
+        # ax.set_yticks(np.arange(-0.015, 0.015, 2))
+        # ax.set_zticks(np.arange(0, 11, 2))
+        ax.set_xlabel('x (au)')
+        ax.set_ylabel('y (au)')
+        ax.set_zlabel('z (au)')
+        ax.legend()
+
+        plt.show()
+
+        # plotting rh120 and cd3 for revision to acta comments
+        destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        mm_parser = MmParser("", "", "")
+        rh120 = '2006 RH120'
+        cd3 = '2020 CD3'
+        start_120_date = '2006-05-01'
+        start_120 = Time(start_120_date).jd
+        end_120_date = '2007-09-01'
+        end_120 = Time(end_120_date).jd
+        start_cd3_date = '2018-01-01'
+        start_3 = Time(start_cd3_date).jd
+        end_cd3_date = '2020-03-01'
+        end_3 = Time(end_cd3_date).jd
+        rh120_file = destination_path + '/' + rh120 + '.csv'
+        cd3_file = destination_path + '/' + cd3 + '.csv'
+        rh120_data = mm_parser.mm_file_parse_new(rh120_file)
+        cd3_data = mm_parser.mm_file_parse_new(cd3_file)
+        # Calculate absolute differences
+        rh120_abs_diff_start = (rh120_data['Julian Date'] - start_120).abs()
+        print(rh120_abs_diff_start)
+        rh120_abs_diff_end = (rh120_data['Julian Date'] - end_120).abs()
+        cd3_abs_diff_start = (cd3_data['Julian Date'] - start_3).abs()
+        cd3_abs_diff_end = (cd3_data['Julian Date'] - end_3).abs()
+
+        # Find the index of the minimum absolute difference
+        rh120_closest_index_start = rh120_abs_diff_start.idxmin()
+        rh120_closest_index_end = rh120_abs_diff_end.idxmin()
+        cd3_closest_index_start = cd3_abs_diff_start.idxmin()
+        cd3_closest_index_end = cd3_abs_diff_end.idxmin()
+
+        rh120_d_data = rh120_data.iloc[rh120_closest_index_start:rh120_closest_index_end]
+        cd3_d_data = cd3_data.iloc[cd3_closest_index_start:cd3_closest_index_end]
+
+        #xy rh120
+        fig10 = plt.figure()
+        plt.plot(rh120_d_data['Geo x'], rh120_d_data['Geo y'], color='grey', zorder=10)
+        plt.plot(rh120_d_data['Geo x'], rh120_d_data['Geo y'], linewidth=5, zorder=5, color='#5599ff')
+        moon_x = rh120_d_data['Moon x (Helio)'] - rh120_d_data['Earth x (Helio)']
+        moon_y = rh120_d_data['Moon y (Helio)'] - rh120_d_data['Earth y (Helio)']
+        moon_z = rh120_d_data['Moon z (Helio)'] - rh120_d_data['Earth z (Helio)']
+        plt.scatter(rh120_d_data['Geo x'].iloc[0], rh120_d_data['Geo y'].iloc[0], color='#afe9af', label=start_120_date, s=50, zorder=20)
+        plt.scatter(rh120_d_data['Geo x'].iloc[-1], rh120_d_data['Geo y'].iloc[-1],color='#e9afaf', label=end_120_date, s=50, zorder=20)
+        plt.plot(moon_x.values, moon_y.values, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('x (au)')
+        plt.ylabel('y (au)')
+
+        fig11 = plt.figure()
+        plt.plot(rh120_d_data['Geo x'], rh120_d_data['Geo z'], color='grey', zorder=10)
+        plt.plot(rh120_d_data['Geo x'], rh120_d_data['Geo z'], linewidth=5, zorder=5, color='#5599ff')
+        moon_x = rh120_d_data['Moon x (Helio)'] - rh120_d_data['Earth x (Helio)']
+        moon_y = rh120_d_data['Moon y (Helio)'] - rh120_d_data['Earth y (Helio)']
+        moon_z = rh120_d_data['Moon z (Helio)'] - rh120_d_data['Earth z (Helio)']
+        plt.scatter(rh120_d_data['Geo x'].iloc[0], rh120_d_data['Geo z'].iloc[0], color='#afe9af', label=start_120_date,
+                    s=50, zorder=20)
+        plt.scatter(rh120_d_data['Geo x'].iloc[-1], rh120_d_data['Geo z'].iloc[-1], color='#e9afaf', label=end_120_date,
+                    s=50, zorder=20)
+        plt.plot(moon_x.values, moon_z.values, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('x (au)')
+        plt.ylabel('z (au)')
+
+        fig12 = plt.figure()
+        plt.plot(rh120_d_data['Geo y'], rh120_d_data['Geo z'], color='grey', zorder=10, label='$2006$ $RH_{120}$')
+        plt.plot(rh120_d_data['Geo y'], rh120_d_data['Geo z'], linewidth=5, zorder=5, color='#5599ff')
+        moon_x = rh120_d_data['Moon x (Helio)'] - rh120_d_data['Earth x (Helio)']
+        moon_y = rh120_d_data['Moon y (Helio)'] - rh120_d_data['Earth y (Helio)']
+        moon_z = rh120_d_data['Moon z (Helio)'] - rh120_d_data['Earth z (Helio)']
+        plt.scatter(rh120_d_data['Geo y'].iloc[0], rh120_d_data['Geo z'].iloc[0], color='#afe9af', label=start_120_date,
+                    s=50, zorder=20)
+        plt.scatter(rh120_d_data['Geo y'].iloc[-1], rh120_d_data['Geo z'].iloc[-1], color='#e9afaf', label=end_120_date,
+                    s=50, zorder=20)
+        plt.plot(moon_y.values, moon_z.values, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('y (au)')
+        plt.ylabel('z (au)')
+        plt.legend()
+
+        #xyz rh120
+        fig13 = plt.figure()
+        ax = plt.axes(projection='3d')
+        ax.plot3D(cd3_d_data['Geo x'], cd3_d_data['Geo y'], cd3_d_data['Geo z'], color='grey', zorder=10)
+        ax.plot3D(cd3_d_data['Geo x'], cd3_d_data['Geo y'], cd3_d_data['Geo z'], linewidth=5, color='#5599ff', zorder=5)
+        ax.plot3D(moon_x, moon_y, moon_z, color='red')
+        ax.scatter3D(0, 0, 0, s=1, color='blue')
+        ax.scatter3D(cd3_d_data['Geo x'].iloc[0], cd3_d_data['Geo y'].iloc[0], cd3_d_data['Geo z'].iloc[0], color='#afe9af', label=start_cd3_date, s=50, zorder=20)
+        ax.scatter3D(cd3_d_data['Geo x'].iloc[-1], cd3_d_data['Geo y'].iloc[-1], cd3_d_data['Geo z'].iloc[-1],
+                     color='#e9afaf', label=end_cd3_date, s=50, zorder=20)
+        # ax.set_xticks(np.arange(0, 11, 2))
+        # ax.set_yticks(np.arange(-0.015, 0.015, 2))
+        # ax.set_zticks(np.arange(0, 11, 2))
+        ax.set_xlabel('x (au)')
+        ax.set_ylabel('y (au)')
+        ax.set_zlabel('z (au)')
+        ax.legend()
+
+        fig10 = plt.figure()
+        plt.plot(cd3_d_data['Geo x'], cd3_d_data['Geo y'], color='grey', zorder=10)
+        plt.plot(cd3_d_data['Geo x'], cd3_d_data['Geo y'], linewidth=5, zorder=5, color='#5599ff')
+        moon_x = cd3_d_data['Moon x (Helio)'] - cd3_d_data['Earth x (Helio)']
+        moon_y = cd3_d_data['Moon y (Helio)'] - cd3_d_data['Earth y (Helio)']
+        moon_z = cd3_d_data['Moon z (Helio)'] - cd3_d_data['Earth z (Helio)']
+        plt.scatter(cd3_d_data['Geo x'].iloc[0], cd3_d_data['Geo y'].iloc[0], color='#afe9af', label=start_cd3_date,
+                    s=50, zorder=20)
+        plt.scatter(cd3_d_data['Geo x'].iloc[-1], cd3_d_data['Geo y'].iloc[-1], color='#e9afaf', label=start_cd3_date,
+                    s=50, zorder=20)
+        plt.plot(moon_x.values, moon_y.values, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('x (au)')
+        plt.ylabel('y (au)')
+
+        fig11 = plt.figure()
+        plt.plot(cd3_d_data['Geo x'], cd3_d_data['Geo z'], color='grey', zorder=10)
+        plt.plot(cd3_d_data['Geo x'], cd3_d_data['Geo z'], linewidth=5, zorder=5, color='#5599ff')
+        moon_x = cd3_d_data['Moon x (Helio)'] - cd3_d_data['Earth x (Helio)']
+        moon_y = cd3_d_data['Moon y (Helio)'] - cd3_d_data['Earth y (Helio)']
+        moon_z = cd3_d_data['Moon z (Helio)'] - cd3_d_data['Earth z (Helio)']
+        plt.scatter(cd3_d_data['Geo x'].iloc[0], cd3_d_data['Geo z'].iloc[0], color='#afe9af', label=start_cd3_date,
+                    s=50, zorder=20)
+        plt.scatter(cd3_d_data['Geo x'].iloc[-1], cd3_d_data['Geo z'].iloc[-1], color='#e9afaf', label=end_cd3_date,
+                    s=50, zorder=20)
+        plt.plot(moon_x.values, moon_z.values, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('x (au)')
+        plt.ylabel('z (au)')
+
+        fig12 = plt.figure()
+        plt.plot(cd3_d_data['Geo y'], cd3_d_data['Geo z'], color='grey', zorder=10, label='$2020$ $CD_{3}$')
+        plt.plot(cd3_d_data['Geo y'], cd3_d_data['Geo z'], linewidth=5, zorder=5, color='#5599ff')
+        moon_x = cd3_d_data['Moon x (Helio)'] - cd3_d_data['Earth x (Helio)']
+        moon_y = cd3_d_data['Moon y (Helio)'] - cd3_d_data['Earth y (Helio)']
+        moon_z = cd3_d_data['Moon z (Helio)'] - cd3_d_data['Earth z (Helio)']
+        plt.scatter(cd3_d_data['Geo y'].iloc[0], cd3_d_data['Geo z'].iloc[0], color='#afe9af', label=start_cd3_date,
+                    s=50, zorder=20)
+        plt.scatter(cd3_d_data['Geo y'].iloc[-1], cd3_d_data['Geo z'].iloc[-1], color='#e9afaf', label=end_cd3_date,
+                    s=50, zorder=20)
+        plt.plot(moon_y.values, moon_z.values, color='red', zorder=15)
+        c2 = plt.Circle((0, 0), radius=0.0001, color='blue', zorder=20)
+        plt.gca().set_aspect('equal')
+        plt.gca().add_artist(c2)
+        plt.xlabel('y (au)')
+        plt.ylabel('z (au)')
+        plt.legend()
+
+        # xyz cd3
+        fig13 = plt.figure()
+        ax = plt.axes(projection='3d')
+        ax.plot3D(cd3_d_data['Geo x'], cd3_d_data['Geo y'], cd3_d_data['Geo z'], color='grey', zorder=10,
+                  label='2006 RH_{120}')
+        ax.plot3D(cd3_d_data['Geo x'], cd3_d_data['Geo y'], cd3_d_data['Geo z'], linewidth=5, color='#5599ff',
+                  zorder=5)
+        ax.plot3D(moon_x, moon_y, moon_z, color='red')
+        ax.scatter3D(0, 0, 0, s=1, color='blue')
+        ax.scatter3D(cd3_d_data['Geo x'].iloc[0], cd3_d_data['Geo y'].iloc[0], cd3_d_data['Geo z'].iloc[0],
+                     color='#afe9af', label=start_120_date, s=50, zorder=20)
+        ax.scatter3D(cd3_d_data['Geo x'].iloc[-1], cd3_d_data['Geo y'].iloc[-1], cd3_d_data['Geo z'].iloc[-1],
+                     color='#e9afaf', label=end_120_date, s=50, zorder=20)
+        # ax.set_xticks(np.arange(0, 11, 2))
+        # ax.set_yticks(np.arange(-0.015, 0.015, 2))
+        # ax.set_zticks(np.arange(0, 11, 2))
+        ax.set_xlabel('x (au)')
+        ax.set_ylabel('y (au)')
+        ax.set_zlabel('z (au)')
+        ax.legend()
+        plt.show()
 
     def stc_pop_viz(self):
 
-        all_data = pd.read_csv('all_paths.csv', sep=' ', header=0,
+        all_data = pd.read_csv('Databases/all_paths.csv', sep=' ', header=0,
                                names=['x', 'y', 'z', 'vx', 'vy', 'vz', 'L', 'alpha_I', 'beta_I', 'jacobi'])
 
         # omega = 1.993722232068e-7
@@ -1315,15 +1625,15 @@ if __name__ == '__main__':
 
     population_file = 'minimoon_master_final.csv'
     # population_dir = os.path.join(os.path.expanduser('~'), 'Desktop', 'minimoon_integrations', 'minimoon_files_oorb')
-    # population_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
-    #                               'minimoon_files_oorb')
-    # population_path = population_dir + '/' + population_file
+    population_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'sean', 'minimoon_integrations',
+                                   'minimoon_files_oorb')
+    population_path = population_dir + '/' + population_file
 
     # mm_analyzer = MmAnalyzer()
     # mm_parser = MmParser("", population_dir, "")
-    # mm_pop = MmPopulation(population_path)
+    mm_pop = MmPopulation(population_path)
 
-    # mm_pop.stc_pop_viz()
+    mm_pop.pop_viz()
 
 
 

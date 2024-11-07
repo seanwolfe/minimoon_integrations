@@ -24,8 +24,11 @@ from scipy.signal import argrelextrema
 from space_fncs import get_r_and_v_cr3bp_from_nbody_sun_emb
 from space_fncs import jacobi_dim_and_non_dim
 from space_fncs import helio_to_earthmoon_corotating
+from space_fncs import helio_to_earthmoon_corotating_vec
 from space_fncs import pseudo_potential
 from space_fncs import jacobi_earth_moon
+import string
+from itertools import product
 
 cds.enable()
 numpy.set_printoptions(threshold=sys.maxsize)
@@ -152,7 +155,7 @@ class MmMain():
         print("Number of integration steps: " + str(steps))
 
         destination_path = os.path.join(os.getcwd(), 'no_moon_files')
-        new_data.to_csv(destination_path + '/' + str(object_id) + '.csv', sep=' ', header=True, index=False)
+        # new_data.to_csv(destination_path + '/' + str(object_id) + '.csv', sep=' ', header=True, index=False)
 
         # H = master_i['H'].iloc[0]
 
@@ -632,7 +635,8 @@ class MmMain():
         helio_E_vx = master['Helio vx at Capture'] - master['Geo vx at Capture']
         helio_E_vy = master['Helio vy at Capture'] - master['Geo vy at Capture']
         helio_E_vz = master['Helio vz at Capture'] - master['Geo vz at Capture']
-        desired_cols = ['Object id', '1 Hill Duration', 'Min. Distance', 'EMS Duration', 'Retrograde', 'STC', 'Became Minimoon', 'Taxonomy',
+        desired_cols = ['Object id', '1 Hill Duration', 'Min. Distance', 'EMS Duration', 'Retrograde', 'STC',
+                        'Became Minimoon', 'Taxonomy',
                         '3 Hill Duration', 'Helio x at Capture', 'Helio y at Capture',
                         'Helio z at Capture', 'Helio vx at Capture',
                         'Helio vy at Capture', 'Helio vz at Capture',
@@ -734,7 +738,7 @@ class MmMain():
     def stc_viz_main(master_file):
 
         mm_pop = MmPopulation(master_file)
-        mm_pop.stc_pop_viz()
+        mm_pop.pop_viz()
 
     @staticmethod
     def alphabetastc(master_file):
@@ -1743,14 +1747,17 @@ class MmMain():
     @staticmethod
     def BCR4BP():
 
-
-        data_stc = pd.read_csv('stc_nonstc2.csv', sep=' ', header=0, names=['Object id', 'EM Syn. at SOIEMS x',
-                                                                     'EM Syn. at SOIEMS y', 'EM Syn. at SOIEMS z',
-                                                                     'Moon at SOIEMS x', 'Moon at SOIEMS y',
-                                                                     'Moon at SOIEMS z',
-                                                                     'EM Syn. at SOIEMS vx', 'EM Syn. at SOIEMS vy',
-                                                                     'EM Syn. at SOIEMS vz', 'STC without Moon', 'Index',
-                                                                     "First Perigee Distance", "Time Between Perigees"])
+        data_stc = pd.read_csv('Databases/stc_nonstc2.csv', sep=' ', header=0, names=['Object id', 'EM Syn. at SOIEMS x',
+                                                                            'EM Syn. at SOIEMS y',
+                                                                            'EM Syn. at SOIEMS z',
+                                                                            'Moon at SOIEMS x', 'Moon at SOIEMS y',
+                                                                            'Moon at SOIEMS z',
+                                                                            'EM Syn. at SOIEMS vx',
+                                                                            'EM Syn. at SOIEMS vy',
+                                                                            'EM Syn. at SOIEMS vz', 'STC without Moon',
+                                                                            'Index',
+                                                                            "First Perigee Distance",
+                                                                            "Time Between Perigees"])
 
         moon_vel = []
         posvelratio = []
@@ -1758,11 +1765,15 @@ class MmMain():
             tco_moon = np.array([master_k["Moon at SOIEMS x"] - master_k["EM Syn. at SOIEMS x"],
                                  master_k["Moon at SOIEMS y"] - master_k["EM Syn. at SOIEMS y"],
                                  master_k["Moon at SOIEMS z"] - master_k['EM Syn. at SOIEMS z']])
-            u_tco_moon = tco_moon/np.linalg.norm(tco_moon)
-            vel_tco = np.array([master_k["EM Syn. at SOIEMS vx"], master_k["EM Syn. at SOIEMS vy"], master_k['EM Syn. at SOIEMS vz']])
-            r_tco = np.array([master_k['EM Syn. at SOIEMS x'], master_k['EM Syn. at SOIEMS y'], master_k['EM Syn. at SOIEMS z']])
-            moon_vel.append((np.dot(u_tco_moon, vel_tco) + (np.linalg.norm(vel_tco) - np.dot(-r_tco/np.linalg.norm(r_tco), vel_tco))) * / master_k['Time Between Perigees'] * 8760)
-            posvelratio.append(np.linalg.norm(tco_moon)/np.linalg.norm(vel_tco))
+            u_tco_moon = tco_moon / np.linalg.norm(tco_moon)
+            vel_tco = np.array(
+                [master_k["EM Syn. at SOIEMS vx"], master_k["EM Syn. at SOIEMS vy"], master_k['EM Syn. at SOIEMS vz']])
+            r_tco = np.array(
+                [master_k['EM Syn. at SOIEMS x'], master_k['EM Syn. at SOIEMS y'], master_k['EM Syn. at SOIEMS z']])
+            moon_vel.append((np.dot(u_tco_moon, vel_tco) + (
+                        np.linalg.norm(vel_tco) - np.dot(-r_tco / np.linalg.norm(r_tco), vel_tco))) / master_k[
+                                'Time Between Perigees'] * 8760)
+            posvelratio.append(np.linalg.norm(tco_moon) / np.linalg.norm(vel_tco))
 
         data_stc['New Index'] = moon_vel
         # data_stc['Ratio'] = posvelratio
@@ -1800,7 +1811,7 @@ class MmMain():
 
         # stcstc_file = 'stcstc.csv'
         # nonstcnonstc_file = 'nonstcnonstc.csv'
-        stcnonstc_file = 'stcnonstc.csv'
+        stcnonstc_file = 'Databases/stcnonstc.csv'
         # nonstcstc_file = 'nonstcstc.csv'
         #
         # mm_parser = MmParser("", "", "")
@@ -1808,7 +1819,8 @@ class MmMain():
         # nonstcnonstc_pop = mm_parser.parse_master(os.path.join(os.getcwd(), nonstcnonstc_file))
         stcnonstc_pop = mm_parser.parse_master(os.path.join(os.getcwd(), stcnonstc_file))
         # nonstcstc_pop = mm_parser.parse_master(os.path.join(os.getcwd(), nonstcstc_file))
-        no_moon_master = mm_parser.parse_master_previous(os.path.join(os.getcwd(), 'Test_Set_nomoon', 'minimoon_master_final.csv'))
+        no_moon_master = mm_parser.parse_master_previous(
+            os.path.join(os.getcwd(), 'Test_Set_nomoon', 'minimoon_master_final.csv'))
 
         # master_file = stcnonstc_pop
 
@@ -1951,11 +1963,11 @@ class MmMain():
 
                 no_moon_data.to_csv('no_moon_files/' + id + '.csv', sep=' ', header=True, index=False)
 
-
             data_full = mm_parser.mm_file_parse_new(file_path)
             start_offset = 0
             end_offset = 3000
-            start_moon = int(master_file.loc[master_file['Object id'] == id, "Entry to EMS Index"].iloc[0] - start_offset)
+            start_moon = int(
+                master_file.loc[master_file['Object id'] == id, "Entry to EMS Index"].iloc[0] - start_offset)
             # end = int(master_file.loc[master_file['Object id'] == id, "Entry to EMS Index"].iloc[0] + end_offset)
             end_moon = int(master_file.loc[master_file['Object id'] == id, "Exit Index to EMS"].iloc[0])
             # start = 0
@@ -2025,7 +2037,7 @@ class MmMain():
 
                 EMS_rp_TCO, EMS_vp_TCO, EMS_omega_SEMSM, r_ETCO, r_MTCO, r_STCO, EMS_rp_SUN, EMS_rp_M, r_EM, hp_omega_EMSM = (
                     helio_to_earthmoon_corotating(h_r_TCO, h_v_TCO, h_r_E, h_v_E, h_r_M, h_v_M,
-                                                         date_mjd))
+                                                  date_mjd))
 
                 # hamiltonian = pseudo_potential(EMS_rp_TCO, EMS_vp_TCO, hp_omega_EMSM, r_STCO, r_ETCO, r_MTCO, EMS_rp_SUN, r_EM)
                 # r_TCO = np.linalg.norm(EMS_rp_TCO)
@@ -2054,8 +2066,6 @@ class MmMain():
                 # j_ems_d.append(jacobi_em_dim)
                 # j_ems_nd.append(jacobi_em_non_dim)
 
-
-
             poss_i = np.array(poss_i)
             poss_m_i = np.array(poss_m_i)
             vels_i = np.array(vels_i)
@@ -2068,11 +2078,13 @@ class MmMain():
             end_offset = end_offset
             # sc = plt.scatter(poss_i[:first_exit, 0], poss_i[:first_exit, 1], c=j_ems_d[:first_exit], cmap='coolwarm', s=15, zorder=20)
             plt.plot(poss_i[:end_offset, 0], poss_i[:end_offset, 1], color='blue', zorder=18)
-            plt.plot(data_nomoon['Earth-Moon Synodic x'].iloc[:end_offset], data_nomoon['Earth-Moon Synodic y'].iloc[:end_offset], linewidth=1, zorder=25, color='orange')
+            plt.plot(data_nomoon['Earth-Moon Synodic x'].iloc[:end_offset],
+                     data_nomoon['Earth-Moon Synodic y'].iloc[:end_offset], linewidth=1, zorder=25, color='orange')
             # plt.plot(poss_i[:, 0], poss_i[:, 1], label='Trajectory', color='grey', zorder=20)
             plt.scatter(poss_m_i[:, 0], poss_m_i[:, 1], s=1, label='Moon', color='red', zorder=15)
             plt.scatter(0, 0, s=20, label='Earth', color='Blue', zorder=10)
-            plt.scatter(poss_i[0 + start_offset, 0], poss_i[0 + start_offset, 1], s=30, label='Entry', color='green', zorder=25)
+            plt.scatter(poss_i[0 + start_offset, 0], poss_i[0 + start_offset, 1], s=30, label='Entry', color='green',
+                        zorder=25)
             # plt.scatter(poss_i[end_offset, 0], poss_i[end_offset, 1], s=30, label='Exit', color='red', zorder=30)
             c1 = plt.Circle((0, 0), radius=0.0038752837677, alpha=0.1, label='SOI of the EMS', zorder=5)
             plt.gca().add_artist(c1)
@@ -2175,7 +2187,8 @@ class MmMain():
             
             plt.show()
             """
-            no_moon_pos = np.array([no_moon_data['Earth-Moon Synodic x'], no_moon_data['Earth-Moon Synodic y'], no_moon_data['Earth-Moon Synodic z']])
+            no_moon_pos = np.array([no_moon_data['Earth-Moon Synodic x'], no_moon_data['Earth-Moon Synodic y'],
+                                    no_moon_data['Earth-Moon Synodic z']])
             distance = np.linalg.norm(no_moon_pos.T, axis=1)
 
             moon_pos = np.array([poss_i[:, 0], poss_i[:, 1], poss_i[:, 2]])
@@ -2192,15 +2205,14 @@ class MmMain():
             moon_minima_indices = argrelextrema(moon_distance, np.less, order=1)
 
             # Filter minima below the threshold
-            moon_minima_below_threshold = [index for index in moon_minima_indices[0] if moon_distance[index] < threshold]
+            moon_minima_below_threshold = [index for index in moon_minima_indices[0] if
+                                           moon_distance[index] < threshold]
 
             # first peri distance
             first_peri = moon_distance[moon_minima_below_threshold[0]]
 
             # time between peri
             dt = moon_minima_below_threshold[1] - moon_minima_below_threshold[0]
-
-
 
             # Find local minima
             minima_indices = argrelextrema(distance, np.less, order=1)
@@ -2215,7 +2227,9 @@ class MmMain():
                 still_stc = True
             else:
                 still_stc = False
-            important_params.append([id, poss_i[0, 0], poss_i[0, 1], poss_i[0, 2], poss_m_i[0, 0], poss_m_i[0, 1], poss_m_i[0, 2], vels_i[0, 0], vels_i[0, 1], vels_i[0, 2], still_stc])
+            important_params.append(
+                [id, poss_i[0, 0], poss_i[0, 1], poss_i[0, 2], poss_m_i[0, 0], poss_m_i[0, 1], poss_m_i[0, 2],
+                 vels_i[0, 0], vels_i[0, 1], vels_i[0, 2], still_stc])
 
             peris.append(first_peri)
             dts.append(dt)
@@ -2228,13 +2242,362 @@ class MmMain():
         #                                              'EM Syn. at SOIEMS vx', 'EM Syn. at SOIEMS vy',
         #                                              'EM Syn. at SOIEMS vz', 'STC without Moon'])
 
-            # df = pd.DataFrame({'Object id': id, 'EM Syn. at SOIEMS x': poss_i[0, 0],
-            #                    'EM Syn. at SOIEMS y': poss_i[0, 1], 'EM Syn. at SOIEMS z': poss_i[0, 2],
-            #                    'Moon at SOIEMS x': poss_m_i[0, 0], 'Moon at SOIEMS y': poss_m_i[0, 1],
-            #                    'Moon at SOIEMS z': poss_m_i[0, 2], 'EM Syn. at SOIEMS vx': vels_i[0, 0],
-            #                    'EM Syn. at SOIEMS vy': vels_i[0, 1], 'EM Syn. at SOIEMS vz': vels_i[0, 2],
-            #                    'STC without Moon': still_stc}, index=[1])
-            # df.to_csv('stc_nonstc.csv', sep=" ", mode='a', header=False, index=False)
+        # df = pd.DataFrame({'Object id': id, 'EM Syn. at SOIEMS x': poss_i[0, 0],
+        #                    'EM Syn. at SOIEMS y': poss_i[0, 1], 'EM Syn. at SOIEMS z': poss_i[0, 2],
+        #                    'Moon at SOIEMS x': poss_m_i[0, 0], 'Moon at SOIEMS y': poss_m_i[0, 1],
+        #                    'Moon at SOIEMS z': poss_m_i[0, 2], 'EM Syn. at SOIEMS vx': vels_i[0, 0],
+        #                    'EM Syn. at SOIEMS vy': vels_i[0, 1], 'EM Syn. at SOIEMS vz': vels_i[0, 2],
+        #                    'STC without Moon': still_stc}, index=[1])
+        # df.to_csv('stc_nonstc.csv', sep=" ", mode='a', header=False, index=False)
+
+    @staticmethod
+    def severity_check():
+
+        destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        destination_file = destination_path + '/minimoon_master_final.csv'
+        mm_parser = MmParser("", "", "")
+        master = mm_parser.parse_master(destination_file)
+
+        # three hill discrepency
+        three_hill_severity = len(master[master['Max. Distance'] > 0.03])
+        print('The three hill severity is: {}'.format(three_hill_severity))
+
+        # energy discrepency
+        energy_defaults = 0
+
+        rev_defaults = 0
+
+        # retrograde and prograde discrepency
+        retro_pro_defaults = 0
+
+        for idx, row in master.iterrows():
+            # get file
+            obj_id = row['Object id']
+
+            # obj_id = 'NESC000001td'
+            file_path = destination_path + '/' + obj_id + '.csv'
+            print(obj_id)
+            data = mm_parser.mm_file_parse_new(file_path)
+            capture_data = data.iloc[row['Capture Index']:row['Release Index']]
+
+            # pro retro discrepency
+            eclip_long_diff = pd.Series(capture_data['Eclip Long']).diff().dropna()
+            positive = eclip_long_diff[eclip_long_diff > 0]
+            positive_filtered = positive[positive < 1]
+            negative = eclip_long_diff[eclip_long_diff < 0]
+            negative_filtered = negative[negative > -1]
+            if len(positive_filtered) > 0 and len(negative_filtered) > 0:
+                retro_pro_defaults += 1
+
+            # energy discrepency
+            vx = capture_data['Geo vx']
+            vy = capture_data['Geo vy']
+            vz = capture_data['Geo vz']
+            v = np.sqrt(vx ** 2 + vy ** 2 + vz ** 2) * 1730840
+            r = capture_data['Distance'] * 149597870700
+            mu = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
+            energy = v ** 2 / 2 - mu / r
+            filtered_energy = energy[abs(energy / 1000 / 1000) < 0.7]
+            filtered_energy_diff = pd.Series(energy).diff().dropna()
+            if np.any(filtered_energy > 0) and not np.any(
+                    filtered_energy_diff[abs(filtered_energy_diff) / 1000 / 1000 > 0.005]):
+                energy_defaults += 1
+
+            # revolution discrepencies
+            xz_angle = np.rad2deg(np.arctan2(capture_data['Synodic z'], capture_data['Synodic x']))
+            xz_angle_corrected = pd.Series(xz_angle).apply(lambda x: x + 360 if x < 0 else x)
+            xz_angle_corrected_diff = pd.Series(xz_angle_corrected).diff().dropna()
+            xz_eclip_long = xz_angle_corrected_diff.apply(lambda x: x - 360 if ((abs(x) > 200) and (x > 0)) else x)
+            xz_eclip_long_corrected = pd.Series(xz_eclip_long).apply(
+                lambda x: x + 360 if (((abs(x) > 200)) and (x < 0)) else x)
+
+            yz_angle = np.rad2deg(np.arctan2(capture_data['Synodic y'], capture_data['Synodic z']))
+            yz_angle_corrected = pd.Series(yz_angle).apply((lambda x: x + 360 if x < 0 else x))
+            yz_angle_corrected_diff = pd.Series(yz_angle_corrected).diff().dropna()
+            yz_eclip_long = yz_angle_corrected_diff.apply(lambda x: x - 360 if ((abs(x) > 200) and (x > 0)) else x)
+            yz_eclip_long_corrected = pd.Series(yz_eclip_long).apply(
+                lambda x: x + 360 if (((abs(x) > 200)) and (x < 0)) else x)
+
+            rev_xz = abs(sum(xz_eclip_long_corrected)) / 360
+            rev_yz = abs(sum(yz_eclip_long_corrected)) / 360
+
+            if row['Number of Rev'] >= 1 or rev_yz >= 1 or rev_xz >= 1:
+                if row['Number of Rev'] >= 1 and rev_yz >= 1 and rev_xz >= 1:
+                    pass
+                else:
+                    rev_defaults += 1
+
+            print('The three hill severity is: {}'.format(three_hill_severity))
+            print("Number of Prograde/Retrogade motions: {}".format(retro_pro_defaults))
+            print("Number of Energy greater than zero: {}".format(energy_defaults))
+            print("Number of Revolutions in other frames: {}".format(rev_defaults))
+
+        return
+
+    @staticmethod
+    def chyba_criteria():
+
+        destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        destination_file = destination_path + '/minimoon_master_final.csv'
+        mm_parser = MmParser("", "", "")
+        master = mm_parser.parse_master(destination_file)
+
+        min_energys = []
+        avg_zs = []
+        avg_vzs = []
+        min_l2tcas = []
+        winding_diffs = []
+
+        for idx, row in master.iterrows():
+            # get file
+            obj_id = row['Object id']
+
+            file_path = destination_path + '/' + obj_id + '.csv'
+            print(idx)
+            print(obj_id)
+            data = mm_parser.mm_file_parse_new(file_path)
+            capture_data = data.iloc[row['Capture Index']:row['Release Index']]
+
+            # minimum energy
+            vx = capture_data['Geo vx']
+            vy = capture_data['Geo vy']
+            vz = capture_data['Geo vz']
+            v = np.sqrt(vx ** 2 + vy ** 2 + vz ** 2) * 1730840
+            r = capture_data['Distance'] * 149597870700
+            mu = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
+            energy = v ** 2 / 2 - mu / r
+            filtered_energy = energy[abs(energy / 1000 / 1000) < 0.7]
+            min_energy = min(filtered_energy / 1000 / 1000)  # km^2 / s^2
+            min_energys.append(min_energy)
+
+            # Average vz and z
+            avg_z = np.mean(capture_data['Geo z'])
+            avg_vz = np.mean(capture_data['Geo vz'])
+            avg_zs.append(avg_z)
+            avg_vzs.append(avg_vz)
+
+
+            # peri-L2 distance
+            moon_tca_pos = np.array(
+                [capture_data['Helio x'], capture_data['Helio y'], capture_data['Helio z']]) - np.array(
+                [capture_data['Moon x (Helio)'], capture_data['Moon y (Helio)'], capture_data['Moon z (Helio)']])
+
+            moon_l2_dist = 0.00043249279
+            earth_moon_pos = np.array(
+                [capture_data['Earth x (Helio)'], capture_data['Earth y (Helio)'], capture_data['Earth z (Helio)']]) - np.array(
+                [capture_data['Moon x (Helio)'], capture_data['Moon y (Helio)'], capture_data['Moon z (Helio)']])
+            em_pos_unit = earth_moon_pos / np.linalg.norm(earth_moon_pos, axis=0)
+            moon_l2_pos = moon_l2_dist * em_pos_unit
+            l2_tca_pos = moon_tca_pos - moon_l2_pos
+            l2_tca_dist = np.linalg.norm(l2_tca_pos, axis=0)
+            min_l2 = min(l2_tca_dist)
+            min_l2tcas.append(min_l2)
+
+            # winding numbers
+
+            # transform whole traj to earth-moon corotating
+            h_r_TCA = np.array([capture_data['Helio x'], capture_data['Helio y'], capture_data['Helio z']])
+            h_v_TCA = np.array([capture_data['Helio vx'], capture_data['Helio vy'], capture_data['Helio vz']])
+            h_r_E = np.array(
+                [capture_data['Earth x (Helio)'], capture_data['Earth y (Helio)'], capture_data['Earth z (Helio)']])
+            h_v_E = np.array(
+                [capture_data['Earth vx (Helio)'], capture_data['Earth vy (Helio)'], capture_data['Earth vz (Helio)']])
+            h_r_M = np.array(
+                [capture_data['Moon x (Helio)'], capture_data['Moon y (Helio)'], capture_data['Moon z (Helio)']])
+            h_v_M = np.array(
+                [capture_data['Moon vx (Helio)'], capture_data['Moon vy (Helio)'], capture_data['Moon vz (Helio)']])
+
+            pos_TCA, pos_Moon, pos_Earth = helio_to_earthmoon_corotating_vec(h_r_TCA, h_v_TCA, h_r_E, h_v_E, h_r_M, h_v_M,
+                                                        capture_data['Julian Date'])
+
+
+
+            # get earth tca eclip long
+            earth_xy_angle = np.rad2deg(np.arctan2(pos_TCA[:, 1] - pos_Earth[:, 1], pos_TCA[:, 0] - pos_Earth[:, 0]))
+            earth_xy_angle_corrected = pd.Series(earth_xy_angle).apply(lambda x: x + 360 if x < 0 else x)
+            earth_xy_angle_corrected_diff = pd.Series(earth_xy_angle_corrected).diff().dropna()
+            earth_xy_eclip_long = earth_xy_angle_corrected_diff.apply(lambda x: x - 360 if ((abs(x) > 200) and (x > 0)) else x)
+            earth_xy_eclip_long_corrected = pd.Series(earth_xy_eclip_long).apply(
+                lambda x: x + 360 if (((abs(x) > 200)) and (x < 0)) else x)
+
+
+            # get moon tca eclip long
+            moon_xy_angle = np.rad2deg(np.arctan2(pos_TCA[:, 1] - pos_Moon[:, 1], pos_TCA[:, 0] - pos_Moon[:, 0]))
+            moon_xy_angle_corrected = pd.Series(moon_xy_angle).apply(lambda x: x + 360 if x < 0 else x)
+            moon_xy_angle_corrected_diff = pd.Series(moon_xy_angle_corrected).diff().dropna()
+            moon_xy_eclip_long = moon_xy_angle_corrected_diff.apply(
+                lambda x: x - 360 if ((abs(x) > 200) and (x > 0)) else x)
+            moon_xy_eclip_long_corrected = pd.Series(moon_xy_eclip_long).apply(
+                lambda x: x + 360 if (((abs(x) > 200)) and (x < 0)) else x)
+
+            # get rev around earth
+            earth_rev_xy = abs(sum(earth_xy_eclip_long_corrected)) / 360
+
+            # get rev around moon
+            moon_rev_xy = abs(sum(moon_xy_eclip_long_corrected)) / 360
+
+            # get winding number
+            winding_diffs.append(abs(earth_rev_xy - moon_rev_xy))
+
+
+        master['Minimum Energy'] = min_energys
+        master['Peri-EM-L2'] = min_l2tcas
+        master['Average Geo z'] = avg_zs
+        master['Average Geo vz'] = avg_vzs
+        master['Winding Difference'] = winding_diffs
+        master.to_csv('minimoon_master_new.csv', sep=' ', header=True, index=False)
+
+
+    @staticmethod
+    def case_study_hists():
+
+        destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
+        destination_file = destination_path + '/minimoon_master_new.csv'
+        mm_parser = MmParser("", "", "")
+        master = mm_parser.parse_master_new_new(destination_file)
+
+        """
+        #min energy
+        bin_size_en = 0.01
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_en = max(master['Minimum Energy']) - min(master['Minimum Energy'])
+        num_bins_en = int(data_range_en / bin_size_en)
+
+        fig = plt.figure()
+        plt.hist(master['Minimum Energy'], bins=num_bins_en, edgecolor="#448dc0", color="#1f77b4")
+        plt.xlim([-0.7, 0])
+        plt.ylim([0, 2300])
+        plt.xlabel('Minimum Planetocentric Energy During Capture $(km^2/s^2)$')
+        plt.ylabel('Count')
+
+        # Peri-EM-L2
+        bin_size_l2 = 0.0001
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_l2 = max(master['Peri-EM-L2']) - min(master['Peri-EM-L2'])
+        num_bins_l2 = int(data_range_l2 / bin_size_l2)
+
+        fig = plt.figure()
+        plt.hist(master['Peri-EM-L2'], bins=num_bins_l2, edgecolor="#448dc0", color="#1f77b4")
+        plt.xlim([0, 0.02])
+        plt.ylim([0, 900])
+        plt.xlabel('Minimum Distance to Earth-Moon $L_2$ (au)')
+        plt.ylabel('Count')
+
+
+        # Average Geo z
+        bin_size_z = 0.0001
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_z = max(master['Average Geo z']) - min(master['Average Geo z'])
+        num_bins_z = int(data_range_z / bin_size_z)
+
+        fig = plt.figure()
+        plt.hist(master['Average Geo z'], bins=num_bins_z, edgecolor="#448dc0", color="#1f77b4")
+        plt.xlim([-0.015, 0.015])
+        plt.ylim([0, 800])
+        plt.xlabel('Average Geocentric $z$ During Capture (au)')
+        plt.ylabel('Count')
+
+        # Average Geo z
+        bin_size_vz = 0.00001
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_vz = max(master['Average Geo vz']) - min(master['Average Geo vz'])
+        num_bins_vz = int(data_range_vz / bin_size_vz)
+
+        fig = plt.figure()
+        plt.hist(master['Average Geo vz'], bins=num_bins_vz, edgecolor="#448dc0", color="#1f77b4")
+        plt.xlim([-0.0004, 0.0004])
+        plt.ylim([0, 5500])
+        plt.xlabel('Average Geocentric $v_z$ During Capture (au/day)')
+        plt.ylabel('Count')
+
+        # Winding number
+        bin_size_wn = 0.05
+
+        # Calculate the number of bins based on data range and bin size
+        data_range_wn = max(master['Winding Difference']) - min(master['Winding Difference'])
+        num_bins_wn = int(data_range_wn / bin_size_wn)
+
+        fig = plt.figure()
+        plt.hist(master['Winding Difference'], bins=num_bins_wn, edgecolor="#448dc0", color="#1f77b4")
+        plt.xlim([0, 6.5])
+        plt.ylim([0, 8000])
+        plt.xlabel('|Rev. Around Moon - Rev. Around Earth|')
+        plt.ylabel('Count')
+        # plt.show()
+        """
+
+        # Taxonomy design
+        metrics = ['Capture Duration', 'Minimum Energy', 'Peri-EM-L2', 'Average Geo z', 'Average Geo vz', 'Winding Difference']
+        # metrics = ['Capture Duration', 'Minimum Energy', 'Peri-EM-L2']
+        n = len(metrics)
+        thresholds = [300, -0.3, 0.001, 0.001, 0.00005, 1]
+        positives = ['greater', 'less', 'less', 'abs. less', 'abs. less', 'less']
+        letters = list(string.ascii_uppercase)[:n]
+        n_letters = ['n' + letter for idx, letter in enumerate(letters)]
+
+        # Generate all permutations
+        classes = list(product([0, 1], repeat=len(n_letters)))
+
+        # Map permutations to letters
+        letter_classes = [[n_letters[i] if val == 1 else letters[i] for i, val in enumerate(p)] for p in classes]
+
+        pops = []
+        for metric, threshold, positive in zip(metrics, thresholds, positives):
+
+            if positive == 'greater':
+                pos_pop = master[master[metric] >= threshold]
+                neg_pop = master[master[metric] < threshold]
+                pos_percent = len(pos_pop[metric]) / len(master[metric]) * 100
+                print('There is {0}% of the population with {1} greater than {2}, {3}% with less.'.format(pos_percent, metric, threshold, 100 - pos_percent))
+            elif positive == 'less':
+                pos_pop = master[master[metric] <= threshold]
+                neg_pop = master[master[metric] > threshold]
+                pos_percent = len(pos_pop[metric]) / len(master[metric]) * 100
+                print('There is {0}% of the population with {1} less than {2}, {3}% with greater.'.format(pos_percent, metric, threshold, 100 - pos_percent))
+            else:
+                pos_pop = master[abs(master[metric]) <= threshold]
+                neg_pop = master[abs(master[metric]) > threshold]
+                pos_percent = len(pos_pop[metric]) / len(master[metric]) * 100
+                print('There is {0}% of the population with {1} less than {2}, {3}% with greater.'.format(pos_percent,
+                                                                                                          metric,
+                                                                                                          threshold,
+                                                                                                          100 - pos_percent))
+
+            pops.append([pos_pop, neg_pop])
+
+        classed_pop = []
+        percents = []
+        for classe, letter_class in zip(classes, letter_classes):
+
+            pop = master.copy()
+            for metric, classi, positive, threshold in zip(metrics, classe, positives, thresholds):
+
+                if positive == 'greater':
+                    if classi == 0:  # talking about A not about nA
+                        pop = pop[pop[metric] >= threshold]
+                    else:
+                        pop = pop[pop[metric] < threshold]
+                elif positive == 'less':
+                    if classi == 0:  # talking about A not about nA
+                        pop = pop[pop[metric] <= threshold]
+                    else:
+                        pop = pop[pop[metric] > threshold]
+                else:
+                    if classi == 0:  # talking about A not about nA
+                        pop = pop[abs(pop[metric]) <= threshold]
+                    else:
+                        pop = pop[abs(pop[metric]) > threshold]
+
+            pop_percent = len(pop) / len(master) * 100
+            percents.append(pop_percent)
+            print("{0}% of the population belongs to class: {1}\n".format(pop_percent, letter_class))
+            classed_pop.append(pop)
+
+        print(sum(percents))
 
 
 
@@ -2273,7 +2636,7 @@ if __name__ == '__main__':
 
         int_step = 1 / 24
 
-        mm_main.integrate(destination_file, mu_e, leadtime, perturbers, int_step)
+        # mm_main.integrate(destination_file, mu_e, leadtime, perturbers, int_step)
 
     #########################################
     # integrating data in parallel - check all functions for initializations within
@@ -2286,7 +2649,7 @@ if __name__ == '__main__':
     # master = mm_parser.parse_master(destination_file)
 
     # get the object ids of all minimoons
-    # object_ids = master['Object id']
+    # object_ids = master['Object id'].iloc[:100]
 
     # pool = multiprocessing.Pool()
     # pool.starmap(mm_main.integrate_parallel, enumerate(object_ids))  # input your function
@@ -2353,4 +2716,26 @@ if __name__ == '__main__':
     # Investigate the bicircular restricted four body problem
     #########################################
 
-    mm_main.BCR4BP()
+    # mm_main.BCR4BP()
+
+    #########################################
+    # Investigate the severity of discrepencies
+    #########################################
+
+    # mm_main.severity_check()
+
+    ########################################
+    # Get criteria for Chyba case study
+    ########################################
+
+    # mm_main.chyba_criteria()
+
+    #######################################
+    # Histograms for Chyba
+    #######################################
+
+    # mm_main.case_study_hists()
+
+    #####################################
+    # create plots for 2022 NX1
+    ####################################3
