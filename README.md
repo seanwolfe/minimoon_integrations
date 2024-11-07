@@ -1,10 +1,11 @@
 # Welcome to MiniViz
 
-MiniViz is a web application available through our lab's website: [Aerospace Mechatronics Laboratory](http://mechatronics.aerospace.utoronto.ca/)
-If this app, the data or the work within was useful for you, please consider citing the following paper:
+MiniViz is an web application that helps visualize Minimoon Trajectories and population statistics. If useful to you, please consider citing the following paper:
+
+Wolfe, Sean, and M. Reza Emami. "A Data-driven Approach to the Classification of Temporary Captures in the Earth-Moon System." 2024 IEEE Aerospace Conference. IEEE, 2024.
 
 MiniViz is a visualization tool used for a special group of asteroid known as Temporarily Captured Orbiters (also known as *Minimoons*). To date,
-there have been only two TCOs discovered, namely **2006 RH<sub>120</sub>** and **2020 CD<sub>3</sub>**. In order to
+there have been only four TCOs discovered, namely **2006 RH<sub>120</sub>**, **2020 CD<sub>3</sub>**, **2022 NX<sub>1</sub>**, and **2024 PT<sub>5</sub>**. In order to
 understand the potential population of TCOs that may exist beyond current detection capabilities, Granvik et al. 
 (see [here](https://www.sciencedirect.com/science/article/pii/S0019103511004684/?imgSel=Y&_escaped_fragment_=)), and
 Fedorets el al. (see [here](https://www.sciencedirect.com/science/article/pii/S0019103516306480)) performed orbital
@@ -121,8 +122,10 @@ Running MiniViz may require installation of:
 - Pandas
 - PyOrb (if running integrations)
 - Astroquery (if running integrations)
+- Scipy
+- Poliastro
 
 ## Running MiniViz
 
-MiniViz should be able to run directly through the execution of the **MinimoonApp.py** file. 
+MiniViz should be able to run directly through the execution of the **MinimoonApp.py** file. Howvever, it is required to point to a folder with a file 'minimoon_master_final.csv' inside along with the individual Minimoon integration result files.
 
