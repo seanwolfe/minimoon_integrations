@@ -122,8 +122,10 @@ Running MiniViz may require installation of:
 - Pandas
 - PyOrb (if running integrations)
 - Astroquery (if running integrations)
+- Scipy
+- Poliastro
 
 ## Running MiniViz
 
-MiniViz should be able to run directly through the execution of the **MinimoonApp.py** file. 
+MiniViz should be able to run directly through the execution of the **MinimoonApp.py** file. Howvever, it is required to point to a folder with a file 'minimoon_master_final.csv' inside along with the individual Minimoon integration result files.
 
