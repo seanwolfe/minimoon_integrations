@@ -2,7 +2,7 @@
 
 MiniViz is an web application that helps visualize Minimoon Trajectories and population statistics. If useful to you, please consider citing the following paper:
 
-Wolfe, Sean, and M. Reza Emami. "A Data-driven Approach to the Classification of Temporary Captures in the Earth-Moon System." 2024 IEEE Aerospace Conference. IEEE, 2024.
+Wolfe, Sean D., and M. Reza Emami. "A Study of Short-Term Captures Formation in the Earth-Moon System." AIAA AVIATION FORUM AND ASCEND 2024. 2024.
 
 MiniViz is a visualization tool used for a special group of asteroid known as Temporarily Captured Orbiters (also known as *Minimoons*). To date,
 there have been only four TCOs discovered, namely **2006 RH<sub>120</sub>**, **2020 CD<sub>3</sub>**, **2022 NX<sub>1</sub>**, and **2024 PT<sub>5</sub>**. In order to
