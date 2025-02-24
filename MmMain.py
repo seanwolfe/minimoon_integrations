@@ -627,57 +627,81 @@ class MmMain():
         mm_analyzer = MmAnalyzer()
 
         # get the master file - you need a list of initial orbits to integrate with openorb (pyorb)
-        master = mm_parser.parse_master(dest_path)
+        master = mm_parser.parse_master_new_new(dest_path)
 
-        helio_E_x = master['Helio x at Capture'] - master['Geo x at Capture']
-        helio_E_y = master['Helio y at Capture'] - master['Geo y at Capture']
-        helio_E_z = master['Helio z at Capture'] - master['Geo z at Capture']
-        helio_E_vx = master['Helio vx at Capture'] - master['Geo vx at Capture']
-        helio_E_vy = master['Helio vy at Capture'] - master['Geo vy at Capture']
-        helio_E_vz = master['Helio vz at Capture'] - master['Geo vz at Capture']
-        desired_cols = ['Object id', '1 Hill Duration', 'Min. Distance', 'EMS Duration', 'Retrograde', 'STC',
-                        'Became Minimoon', 'Taxonomy',
-                        '3 Hill Duration', 'Helio x at Capture', 'Helio y at Capture',
-                        'Helio z at Capture', 'Helio vx at Capture',
-                        'Helio vy at Capture', 'Helio vz at Capture',
-                        'Moon (Helio) x at Capture',
-                        'Moon (Helio) y at Capture',
-                        'Moon (Helio) z at Capture',
-                        'Moon (Helio) vx at Capture',
-                        'Moon (Helio) vy at Capture',
-                        'Moon (Helio) vz at Capture', 'Capture Date', "Helio x at EMS", "Helio y at EMS",
-                        "Helio z at EMS",
-                        "Helio vx at EMS", "Helio vy at EMS", "Helio vz at EMS",
-                        "Earth x at EMS (Helio)", "Earth y at EMS (Helio)",
-                        "Earth z at EMS (Helio)", "Earth vx at EMS (Helio)",
-                        "Earth vy at EMS (Helio)", "Earth vz at EMS (Helio)",
-                        "Moon x at EMS (Helio)", "Moon y at EMS (Helio)",
-                        "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
-                        "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)", "Entry Date to EMS"]
 
-        cluster_df = master[desired_cols]
-        cluster_df.loc[:, ('Earth (Helio) x at Capture', 'Earth (Helio) y at Capture', 'Earth (Helio) z at Capture',
-                           'Earth (Helio) vx at Capture', 'Earth (Helio) vy at Capture', 'Earth (Helio) vz at Capture')] \
-            = np.array([helio_E_x, helio_E_y, helio_E_z, helio_E_vx, helio_E_vy, helio_E_vz]).T
-
-        outlier_list = ['NESC00003lpo', 'NESC00000gRv', 'NESC00007H9p', 'NESC0000xeFs', 'NESC0000j1j1', 'NESC0000Fn0J',
-                        'NESC0000EM8J', 'NESC0000EEZg', 'NESC0000BvQW', 'NESC0000BRzH', 'NESC0000aZ2t', 'NESC0000AY6C']
-
-        cluster_df = cluster_df[~cluster_df['Object id'].isin(outlier_list)]
-        cluster_df.reset_index(drop=True, inplace=True)
-
-        cluster_df.to_csv('cluster_df.csv', sep=' ', header=True, index=False)
-
+        ########################################
+        # Minimum Apparent magnitude as seen from Sun-Earth L_1
         #########################################
+
+        # parallel implementation
+        pool = multiprocessing.Pool()
+        results = pool.map(mm_analyzer.minimum_apparent_magnitude, master['Object id'])
+        pool.close()
+
+        # repack list according to index
+        repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
+
+        # create your columns according to the data in results
+        master['Min_SunEarthL1_V'] = repacked_results[0]  # min apparent mag.
+        master['Min_SunEarthL1_V_index'] = repacked_results[1]  # corresponding index
+
+        master.to_csv(dest_path, sep=' ', header=True, index=False)
+
+
+        #####################################
+        # Earth helio at capture
+        ####################################
+
+        # helio_E_x = master['Helio x at Capture'] - master['Geo x at Capture']
+        # helio_E_y = master['Helio y at Capture'] - master['Geo y at Capture']
+        # helio_E_z = master['Helio z at Capture'] - master['Geo z at Capture']
+        # helio_E_vx = master['Helio vx at Capture'] - master['Geo vx at Capture']
+        # helio_E_vy = master['Helio vy at Capture'] - master['Geo vy at Capture']
+        # helio_E_vz = master['Helio vz at Capture'] - master['Geo vz at Capture']
+        # desired_cols = ['Object id', '1 Hill Duration', 'Min. Distance', 'EMS Duration', 'Retrograde', 'STC',
+        #                 'Became Minimoon', 'Taxonomy',
+        #                 '3 Hill Duration', 'Helio x at Capture', 'Helio y at Capture',
+        #                 'Helio z at Capture', 'Helio vx at Capture',
+        #                 'Helio vy at Capture', 'Helio vz at Capture',
+        #                 'Moon (Helio) x at Capture',
+        #                 'Moon (Helio) y at Capture',
+        #                 'Moon (Helio) z at Capture',
+        #                 'Moon (Helio) vx at Capture',
+        #                 'Moon (Helio) vy at Capture',
+        #                 'Moon (Helio) vz at Capture', 'Capture Date', "Helio x at EMS", "Helio y at EMS",
+        #                 "Helio z at EMS",
+        #                 "Helio vx at EMS", "Helio vy at EMS", "Helio vz at EMS",
+        #                 "Earth x at EMS (Helio)", "Earth y at EMS (Helio)",
+        #                 "Earth z at EMS (Helio)", "Earth vx at EMS (Helio)",
+        #                 "Earth vy at EMS (Helio)", "Earth vz at EMS (Helio)",
+        #                 "Moon x at EMS (Helio)", "Moon y at EMS (Helio)",
+        #                 "Moon z at EMS (Helio)", "Moon vx at EMS (Helio)",
+        #                 "Moon vy at EMS (Helio)", "Moon vz at EMS (Helio)", "Entry Date to EMS"]
+        #
+        # cluster_df = master[desired_cols]
+        # cluster_df.loc[:, ('Earth (Helio) x at Capture', 'Earth (Helio) y at Capture', 'Earth (Helio) z at Capture',
+        #                    'Earth (Helio) vx at Capture', 'Earth (Helio) vy at Capture', 'Earth (Helio) vz at Capture')] \
+        #     = np.array([helio_E_x, helio_E_y, helio_E_z, helio_E_vx, helio_E_vy, helio_E_vz]).T
+        #
+        # outlier_list = ['NESC00003lpo', 'NESC00000gRv', 'NESC00007H9p', 'NESC0000xeFs', 'NESC0000j1j1', 'NESC0000Fn0J',
+        #                 'NESC0000EM8J', 'NESC0000EEZg', 'NESC0000BvQW', 'NESC0000BRzH', 'NESC0000aZ2t', 'NESC0000AY6C']
+        #
+        # cluster_df = cluster_df[~cluster_df['Object id'].isin(outlier_list)]
+        # cluster_df.reset_index(drop=True, inplace=True)
+        #
+        # cluster_df.to_csv('cluster_df.csv', sep=' ', header=True, index=False)
+
+        #######################################
         # parrelelized version of short term capture
-        ###########################################
+        #########################################
         # pool = multiprocessing.Pool()
         # results = pool.map(mm_analyzer.short_term_capture, master['Object id'])  # input your function
         # pool.close()
 
-        ##########################################
+        ########################################
         # alpha beta jacobi
-        #########################################
+        #######################################
         # for root, dirs, files in os.walk(dest_path):
         #
         #     for file in files:
@@ -707,7 +731,7 @@ class MmMain():
         # master['Entry to EMS Index'] = repacked_results[11]  # ems start index
         # master['Exit Date to EMS'] = repacked_results[12]  # end ems
         # master['Exit Index to EMS'] = repacked_results[13]  # end ems index
-
+        #
         # pd.set_option('display.max_rows', None)
         # print(master['Entry Date to EMS'])
 
@@ -727,6 +751,8 @@ class MmMain():
 
         # write the master to csv - only if your sure you have the right data, otherwise in will be over written
         # master.to_csv(dest_path, sep=' ', header=True, index=False)
+
+        return
 
     @staticmethod
     def cluster_viz_main(master_file):
@@ -2605,9 +2631,9 @@ if __name__ == '__main__':
 
     mm_main = MmMain()
 
-    destination_path = os.path.join(os.getcwd(), 'minimoon_files_oorb')
-    destination_file = destination_path + '/minimoon_master_final.csv'
-    start_file = destination_path + '/minimoon_master_final (copy).csv'
+    destination_path = '/media/aeromec/Seagate Desktop Drive/minimoon_files_oorb'
+    destination_file = destination_path + '/minimoon_master_new.csv'
+    start_file = destination_path + '/minimoon_master_new (copy).csv'
 
     ########################################
     # Integrate Initializations
@@ -2671,7 +2697,7 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    # mm_main.add_new_column(start_file, destination_file)
+    mm_main.add_new_column(start_file, destination_file)
 
     ########################################
     # clustering graphs

@@ -28,13 +28,13 @@ from space_fncs import model
 from space_fncs import jacobi
 from scipy.integrate import odeint
 import matplotlib.ticker as ticker
+from scipy.interpolate import CubicSpline
 
 cds.enable()
 numpy.set_printoptions(threshold=sys.maxsize)
 
 
 class MmAnalyzer:
-
     # Properties
     capture_start = ""
     capture_end = ""
@@ -101,7 +101,7 @@ class MmAnalyzer:
         print("Using data to analyze synthetic minimoon: " + str(data.loc[0, "Object id"]))
 
         # Important constants
-        mu = grav_param # Nominal Earth mass parameter (m3/s2)
+        mu = grav_param  # Nominal Earth mass parameter (m3/s2)
         aupd = u.AU / u.d  # AU per day
         mps = u.m / u.s  # Meters per second
 
@@ -120,15 +120,15 @@ class MmAnalyzer:
 
         # Variables to provide information of condition 2 (see function definition)
         satisfied_2 = np.zeros((N, steps))  # ==1 when condition two is satisfied ==0 otherwise
-        time_satisfied_2 = np.zeros((N, 1))   # The number of steps for which condition two is satisfied
+        time_satisfied_2 = np.zeros((N, 1))  # The number of steps for which condition two is satisfied
         epsilons = np.zeros((N, steps))  # Specific energy relative to Earth
         vs_rel = np.zeros((N, steps))  # Relative velocity of asteroid wrt to Earth
         # This is the same as 'distances': rs_rel_e = np.zeros((N, steps))  # Relative distance of asteroid wrt to Earth
 
         # Variables to provide information of condition 3 (see function definition)
-        satisfied_3 = np.zeros((N, 1))   # If the object satisfied condition 3 from the function definition during its
+        satisfied_3 = np.zeros((N, 1))  # If the object satisfied condition 3 from the function definition during its
         # temp capture
-        revolutions = np.zeros((N, 1))   # The number of revolutions completed during the temp capture
+        revolutions = np.zeros((N, 1))  # The number of revolutions completed during the temp capture
         cum_angle_ecl_jpl = 0.  # The cumulative angle over the temporary capture
         thresh = 200
         used_3 = np.zeros((N, steps))
@@ -187,7 +187,7 @@ class MmAnalyzer:
             v = np.sqrt(vx_j ** 2 + vy_j ** 2 + vz_j ** 2)  # Velocity of minimoon relative observer - meters per second
             v_rel_j[0, j] = v
             r = (d * u.AU).to(u.m) / u.m  # Distance of minimoon reative to observer - in meters
-            epsilon = v**2/2 - mu / r  # Specific energy relative to observer in question
+            epsilon = v ** 2 / 2 - mu / r  # Specific energy relative to observer in question
             epsilon_j[0, j] = epsilon
 
             # Check if condition 2 from the function definition is satisfied
@@ -235,7 +235,7 @@ class MmAnalyzer:
                     used_3[0, j] = 1
 
         pd.set_option('display.max_rows', None)
-        pd.set_option('display.float_format', lambda x: '%.5f' %x)
+        pd.set_option('display.float_format', lambda x: '%.5f' % x)
         distances[0, :] = distance[0, :]
         vs_rel[0, :] = v_rel_j[0, :]
         epsilons[0, :] = epsilon_j[0, :]
@@ -364,7 +364,8 @@ class MmAnalyzer:
 
         return designation
 
-    def get_data_mm_oorb_w_horizons(self, mm_parser, data, int_step, perturbers, start_time, end_time, grav_param, minimoon):
+    def get_data_mm_oorb_w_horizons(self, mm_parser, data, int_step, perturbers, start_time, end_time, grav_param,
+                                    minimoon):
         """
         Retrieve data, organize as pandas dataframe, store to file, starting with fedorets data
 
@@ -387,7 +388,7 @@ class MmAnalyzer:
         elif int_step == 1 / 24:
             int_step_unit = 'h'
             int_step_jpl = 1
-        elif int_step == 1/24/60:
+        elif int_step == 1 / 24 / 60:
             int_step_unit = 'm'
             int_step_jpl = 1
         else:
@@ -491,8 +492,6 @@ class MmAnalyzer:
         # by default horizons eph have one more value than oorb eph
         print("Generating ephimerides data using Horizons JPL...")
 
-
-
         ################################################
         # Earth wrt to Sun
         ###############################################
@@ -511,8 +510,8 @@ class MmAnalyzer:
         ###############################################
         print("Moon with respect to Sun...")
         obj_moon = Horizons(id='301', location=sun_obs,
-                           epochs={'start': start_time, 'stop': end_time,
-                                   'step': str(int_step_jpl) + int_step_jpl_unit})
+                            epochs={'start': start_time, 'stop': end_time,
+                                    'step': str(int_step_jpl) + int_step_jpl_unit})
 
         # Get the vectors table from JPL horizons
         eph_moon = obj_moon.vectors()
@@ -552,7 +551,7 @@ class MmAnalyzer:
 
         # element 2 - distance
         new_data["Distance"] = [np.sqrt((eph[0, i, 24] - eph_sun[i]['x']) ** 2 + (eph[0, i, 25] - eph_sun[i]['y']) ** 2
-                                        + (eph[0, i, 26] - eph_sun[i]['z'])**2) for i in range(nsteps)]
+                                        + (eph[0, i, 26] - eph_sun[i]['z']) ** 2) for i in range(nsteps)]
 
         # for elements 3 to 8, state vector should be converted to cometary and keplarian orbital elements
         orbits = np.zeros([nsteps, 1, 12], dtype=np.double, order='F')
@@ -561,15 +560,15 @@ class MmAnalyzer:
         for i in range(nsteps):
             # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
             orbits[i, :] = [i, eph[0, i, 24], eph[0, i, 25], eph[0, i, 26], eph[0, i, 27], eph[0, i, 28],
-                           eph[0, i, 29], 1., eph[0, i, 0], 1., self.H, 0.15]
+                            eph[0, i, 29], 1., eph[0, i, 0], 1., self.H, 0.15]
 
         # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
         new_orbits_com, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                                                                                  in_element_type=2, in_center=sun_c)
+                                                                        in_element_type=2, in_center=sun_c)
 
         # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
         new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                                                                                  in_element_type=3, in_center=sun_c)
+                                                                        in_element_type=3, in_center=sun_c)
         print("...done")
 
         # element 3 - Helio q
@@ -613,12 +612,12 @@ class MmAnalyzer:
         for i in range(nsteps):
             # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
             orbits_geo[i, :, :] = [i, new_data["Geo x"].iloc[i], new_data["Geo y"].iloc[i], new_data["Geo z"].iloc[i],
-                                new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
-                                1., eph[0, i, 0], 1, self.H, 0.15]
+                                   new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
+                                   1., eph[0, i, 0], 1, self.H, 0.15]
 
         # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
         new_orbits_com_geo, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits_geo,
-                                                                                  in_element_type=2, in_center=earth_c)
+                                                                            in_element_type=2, in_center=earth_c)
         print("...Done")
 
         # element 21 - Geo q
@@ -673,7 +672,7 @@ class MmAnalyzer:
         print("...done")
 
         # Encapsulate comparison graphs into function to compare with fedorets data
-        #if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
+        # if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
         #    self.compare(eph, data, new_data)
 
         return new_data
@@ -724,7 +723,8 @@ class MmAnalyzer:
         orbit[0][5] = master_i["Helio vy at Capture"].iloc[0]  # vy
         orbit[0][6] = master_i["Helio vz at Capture"].iloc[0]  # vz
         orbit[0][7] = 1.  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
-        orbit[0][8] = Time(master_i['Capture Date'].iloc[0], format='jd', scale='utc').to_value('mjd', 'long')  # Epoch of osculating
+        orbit[0][8] = Time(master_i['Capture Date'].iloc[0], format='jd', scale='utc').to_value('mjd',
+                                                                                                'long')  # Epoch of osculating
         orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
         orbit[0][10] = master_i['H'].iloc[0]  # absolute magnitude of object (H)
         orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
@@ -736,7 +736,7 @@ class MmAnalyzer:
         # Open orb generates eph
         # Time and observer information
         obscode = earth_obs  # Where are you observing from: https://minorplanetcenter.net/iau/lists/ObsCodesF.html
-        mjds = np.arange(start_time.to_value('mjd', 'long'),  end_time.to_value('mjd', 'long'), int_step)
+        mjds = np.arange(start_time.to_value('mjd', 'long'), end_time.to_value('mjd', 'long'), int_step)
         epochs = np.array(list(zip(mjds, [1] * len(mjds))), dtype=np.double, order='F')
 
         # Check output format from: https://github.com/oorb/oorb/tree/master/python
@@ -748,7 +748,6 @@ class MmAnalyzer:
                                                      in_perturbers=perturbers)
         if err != 0: raise Exception("OpenOrb Exception: error code = %d" % err)
         print("...done")
-
 
         #############################################
         # Generate 39 element data frame containing results of the integrations: elements from 0-38
@@ -762,7 +761,6 @@ class MmAnalyzer:
         "Moon x (Helio)", "Moon y (Helio)", "Moon z (Helio)", "Moon vx (Helio)", "Moon vy (Helio)",
         "Moon vz (Helio)", "Synodic x", "Synodic y", "Synodic z", "Eclip Long"
         """
-
 
         data_temp = {}
         new_data = pd.DataFrame(data_temp)
@@ -785,15 +783,15 @@ class MmAnalyzer:
         for i in range(nsteps):
             # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
             orbits[i, :] = [i, eph[0, i, 24], eph[0, i, 25], eph[0, i, 26], eph[0, i, 27], eph[0, i, 28],
-                           eph[0, i, 29], 1., eph[0, i, 0], 1., master_i['H'].iloc[0], 0.15]
+                            eph[0, i, 29], 1., eph[0, i, 0], 1., master_i['H'].iloc[0], 0.15]
 
         # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
         new_orbits_com, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                                                                                  in_element_type=2, in_center=sun_c)
+                                                                        in_element_type=2, in_center=sun_c)
 
         # new orbit is in keplarian: [id a e i Om om M type epoch timescale H G]
         new_orbits_kep, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits,
-                                                                                  in_element_type=3, in_center=sun_c)
+                                                                        in_element_type=3, in_center=sun_c)
         print("...done")
 
         # element 3 - Helio q
@@ -837,12 +835,12 @@ class MmAnalyzer:
         for i in range(nsteps):
             # the original orbit is in cartesian:[id x y z vx vy vz type epoch timescale H G]
             orbits_geo[i, :, :] = [i, new_data["Geo x"].iloc[i], new_data["Geo y"].iloc[i], new_data["Geo z"].iloc[i],
-                                new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
-                                1., eph[0, i, 0], 1, master_i['H'].iloc[0], 0.15]
+                                   new_data["Geo vx"].iloc[i], new_data["Geo vy"].iloc[i], new_data["Geo vz"].iloc[i],
+                                   1., eph[0, i, 0], 1, master_i['H'].iloc[0], 0.15]
 
         # new orbit is in cometary: [id q e i Om om tp type epoch timescale H G]
         new_orbits_com_geo, err = pyoorb.pyoorb.oorb_element_transformation(in_orbits=orbits_geo,
-                                                                                  in_element_type=2, in_center=earth_c)
+                                                                            in_element_type=2, in_center=earth_c)
         print("...Done")
 
         # element 21 - Geo q
@@ -897,7 +895,7 @@ class MmAnalyzer:
         print("...done")
 
         # Encapsulate comparison graphs into function to compare with fedorets data
-        #if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
+        # if (minimoon != '2006 RH120') and (minimoon != '2020 CD3'):
         # self.compare(eph, old_data, new_data)
 
         return new_data
@@ -912,7 +910,6 @@ class MmAnalyzer:
         :param new_data: new dataframe of orbit integration results
         :return:
         """
-
 
         fig = plt.figure()
         ax = plt.axes(projection='3d')
@@ -940,7 +937,8 @@ class MmAnalyzer:
         ax = plt.axes(projection='3d')
         ax.plot3D(data["Earth x (Helio)"], data["Earth y (Helio)"], data["Earth z (Helio)"], 'green', linewidth=10,
                   label='Fedorets')
-        ax.plot3D(new_data["Earth x (Helio)"], new_data["Earth y (Helio)"], new_data["Earth z (Helio)"], 'gray', linewidth=7,
+        ax.plot3D(new_data["Earth x (Helio)"], new_data["Earth y (Helio)"], new_data["Earth z (Helio)"], 'gray',
+                  linewidth=7,
                   label='Open Orb')
         ax.plot3D(eph[0, :, 30], eph[0, :, 31], eph[0, :, 32], 'blue', label='Open Orb 2')
         leg = ax.legend(loc='best')
@@ -1092,7 +1090,8 @@ class MmAnalyzer:
         mm_parser = MmParser("", population_dir, "")
 
         # Initial: will be result if no file found with that name
-        results = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
+        results = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
+                   np.nan, np.nan,
                    np.full(6, np.nan), np.full(6, np.nan), np.full(6, np.nan)]
 
         for root, dirs, files in os.walk(population_dir):
@@ -1115,7 +1114,8 @@ class MmAnalyzer:
                                                                  rows2['Helio z'] - rows2['Moon z (Helio)']])) for
                                         i, rows2 in data.iterrows()]
 
-                distance_emb_synodic = np.sqrt(emb_xyz_synodic[:, 0] ** 2 + emb_xyz_synodic[:, 1] ** 2 + emb_xyz_synodic[:, 2] ** 2)
+                distance_emb_synodic = np.sqrt(
+                    emb_xyz_synodic[:, 0] ** 2 + emb_xyz_synodic[:, 1] ** 2 + emb_xyz_synodic[:, 2] ** 2)
 
                 # identify when inside the 3 earth hill sphere
                 three_hill_under = np.NAN * np.zeros((len(distance_emb_synodic),))
@@ -1131,7 +1131,7 @@ class MmAnalyzer:
                 # identify periapses that exist in the 3 earth hill sphere
                 local_minima_indices = argrelextrema(captured_distance, np.less)[0]
                 local_dist = captured_distance[local_minima_indices]
-                time = data["Julian Date"] #- data["Julian Date"].iloc[0]
+                time = data["Julian Date"]  # - data["Julian Date"].iloc[0]
                 local_time = time.iloc[local_minima_indices]
 
                 # identify when inside the sphere of influence of the EMS
@@ -1182,8 +1182,8 @@ class MmAnalyzer:
                 local_dist_1hill = captured_distance_1hill[local_minima_indices_1hill]
                 local_time_1hill = time.iloc[local_minima_indices_1hill]
 
-                ems_line = r_ems * np.ones(len(time),)
-                three_eh_line = three_eh * np.ones(len(time),)
+                ems_line = r_ems * np.ones(len(time), )
+                three_eh_line = three_eh * np.ones(len(time), )
                 two_eh_line = two_hill * np.ones(len(time), )
                 one_eh_line = one_hill * np.ones(len(time), )
 
@@ -1217,17 +1217,17 @@ class MmAnalyzer:
                 stc_end_idx = three_hill_idxs[-1]
                 stc_end = data['Julian Date'].iloc[stc_end_idx]
 
-
                 # State of TCO at entrance to SOI EMS
                 if in_ems_idxs:
 
                     Earth_state = data[['Earth x (Helio)', 'Earth y (Helio)', 'Earth z (Helio)', 'Earth vx (Helio)',
-                                  'Earth vy (Helio)', 'Earth vz (Helio)']].iloc[in_ems_idxs[0]]
+                                        'Earth vy (Helio)', 'Earth vz (Helio)']].iloc[in_ems_idxs[0]]
                     # Helio TCO at entrance to SOI EMS
-                    TCO_state = data[['Helio x', 'Helio y', 'Helio z', 'Helio vx', 'Helio vy', 'Helio vz']].iloc[in_ems_idxs[0]]
+                    TCO_state = data[['Helio x', 'Helio y', 'Helio z', 'Helio vx', 'Helio vy', 'Helio vz']].iloc[
+                        in_ems_idxs[0]]
                     # Helio Moon at entrance to SOI EMS
                     moon_state = data[['Moon x (Helio)', 'Moon y (Helio)', 'Moon z (Helio)', 'Moon vx (Helio)',
-                                    'Moon vy (Helio)', 'Moon vz (Helio)']].iloc[in_ems_idxs[0]]
+                                       'Moon vy (Helio)', 'Moon vz (Helio)']].iloc[in_ems_idxs[0]]
 
                     # fig3 = plt.figure()
                     # ax = fig3.add_subplot(111, projection='3d')
@@ -1427,7 +1427,7 @@ class MmAnalyzer:
                                                  h_r_E_p2, h_v_E_p2, h_r_M_p2, h_v_M_p2, date_mjd_p2))
 
         C_r_TCO_nondim = C_r_TCO / r_sE
-        C_v_TCO_nondim = C_v_TCO/ (np.linalg.norm(omega) * r_sE)
+        C_v_TCO_nondim = C_v_TCO / (np.linalg.norm(omega) * r_sE)
         C_r_TCO_nondim_p1 = C_r_TCO_p1 / r_sE_p1
         C_v_TCO_nondim_p1 = C_v_TCO_p1 / (np.linalg.norm(omega_p1) * r_sE_p1)
         C_r_TCO_nondim_p2 = C_r_TCO_p2 / r_sE_p2
@@ -1444,8 +1444,8 @@ class MmAnalyzer:
         #     found = 1
         #     i = i + 1
         #     grab state
-            # good_r_coh = C_r_TCO_nondim
-            # good_v_coh = C_v_TCO_nondim
+        # good_r_coh = C_r_TCO_nondim
+        # good_v_coh = C_v_TCO_nondim
         #
         # i = i - 1
         #
@@ -1456,7 +1456,7 @@ class MmAnalyzer:
         index_span = in_ems_idxs - i  # also number of hours for hour long integration step
         additional = 1000
         num_days = (index_span + additional) * (
-                    data["Julian Date"].iloc[1] - data["Julian Date"].iloc[0])
+                data["Julian Date"].iloc[1] - data["Julian Date"].iloc[0])
         space = 8000  # number of points to plot
         start = 0  # start time
         end_time = num_days * (np.linalg.norm(omega))
@@ -1500,6 +1500,101 @@ class MmAnalyzer:
                 break
 
         return C_r_TCO_nondim_final, C_v_TCO_nondim_final
+
+    def minimum_apparent_magnitude(self, object_id):
+
+        print(object_id)
+
+        # get master file
+        population_dir = '/media/aeromec/Seagate Desktop Drive/minimoon_files_oorb'
+        population_file = 'minimoon_master_new.csv'
+        population_file_path = population_dir + '/' + population_file
+        mm_parser = MmParser("", population_dir, "")
+        data = mm_parser.parse_master_new_new(population_file_path)
+
+        # get row of current object
+        data_i = data[data['Object id'] == object_id]
+
+        # get asb mag of current object
+        abs_mag = data_i['H'].values
+
+        # get traj data
+        name = str(object_id) + ".csv"
+        master = mm_parser.mm_file_parse_new(population_dir + '/' + name)
+
+        # calc V along for that asteroid along its entire trajectory and return the min and its index
+        g_12 = 0.64  # for C-type asteroid, minimoon most likely this ******************************** check this
+        g_1 = 0.9529 * g_12 + 0.02162 if g_12 >= 0.2 else 0.7527 * g_12 + 0.06164
+        g_2 = -0.6125 * g_12 + 0.5572 if g_12 >= 0.2 else -0.9612 * g_12 + 0.6270
+
+        # points of the cubic splines to be fit
+        alphas_phi_12 = [0, 7.5, 30, 60, 90, 120, 150, 180]  # the phase angles of points along spline fits
+        phi_1_values = [1, 7.5e-1, 3.3486016e-1, 1.3410560e-1, 5.1104756e-2, 2.1465687e-2, 3.6396989e-3,
+                        0]  # values of phase function
+        phi_2_values = [1, 9.25e-1, 6.2884169e-1, 3.1755495e-1, 1.2716367e-1, 2.2373903e-2, 1.6505689e-4,
+                        0]  # for phi_2
+        alphas_phi_3 = [0, 0.3, 1, 2, 4, 8, 12, 20, 30, 60, 90, 180]  # phase angles of spline points for phi_3
+        phi_3_values = [1, 8.3381185e-1, 5.7735424e-1, 4.2144772e-1, 2.3174230e-1, 1.0348178e-1, 6.1733473e-2,
+                        1.6107006e-2, 0, 0, 0, 0]  # for phi_3
+
+        # fit the cubic splines with boundary conditions specified based on the first order requirements
+        phi_1 = CubicSpline(alphas_phi_12, phi_1_values,
+                            bc_type=(
+                                (1,
+                                 -1.909859317102744029226605160470172344413515748885477384972008128 * 2 * np.pi / 360),
+                                (1,
+                                 -9.1328612e-2 * 2 * np.pi / 360)))  # -6/pi derivative condition at beginning of spline for phi_1,  derivative condition at end of spline for phi_1
+        phi_2 = CubicSpline(alphas_phi_12, phi_2_values,
+                            bc_type=(
+                                (1,
+                                 -0.572957795130823208767981548141051703324054724665643215491602438 * 2 * np.pi / 360),
+                                (1,
+                                 -8.6573138e-8 * 2 * np.pi / 360)))  # -9 / (5 * np.pi) derivative condition at beginning of spline for phi_2 , derivative condition at end of spline for phi_2
+        phi_3 = CubicSpline(alphas_phi_3, phi_3_values,
+                            bc_type=((1, -1.0630097e-1 * 2 * np.pi / 360),
+                                     (1, 0 * 2 * np.pi / 360)))  # derivative condition at beginning of spline for phi_3
+
+        # calc sun asteroid distance
+        master['sun-ast-dist'] = np.linalg.norm(master.loc[:, ["Helio x", "Helio y", "Helio z"]].values, axis=1)
+
+        # for sun-earth l1, recenter frame to l1
+        master['Synodic x'] -= 0.01
+
+        # calc observer-ast-dist
+        master['sunearthl1-ast-dist'] = np.linalg.norm(master.loc[:, ['Synodic x', 'Synodic y', 'Synodic z']].values,
+                                                       axis=1)
+
+        obs_sun_dist = 0.99  # sun-earth l1
+
+        # calc phase_angle
+        master['phase_angle'] = np.rad2deg(
+            np.arccos(master['sun-ast-dist'] ** 2 + master['sunearthl1-ast-dist'] ** 2 - obs_sun_dist ** 2) / (
+                    2 * master['sun-ast-dist'] * master['sunearthl1-ast-dist']))
+
+        phi_1_s = phi_1(master['phase_angle'] * 2 * np.pi / 360)
+        phi_2_s = phi_2(master['phase_angle'] * 2 * np.pi / 360)
+        phi_3_s = phi_3(master['phase_angle'] * 2 * np.pi / 360)
+
+        psi_s = g_1 * phi_1_s + g_2 * phi_2_s + (1 - g_1 - g_2) * phi_3_s
+
+        print(psi_s)
+
+        v_s = abs_mag + 5 * np.log10(
+            master['sun-ast-dist'] * master['sunearthl1-ast-dist']) - 2.5 * np.log10(psi_s)
+
+        master['apparent_magnitude'] = v_s
+
+        # move it back
+        master['Synodic x'] += 0.01
+
+        # master.to_csv(population_dir + '/' + name, sep=' ', header=True, index=False)
+
+        min_value = master['apparent_magnitude'].min()  # Get the min value
+        min_index = master['apparent_magnitude'].idxmin()  # Get the index
+        results = [min_value, min_index]
+        print(results)
+
+        return results
 
     def alpha_beta_jacobi(self, object_id):
 
@@ -1617,7 +1712,6 @@ class MmAnalyzer:
             #         good_omega = omega
             #         C_J_nondimensional = jacobi(np.hstack((good_r, good_v)), mu)
             #         C_J_dimensional = C_J_nondimensional * (r_sE * km_in_au) ** 2 * (np.linalg.norm(good_omega) / seconds_in_day) ** 2
-
 
             good_r = C_r_TCO
             good_v = C_v_TCO_2
@@ -1781,33 +1875,32 @@ class MmAnalyzer:
         #     one_hill_start_idx = in_1hill_idxs[0]
         #     one_hill_end_idx = in_1hill_idxs[-1]
 
-            # Get Eccentricity during 1 Hill
-            # geo_e_in_one_hill = data_i['Geo e'].iloc[one_hill_start_idx:one_hill_end_idx]
+        # Get Eccentricity during 1 Hill
+        # geo_e_in_one_hill = data_i['Geo e'].iloc[one_hill_start_idx:one_hill_end_idx]
 
-            # Get perihelion during 1 Hill
-            # geo_q_in_one_hill = data_i['Geo q'].iloc[one_hill_start_idx:one_hill_end_idx]
+        # Get perihelion during 1 Hill
+        # geo_q_in_one_hill = data_i['Geo q'].iloc[one_hill_start_idx:one_hill_end_idx]
 
-            # Get inclination during 1 Hill
-            # geo_i_in_one_hill = data_i['Geo i'].iloc[one_hill_start_idx:one_hill_end_idx]
+        # Get inclination during 1 Hill
+        # geo_i_in_one_hill = data_i['Geo i'].iloc[one_hill_start_idx:one_hill_end_idx]
 
-            # Calculate means
-            # geo_e_mean = np.mean(geo_e_in_one_hill)
-            # geo_i_mean = np.mean(geo_i_in_one_hill)
-            # geo_q_mean = np.mean(geo_q_in_one_hill)
+        # Calculate means
+        # geo_e_mean = np.mean(geo_e_in_one_hill)
+        # geo_i_mean = np.mean(geo_i_in_one_hill)
+        # geo_q_mean = np.mean(geo_q_in_one_hill)
 
-            # Calculate the std deviation
-            # geo_e_std_u = np.std(geo_e_in_one_hill)
-            # geo_q_std_u = np.std(geo_q_in_one_hill)
-            # geo_i_std_u = np.std(geo_i_in_one_hill)
-            #in percent
-            # geo_e_std = geo_e_std_u / geo_e_mean * 100
-            # geo_i_std = geo_i_std_u / geo_i_mean * 100
-            # geo_q_std = geo_q_std_u / geo_q_mean * 100
+        # Calculate the std deviation
+        # geo_e_std_u = np.std(geo_e_in_one_hill)
+        # geo_q_std_u = np.std(geo_q_in_one_hill)
+        # geo_i_std_u = np.std(geo_i_in_one_hill)
+        # in percent
+        # geo_e_std = geo_e_std_u / geo_e_mean * 100
+        # geo_i_std = geo_i_std_u / geo_i_mean * 100
+        # geo_q_std = geo_q_std_u / geo_q_mean * 100
 
-            # spec_energy_in_one_hill = spec_energy_in_one_hill_temp[one_hill_start_idx:one_hill_end_idx]
-            # min_spec_energy = min(spec_energy_in_one_hill)
-            # min_spec_energy_ind = pd.Series(spec_energy_in_one_hill).idxmin()
-
+        # spec_energy_in_one_hill = spec_energy_in_one_hill_temp[one_hill_start_idx:one_hill_end_idx]
+        # min_spec_energy = min(spec_energy_in_one_hill)
+        # min_spec_energy_ind = pd.Series(spec_energy_in_one_hill).idxmin()
 
         # fig = plt.figure()
         # ax1 = fig.add_subplot(2, 3, 1)
@@ -1872,19 +1965,12 @@ class MmAnalyzer:
 
         # plt.show()
 
-
         # Get min distance
         # Get 1 Hill duration
         # Get TCO state vector at capture
         # Get moon state vector at capture
         # Get earth state vector at capture
         # Get epoch at capture
-
-
-
-
-
-
 
         # Add relevant to master
 
