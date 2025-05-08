@@ -1510,7 +1510,7 @@ class MmAnalyzer:
         population_file = 'minimoon_master_new.csv'
         population_file_path = population_dir + '/' + population_file
         mm_parser = MmParser("", population_dir, "")
-        data = mm_parser.parse_master_new_new(population_file_path)
+        data = mm_parser.parse_master_new_new_new(population_file_path)
 
         # get row of current object
         data_i = data[data['Object id'] == object_id]
@@ -1520,10 +1520,10 @@ class MmAnalyzer:
 
         # get traj data
         name = str(object_id) + ".csv"
-        master = mm_parser.mm_file_parse_new(population_dir + '/' + name)
+        master = mm_parser.mm_file_parse_new_new(population_dir + '/' + name)
 
         # calc V along for that asteroid along its entire trajectory and return the min and its index
-        g_12 = 0.64  # for C-type asteroid, minimoon most likely this ******************************** check this
+        g_12 = 0.41  # 2020 CD3: V-type, 2022 NX1: K-type, 2024 PT5: Sv-type
         g_1 = 0.9529 * g_12 + 0.02162 if g_12 >= 0.2 else 0.7527 * g_12 + 0.06164
         g_2 = -0.6125 * g_12 + 0.5572 if g_12 >= 0.2 else -0.9612 * g_12 + 0.6270
 
@@ -1563,13 +1563,18 @@ class MmAnalyzer:
         # calc observer-ast-dist
         master['sunearthl1-ast-dist'] = np.linalg.norm(master.loc[:, ['Synodic x', 'Synodic y', 'Synodic z']].values,
                                                        axis=1)
-
         obs_sun_dist = 0.99  # sun-earth l1
 
         # calc phase_angle
-        master['phase_angle'] = np.rad2deg(
-            np.arccos(master['sun-ast-dist'] ** 2 + master['sunearthl1-ast-dist'] ** 2 - obs_sun_dist ** 2) / (
-                    2 * master['sun-ast-dist'] * master['sunearthl1-ast-dist']))
+        # master['phase_angle'] = (master['sun-ast-dist'] ** 2 + master['sunearthl1-ast-dist'] ** 2 - obs_sun_dist ** 2) / (
+        #             2 * master['sun-ast-dist'] * master['sunearthl1-ast-dist'])
+        # master['phase_angle'] = np.rad2deg(master['sunearthl1-ast-dist'] / master['sun-ast-dist'])
+
+        obs_ast_vecs = master.loc[:, ['Synodic x', 'Synodic y', 'Synodic z']].values
+        sun_ast_vecs = obs_ast_vecs.copy()
+        sun_ast_vecs[:, 0] += 0.99
+        master['phase_angle'] = np.rad2deg(np.arccos(np.einsum('ij,ij->i', obs_ast_vecs, sun_ast_vecs) / np.linalg.norm(obs_ast_vecs, axis=1) / np.linalg.norm(sun_ast_vecs, axis=1)))
+
 
         phi_1_s = phi_1(master['phase_angle'] * 2 * np.pi / 360)
         phi_2_s = phi_2(master['phase_angle'] * 2 * np.pi / 360)
@@ -1577,22 +1582,30 @@ class MmAnalyzer:
 
         psi_s = g_1 * phi_1_s + g_2 * phi_2_s + (1 - g_1 - g_2) * phi_3_s
 
-        print(psi_s)
-
         v_s = abs_mag + 5 * np.log10(
             master['sun-ast-dist'] * master['sunearthl1-ast-dist']) - 2.5 * np.log10(psi_s)
 
         master['apparent_magnitude'] = v_s
 
+
         # move it back
         master['Synodic x'] += 0.01
 
-        # master.to_csv(population_dir + '/' + name, sep=' ', header=True, index=False)
+        master.to_csv(population_dir + '/' + name, sep=' ', header=True, index=False)
 
         min_value = master['apparent_magnitude'].min()  # Get the min value
         min_index = master['apparent_magnitude'].idxmin()  # Get the index
         results = [min_value, min_index]
-        print(results)
+        # print(results)
+        # print(5 * np.log10(
+        #     master['sun-ast-dist'].iloc[master['apparent_magnitude'].idxmin()] * master['sunearthl1-ast-dist'].iloc[master['apparent_magnitude'].idxmin()]))
+        # print(master['phase_angle'].iloc[master['apparent_magnitude'].idxmin()])
+
+        # fig, ax = plt.subplots()
+        # ax.plot(master['Julian Date'], master['apparent_magnitude'])
+        # ax2 = ax.twinx()
+        # ax2.plot(master['Julian Date'], master['sunearthl1-ast-dist'], color='red')
+        # plt.show()
 
         return results
 

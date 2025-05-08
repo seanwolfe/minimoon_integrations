@@ -627,7 +627,7 @@ class MmMain():
         mm_analyzer = MmAnalyzer()
 
         # get the master file - you need a list of initial orbits to integrate with openorb (pyorb)
-        master = mm_parser.parse_master_new_new(dest_path)
+        master = mm_parser.parse_master_new_new_new(dest_path)
 
 
         ########################################
