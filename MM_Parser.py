@@ -566,6 +566,7 @@ class MmParser:
          "Minimum Energy", "Peri-EM-L2", "Average Geo z", "Average Geo vz", "Winding Difference"
         :return:
         """
+        pd.read_csv(file_path, sep=" ")
         master_data = pd.read_csv(file_path, sep=" ", header=0, names=['Object id', 'H', 'D', 'Capture Date',
                                                                        'Helio x at Capture', 'Helio y at Capture',
                                                                        'Helio z at Capture', 'Helio vx at Capture',

@@ -86,6 +86,7 @@ def eci_ecliptic_to_sunearth_synodic(sun_eph, obj_xyz):
     :param sun_eph: the ephemeris x, y, z of the sun with respect to the ECI ecliptic frame 3 x n
     :param obj_xyz: the position of the object in the ECI ecliptic frame 3 x n
     :return: The transformed x, y, z coordinates 3 x n
+    x is towards sun
     """
 
     trans_xyz = np.zeros((3, len(obj_xyz[0])))
@@ -94,7 +95,7 @@ def eci_ecliptic_to_sunearth_synodic(sun_eph, obj_xyz):
     for i in range(0, len(obj_xyz[0])):
 
         # Construct unit vector to Sun at that time
-        u_s = - sun_eph[:, i] / np.linalg.norm(sun_eph[:, i])
+        u_s = sun_eph[:, i] / np.linalg.norm(sun_eph[:, i])
 
         # Angle between x-axis in ECI and x-axis in synodic frame
         theta = np.arctan2(u_s[1],  u_s[0])
