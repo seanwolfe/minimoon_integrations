@@ -40,6 +40,37 @@ class MmMain():
 
         return
 
+    def add_new_object(self, start_file, destination_file, destination_path, mu_e, st, et, leadtime, perturbers, int_step, object_name):
+        """ you need to add the minimoon info in analyzer directly first"""
+
+        # create parser
+        mm_parser = MmParser("", "", "")
+
+        # create an analyzer
+        mm_analyzer = MmAnalyzer()
+
+        leadtime = leadtime * cds.d
+
+        ####################################################################
+        # Integrating data to generate new data from fedorets original data, generate new data file
+        ####################################################################
+
+        minimoon = object_name
+        start_time = str(Time(st * cds.d - leadtime,
+                              format="jd", scale='utc').to_value('isot'))
+        end_time = str(Time(et * cds.d + leadtime,
+                            format="jd", scale='utc').to_value('isot'))
+
+        new_data = mm_analyzer.get_data_mm_oorb_w_horizons(mm_parser, None, int_step, perturbers,
+                                                           start_time, end_time, mu_e, minimoon)
+
+        new_data.to_csv(destination_path + '/' + minimoon + '.csv', sep=' ', header=True, index=False)
+
+        # add a new row of data to the master file
+        mm_main.add_new_row(new_data, mu_e, mm_analyzer.H, destination_file)
+
+        return
+
     def integrate(self, master_path, mu_e, leadtime, perturbers, int_step):
         """ untested, to be used in conjunction with reintegrated data, not original fedorets data"""
 
@@ -80,9 +111,13 @@ class MmMain():
             if steps < 90000:  # JPL Horizons limit
 
                 if minimoon == '2006 RH120':
-                    mm_analyzer.H = 29.9
+                    mm_analyzer.H = 29.5
                 elif minimoon == '2020 CD3':
-                    mm_analyzer.H = 31.9
+                    mm_analyzer.H = 31.74
+                elif minimoon == '2022 NX1':
+                    mm_analyzer.H = 28.07
+                elif minimoon == '2024 PT5':
+                    mm_analyzer.H = 27.45
                 else:
                     mm_analyzer.H = mm_parser.mm_data['x7'].iloc[i]
 
@@ -164,7 +199,7 @@ class MmMain():
 
         return
 
-    def add_new_row(self, new_data, mu_e, H, destination_path):
+    def add_new_row(self, new_data, mu_e, H, destination_file):
 
         ########################################################################################################
         # generate a new master file, which contains pertinant information about the capture for each minimoon
@@ -423,7 +458,7 @@ class MmMain():
                                  "EMS Start Index": mm_analyzer.ems_start_idx, "EMS End": mm_analyzer.ems_end,
                                  "EMS End Index": mm_analyzer.ems_end_idx}, index=[1])
 
-        new_row2.to_csv(destination_path + '/' + 'minimoon_master_final.csv', sep=' ', mode='a', header=False,
+        new_row2.to_csv(destination_file, sep=' ', mode='a', header=False,
                         index=False)
 
         return new_row2
@@ -627,7 +662,7 @@ class MmMain():
         mm_analyzer = MmAnalyzer()
 
         # get the master file - you need a list of initial orbits to integrate with openorb (pyorb)
-        master = mm_parser.parse_master_new_new_new(dest_path)
+        master = pd.read_csv(master_path)
 
 
         ########################################
@@ -635,18 +670,52 @@ class MmMain():
         #########################################
 
         # parallel implementation
+        # pool = multiprocessing.Pool()
+        # results = pool.map(mm_analyzer.minimum_apparent_magnitude, master['Object id'])
+        # pool.close()
+
+        # repack list according to index
+        # repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
+
+        # create your columns according to the data in results
+        # master['Min_SunEarthL1_V'] = repacked_results[0]  # min apparent mag.
+        # master['Min_SunEarthL1_V_index'] = repacked_results[1]  # corresponding index
+
+        # master.to_csv(dest_path, sep=',', header=True, index=False)
+
+        ########################################
+        # Minimum Apparent magnitude as seen from Earth
+        #########################################
+
+        # parallel implementation
+        # pool = multiprocessing.Pool()
+        # results = pool.map(mm_analyzer.minimum_apparent_magnitude_earth, master['Object id'])
+        # pool.close()
+
+        # repack list according to index
+        # repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
+
+        # create your columns according to the data in results
+        # master['Min_Earth_V'] = repacked_results[0]  # min apparent mag.
+        # master['Min_Earth_V_index'] = repacked_results[1]  # corresponding index
+
+        # master.to_csv(dest_path, sep=',', header=True, index=False)
+
+
+        #######################################
+        # Average Apparent magnitude as seen from L_1 (inside 1 Hill)
         pool = multiprocessing.Pool()
-        results = pool.map(mm_analyzer.minimum_apparent_magnitude, master['Object id'])
+        results = pool.map(mm_analyzer.average_apparent_magnitude_l1_and_Earth, master['Object id'])
         pool.close()
 
         # repack list according to index
         repacked_results = [list(items) for items in zip(*results)]  # when running parallel processing
 
         # create your columns according to the data in results
-        master['Min_SunEarthL1_V'] = repacked_results[0]  # min apparent mag.
-        master['Min_SunEarthL1_V_index'] = repacked_results[1]  # corresponding index
+        master['Avg_L1_V'] = repacked_results[0]  # min apparent mag.
+        master['Avg_Earth_V'] = repacked_results[1]
 
-        master.to_csv(dest_path, sep=' ', header=True, index=False)
+        master.to_csv(dest_path, sep=',', header=True, index=False)
 
 
         #####################################
@@ -2632,14 +2701,14 @@ if __name__ == '__main__':
     mm_main = MmMain()
 
     destination_path = '/media/aeromec/Seagate Desktop Drive/minimoon_files_oorb'
-    destination_file = destination_path + '/minimoon_master_new.csv'
-    start_file = destination_path + '/minimoon_master_new (copy).csv'
+    destination_file = destination_path + '/minimoon_master_with_L1_geo_omega_w_earth.csv'
+    start_file = destination_path + '/minimoon_master_with_L1_geo_omega_w_earth.csv'
 
     ########################################
     # Integrate Initializations
     #########################################
 
-    if False:
+    if True:
         # Constants
         mu_e = const.GM_earth.value  # Nominal Earth mass parameter (m3/s2)
 
@@ -2657,12 +2726,16 @@ if __name__ == '__main__':
         uranus = 1
         neptune = 1
         pluto = 1
-        moon = 0
+        moon = 1
         perturbers = [mercury, venus, earth, mars, jupiter, saturn, uranus, neptune, pluto, moon]
 
         int_step = 1 / 24
 
         # mm_main.integrate(destination_file, mu_e, leadtime, perturbers, int_step)
+        object_name='2024 PT5'
+        start_time=2460582.5000000
+        end_time=2460642.5000000
+        mm_main.add_new_object(start_file, destination_file, destination_path, mu_e, start_time, end_time, leadtime, perturbers, int_step, object_name)
 
     #########################################
     # integrating data in parallel - check all functions for initializations within
@@ -2697,7 +2770,7 @@ if __name__ == '__main__':
     # adding a new column
     ######################################
 
-    mm_main.add_new_column(start_file, destination_file)
+    # mm_main.add_new_column(start_file, destination_file)
 
     ########################################
     # clustering graphs

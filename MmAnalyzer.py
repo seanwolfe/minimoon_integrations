@@ -448,6 +448,40 @@ class MmAnalyzer:
             orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
             orbit[0][10] = 31.74  # absolute magnitude of object (H)
             orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
+        elif minimoon == "2022 NX1":
+            # NX1 orbit - id = 1
+            # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from
+            # the JPL horizons file
+            orbit[0][0] = 1.0
+            orbit[0][1] = 1.001890319761709  # semimajor axis
+            orbit[0][2] = 0.02319694083292023  # eccentricity
+            orbit[0][3] = np.deg2rad(1.246174566232931)  # Inclination (rad)
+            orbit[0][4] = np.deg2rad(287.9922192042926)  # Longitude of Ascending node (rad)
+            orbit[0][5] = np.deg2rad(190.4955802990382)  # Argument of Periapsis (rad)
+            orbit[0][6] = np.deg2rad(182.0745110264518)  # Mean anomaly (rad)
+            orbit[0][7] = 3.0  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
+            orbit[0][8] = Time(2459784.5, format='jd').to_value('mjd', 'long')  # Epoch of perihelion (MJD)
+            orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
+            orbit[0][10] = 28.07  # absolute magnitude of object (H)
+            self.H = 28.07
+            orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
+        elif minimoon == "2024 PT5":
+            # NX1 orbit - id = 1
+            # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from
+            # the JPL horizons file
+            orbit[0][0] = 1.0
+            orbit[0][1] = 1.012228628670663  # semimajor axis
+            orbit[0][2] = 0.02141074038624791  # eccentricity
+            orbit[0][3] = np.deg2rad(1.518377382131216)  # Inclination (rad)
+            orbit[0][4] = np.deg2rad(305.1069316209851)  # Longitude of Ascending node (rad)
+            orbit[0][5] = np.deg2rad(116.8074860094156)  # Argument of Periapsis (rad)
+            orbit[0][6] = np.deg2rad(326.4855643317721)  # Mean anomaly (rad)
+            orbit[0][7] = 3.0  # Type of orbit ID 1:Cartesian 2:Cometary 3:Keplerian
+            orbit[0][8] = Time(2460603.5, format='jd').to_value('mjd', 'long')  # Epoch of perihelion (MJD)
+            orbit[0][9] = 1.0  # timescale type of the epochs provided; integer value: UTC: 1, UT1: 2, TT: 3, TAI: 4
+            orbit[0][10] = 27.45  # absolute magnitude of object (H)
+            self.H = 27.45
+            orbit[0][11] = 0.15  # photometric slope parameter of the target - G from HG model
         else:
             # A synthetic minimoon orbit
             # For Keplerian orbit initialization - you have to specify the heliocentric ecliptic osculating elements from
@@ -1501,6 +1535,32 @@ class MmAnalyzer:
 
         return C_r_TCO_nondim_final, C_v_TCO_nondim_final
 
+    def average_apparent_magnitude_l1_and_Earth(self, object_id):
+
+        print(object_id)
+
+        # get master file
+        population_dir = '/media/aeromec/Seagate Desktop Drive/minimoon_files_oorb'
+        population_file = 'minimoon_master_new_V.csv'
+        population_file_path = population_dir + '/' + population_file
+        data = pd.read_csv(population_file_path)
+
+        # get row of current object
+        data_i = data[data['Object id'] == object_id]
+
+        # get traj data
+        name = str(object_id) + ".csv"
+        master = pd.read_csv(population_dir + '/' + name, sep=' ')
+
+        inside_hill = master[master['Distance'] <= 0.01]
+        avg_vl1 = inside_hill['apparent_magnitude'].mean()
+        avg_vearth = inside_hill['apparent_magnitude_earth'].mean()
+
+        result = [avg_vl1, avg_vearth]
+        print(result)
+
+        return result
+
     def minimum_apparent_magnitude(self, object_id):
 
         print(object_id)
@@ -1509,8 +1569,8 @@ class MmAnalyzer:
         population_dir = '/media/aeromec/Seagate Desktop Drive/minimoon_files_oorb'
         population_file = 'minimoon_master_new.csv'
         population_file_path = population_dir + '/' + population_file
-        mm_parser = MmParser("", population_dir, "")
-        data = mm_parser.parse_master_new_new_new(population_file_path)
+        data = pd.read_csv(population_file_path)
+
 
         # get row of current object
         data_i = data[data['Object id'] == object_id]
@@ -1520,7 +1580,8 @@ class MmAnalyzer:
 
         # get traj data
         name = str(object_id) + ".csv"
-        master = mm_parser.mm_file_parse_new_new(population_dir + '/' + name)
+        master = pd.read_csv(population_dir + '/' + name, sep=' ')
+
 
         # calc V along for that asteroid along its entire trajectory and return the min and its index
         g_12 = 0.41  # 2020 CD3: V-type, 2022 NX1: K-type, 2024 PT5: Sv-type
@@ -1563,7 +1624,7 @@ class MmAnalyzer:
         # calc observer-ast-dist
         master['sunearthl1-ast-dist'] = np.linalg.norm(master.loc[:, ['Synodic x', 'Synodic y', 'Synodic z']].values,
                                                        axis=1)
-        obs_sun_dist = 0.99  # sun-earth l1
+
 
         # calc phase_angle
         # master['phase_angle'] = (master['sun-ast-dist'] ** 2 + master['sunearthl1-ast-dist'] ** 2 - obs_sun_dist ** 2) / (
@@ -1572,13 +1633,13 @@ class MmAnalyzer:
 
         obs_ast_vecs = master.loc[:, ['Synodic x', 'Synodic y', 'Synodic z']].values
         sun_ast_vecs = obs_ast_vecs.copy()
-        sun_ast_vecs[:, 0] += 0.99
+        sun_ast_vecs[:, 0] -= 0.99
         master['phase_angle'] = np.rad2deg(np.arccos(np.einsum('ij,ij->i', obs_ast_vecs, sun_ast_vecs) / np.linalg.norm(obs_ast_vecs, axis=1) / np.linalg.norm(sun_ast_vecs, axis=1)))
 
 
-        phi_1_s = phi_1(master['phase_angle'] * 2 * np.pi / 360)
-        phi_2_s = phi_2(master['phase_angle'] * 2 * np.pi / 360)
-        phi_3_s = phi_3(master['phase_angle'] * 2 * np.pi / 360)
+        phi_1_s = phi_1(master['phase_angle'])
+        phi_2_s = phi_2(master['phase_angle'])
+        phi_3_s = phi_3(master['phase_angle'])
 
         psi_s = g_1 * phi_1_s + g_2 * phi_2_s + (1 - g_1 - g_2) * phi_3_s
 
@@ -1595,6 +1656,96 @@ class MmAnalyzer:
 
         min_value = master['apparent_magnitude'].min()  # Get the min value
         min_index = master['apparent_magnitude'].idxmin()  # Get the index
+        results = [min_value, min_index]
+        # print(results)
+        # print(5 * np.log10(
+        #     master['sun-ast-dist'].iloc[master['apparent_magnitude'].idxmin()] * master['sunearthl1-ast-dist'].iloc[master['apparent_magnitude'].idxmin()]))
+        # print(master['phase_angle'].iloc[master['apparent_magnitude'].idxmin()])
+
+        # fig, ax = plt.subplots()
+        # ax.plot(master['Julian Date'], master['apparent_magnitude'])
+        # ax2 = ax.twinx()
+        # ax2.plot(master['Julian Date'], master['sunearthl1-ast-dist'], color='red')
+        # plt.show()
+
+        return results
+
+    def minimum_apparent_magnitude_earth(self, object_id):
+
+        print(object_id)
+
+        # get master file
+        population_dir = '/media/aeromec/Seagate Desktop Drive/minimoon_files_oorb'
+        population_file = 'minimoon_master_new.csv'
+        population_file_path = population_dir + '/' + population_file
+        data = pd.read_csv(population_file_path)
+
+        # get row of current object
+        data_i = data[data['Object id'] == object_id]
+
+        # get asb mag of current object
+        abs_mag = data_i['H'].values
+
+        # get traj data
+        name = str(object_id) + ".csv"
+        master = pd.read_csv(population_dir + '/' + name, sep=' ')
+
+        # calc V along for that asteroid along its entire trajectory and return the min and its index
+        g_12 = 0.41  # 2020 CD3: V-type, 2022 NX1: K-type, 2024 PT5: Sv-type
+        g_1 = 0.9529 * g_12 + 0.02162 if g_12 >= 0.2 else 0.7527 * g_12 + 0.06164
+        g_2 = -0.6125 * g_12 + 0.5572 if g_12 >= 0.2 else -0.9612 * g_12 + 0.6270
+
+        # points of the cubic splines to be fit
+        alphas_phi_12 = [0, 7.5, 30, 60, 90, 120, 150, 180]  # the phase angles of points along spline fits
+        phi_1_values = [1, 7.5e-1, 3.3486016e-1, 1.3410560e-1, 5.1104756e-2, 2.1465687e-2, 3.6396989e-3,
+                        0]  # values of phase function
+        phi_2_values = [1, 9.25e-1, 6.2884169e-1, 3.1755495e-1, 1.2716367e-1, 2.2373903e-2, 1.6505689e-4,
+                        0]  # for phi_2
+        alphas_phi_3 = [0, 0.3, 1, 2, 4, 8, 12, 20, 30, 60, 90, 180]  # phase angles of spline points for phi_3
+        phi_3_values = [1, 8.3381185e-1, 5.7735424e-1, 4.2144772e-1, 2.3174230e-1, 1.0348178e-1, 6.1733473e-2,
+                        1.6107006e-2, 0, 0, 0, 0]  # for phi_3
+
+        # fit the cubic splines with boundary conditions specified based on the first order requirements
+        phi_1 = CubicSpline(alphas_phi_12, phi_1_values,
+                            bc_type=(
+                                (1,
+                                 -1.909859317102744029226605160470172344413515748885477384972008128 * 2 * np.pi / 360),
+                                (1,
+                                 -9.1328612e-2 * 2 * np.pi / 360)))  # -6/pi derivative condition at beginning of spline for phi_1,  derivative condition at end of spline for phi_1
+        phi_2 = CubicSpline(alphas_phi_12, phi_2_values,
+                            bc_type=(
+                                (1,
+                                 -0.572957795130823208767981548141051703324054724665643215491602438 * 2 * np.pi / 360),
+                                (1,
+                                 -8.6573138e-8 * 2 * np.pi / 360)))  # -9 / (5 * np.pi) derivative condition at beginning of spline for phi_2 , derivative condition at end of spline for phi_2
+        phi_3 = CubicSpline(alphas_phi_3, phi_3_values,
+                            bc_type=((1, -1.0630097e-1 * 2 * np.pi / 360),
+                                     (1, 0 * 2 * np.pi / 360)))  # derivative condition at beginning of spline for phi_3
+
+
+        obs_ast_vecs = master.loc[:, ['Synodic x', 'Synodic y', 'Synodic z']].values
+        sun_ast_vecs = obs_ast_vecs.copy()
+        sun_ast_vecs[:, 0] -= 1
+        master['phase_angle_earth'] = np.rad2deg(np.arccos(np.einsum('ij,ij->i', obs_ast_vecs, sun_ast_vecs) / np.linalg.norm(obs_ast_vecs, axis=1) / np.linalg.norm(sun_ast_vecs, axis=1)))
+
+
+        phi_1_s = phi_1(master['phase_angle_earth'])
+        phi_2_s = phi_2(master['phase_angle_earth'])
+        phi_3_s = phi_3(master['phase_angle_earth'])
+
+        psi_s = g_1 * phi_1_s + g_2 * phi_2_s + (1 - g_1 - g_2) * phi_3_s
+
+        v_s = abs_mag + 5 * np.log10(
+            master['sun-ast-dist'] * master['Distance']) - 2.5 * np.log10(psi_s)
+
+        master['apparent_magnitude_earth'] = v_s
+
+
+
+        master.to_csv(population_dir + '/' + name, sep=' ', header=True, index=False)
+
+        min_value = master['apparent_magnitude_earth'].min()  # Get the min value
+        min_index = master['apparent_magnitude_earth'].idxmin()  # Get the index
         results = [min_value, min_index]
         # print(results)
         # print(5 * np.log10(
